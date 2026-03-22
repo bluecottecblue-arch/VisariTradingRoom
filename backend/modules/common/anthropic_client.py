@@ -37,13 +37,19 @@ _USAGE_SUMMARY: Dict[str, dict] = {
 }
 
 _DEFAULT_MAX_TOKENS = {
-    "parse": 8192,
-    "formalize": 8192,
-    "botgen": 8192,
+    "parse": 4096,
+    "formalize": 4096,
+    "botgen": 7168,
 }
 
 _DEFAULT_COSTS_PER_MILLION = {
     "claude-sonnet-4-20250514": (3.0, 15.0),
+}
+
+_ESTIMATED_SYSTEM_TOKENS = {
+    "parse": 650,
+    "formalize": 900,
+    "botgen": 1200,
 }
 
 
@@ -92,9 +98,28 @@ def get_anthropic_client():
 
 
 def compact_json(payload: Any) -> str:
+    payload = prune_payload(payload)
     if isinstance(payload, str):
         return payload.strip()
     return json.dumps(payload, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+
+
+def prune_payload(payload: Any) -> Any:
+    if isinstance(payload, dict):
+        cleaned = {}
+        for key, value in payload.items():
+            pruned = prune_payload(value)
+            if pruned in (None, "", [], {}):
+                continue
+            cleaned[key] = pruned
+        return cleaned
+    if isinstance(payload, list):
+        cleaned = [prune_payload(item) for item in payload]
+        return [item for item in cleaned if item not in (None, "", [], {})]
+    if isinstance(payload, str):
+        stripped = payload.strip()
+        return stripped or None
+    return payload
 
 
 def get_default_max_tokens(module: str) -> int:
@@ -103,6 +128,26 @@ def get_default_max_tokens(module: str) -> int:
     if override.isdigit():
         return int(override)
     return _DEFAULT_MAX_TOKENS.get(module, 2048)
+
+
+def estimate_tokens_from_chars(chars: int) -> int:
+    return max(1, int(round(max(0, chars) / 4.0)))
+
+
+def estimate_stage_budget(module: str, payload: Any, expected_output_ratio: float = 0.6) -> dict:
+    model = get_anthropic_model(module)
+    prompt = compact_json(payload)
+    input_tokens = estimate_tokens_from_chars(len(prompt)) + _ESTIMATED_SYSTEM_TOKENS.get(module, 500)
+    max_tokens = get_default_max_tokens(module)
+    output_tokens = max(256, min(max_tokens, int(max_tokens * expected_output_ratio)))
+    return {
+        "module": module,
+        "model": model,
+        "estimated_input_tokens": input_tokens,
+        "estimated_output_tokens": output_tokens,
+        "max_tokens": max_tokens,
+        "estimated_cost_usd": round(_estimate_cost_usd(model, input_tokens, output_tokens), 6),
+    }
 
 
 async def invoke_text(

@@ -1,6 +1,12 @@
 // VisariTradingRoom — Tipi TypeScript condivisi
 
 export type WorkflowStatus = 'VALID' | 'NEEDS_INPUT' | 'INVALID' | 'GENERATION_FAILED'
+export type FinalVerdict =
+  | 'REJECT'
+  | 'NEEDS_RESEARCH'
+  | 'PAPER_TRADE_ONLY'
+  | 'LIMITED_LIVE_TEST'
+  | 'PRODUCTION_CANDIDATE'
 
 export interface UsageInfo {
   module: string
@@ -26,6 +32,15 @@ export interface ValidationInfo {
   ready_for_formalization?: boolean
   ready_for_generation?: boolean
   ready_for_download?: boolean
+}
+
+export interface PreflightStageEstimate {
+  enabled: boolean
+  estimated_input_tokens: number
+  estimated_output_tokens: number
+  max_tokens: number
+  estimated_cost_usd: number
+  reason: string
 }
 
 export interface RequiredInput {
@@ -105,6 +120,19 @@ export interface ParseResult {
   usage: UsageInfo
 }
 
+export interface PreflightResult {
+  status: WorkflowStatus
+  message: string
+  blocking_items: number
+  completeness_score: number
+  ambiguities: Ambiguity[]
+  required_inputs: RequiredInput[]
+  validation: ValidationInfo
+  expected_stages: Record<'parse' | 'formalize' | 'botgen', PreflightStageEstimate>
+  estimated_total_cost_usd: number
+  next_recommended_action: string
+}
+
 export interface FormalSpec {
   session_id: string
   status: WorkflowStatus
@@ -175,6 +203,141 @@ export interface BiasCheckResult {
   recommendation: string
 }
 
+export interface StatisticalValidationResult {
+  sample_rules: {
+    trade_count: number
+    hard_minimum_trades: number
+    recommended_trades: number
+    strong_trades: number
+    status: 'TOO_SMALL' | 'LIMITED' | 'ADEQUATE' | 'STRONG'
+  }
+  confidence_intervals: {
+    mean_return_per_trade_r: { estimate: number; ci_95_low: number; ci_95_high: number }
+    hit_rate: { estimate: number; ci_95_low: number; ci_95_high: number }
+    expectancy_r: { estimate: number; ci_95_low: number; ci_95_high: number }
+    sharpe_like: { estimate: number; ci_95_low: number; ci_95_high: number }
+  }
+  bootstrap: {
+    n_bootstrap: number
+    mean_r: { p5: number; p50: number; p95: number }
+    hit_rate: { p5: number; p50: number; p95: number }
+    sharpe_like: { p5: number; p50: number; p95: number }
+    positive_expectancy_probability: number
+  }
+  distribution_diagnostics: {
+    skew: number
+    kurtosis_excess: number
+    tail_concentration: number
+    median_r: number
+    std_r: number
+  }
+  subperiod_stability: {
+    periods: Array<{
+      label: string
+      trade_count: number
+      expectancy_r: number
+      hit_rate: number
+      total_r: number
+    }>
+    stability_score: number
+  }
+  significance_proxy: {
+    t_stat_like: number
+    p_value_proxy: number
+    confidence_label: string
+    note: string
+  }
+  warnings: string[]
+}
+
+export interface RobustnessSuite {
+  stress_scenarios: Array<{
+    label: string
+    spread_multiplier: number
+    slippage_multiplier: number
+    commission_multiplier: number
+    total_return_pct: number
+    expectancy_r: number
+    max_drawdown_pct: number
+    sharpe_ratio: number
+    trade_count: number
+  }>
+  heatmap: Array<{
+    spread_multiplier: number
+    cells: Array<{
+      slippage_multiplier: number
+      total_return_pct: number
+      expectancy_r: number
+    }>
+  }>
+  cost_robustness_score: number
+  parameter_fragility_score: number
+  overfit_suspicion_score: number
+  oos_degradation_score: number
+  robustness_score: number
+  summary: string
+}
+
+export interface RegimeAnalysisResult {
+  by_regime: Array<{
+    regime: string
+    trend_regime: string
+    volatility_regime: string
+    trade_count: number
+    expectancy_r: number
+    win_rate: number
+    drawdown_r: number
+    contribution_to_total_r_pct: number
+  }>
+  dependence_score: number
+  warning: string
+  market_regime_distribution: Array<{
+    regime: string
+    bar_share: number
+  }>
+}
+
+export interface RiskReviewResult {
+  guards: {
+    daily_drawdown_guard_pct: number
+    equity_kill_switch_pct: number
+    consecutive_losses_guard: number
+    max_exposure_pct: number
+  }
+  metrics: {
+    worst_daily_return_pct: number
+    risk_concentration_pct: number
+    risk_of_ruin_proxy: number
+    variance_pressure_score: number
+  }
+  warnings: string[]
+  risk_score: number
+}
+
+export interface FinalDecisionResult {
+  verdict: FinalVerdict
+  overall_score: number
+  score_breakdown: Record<string, number>
+  reasons: string[]
+  blockers: string[]
+  warnings: string[]
+  generate_bot_allowed: boolean
+  export_allowed: boolean
+  confidence_label: string
+  policy_snapshot?: Record<string, number>
+}
+
+export interface ResearchGovernanceResult {
+  strategy_id: string
+  strategy_version: number
+  analysis_timestamp: string
+  config_snapshot: Record<string, unknown>
+  metrics_snapshot: Record<string, unknown>
+  final_verdict: FinalVerdict
+  reasons_for_verdict: string[]
+  audit_trail: Record<string, unknown>
+}
+
 export interface BacktestResult {
   session_id?: string
   in_sample: BacktestMetrics
@@ -198,7 +361,14 @@ export interface BacktestResult {
     interpretation: string
   }
   bias_check: BiasCheckResult
+  statistical_validation: StatisticalValidationResult
+  robustness_suite: RobustnessSuite
+  regime_analysis: RegimeAnalysisResult
+  risk_review: RiskReviewResult
+  final_decision: FinalDecisionResult
+  research_governance: ResearchGovernanceResult
   data_info?: Record<string, unknown>
+  methodology_notes?: string[]
 }
 
 export interface BotResult {

@@ -18,7 +18,8 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
   const [result, setResult] = useState<BotResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState<'doc' | 'code' | 'limits'>('doc')
-  const generationBlocked = formalSpec?.status !== 'VALID'
+  const verdict = backtestResult?.final_decision
+  const generationBlocked = formalSpec?.status !== 'VALID' || verdict?.generate_bot_allowed === false
 
   const generate = async () => {
     if (generationBlocked) {
@@ -76,13 +77,15 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
         </Alert>
 
         {generationBlocked && (
-          <Alert type="error" title="Generazione bloccata prima di spendere token">
-            La specifica formale non è in stato `VALID`. Completa gli input mancanti o risolvi le ambiguità prima di tentare la generazione del bot.
-          </Alert>
-        )}
+        <Alert type="error" title="Generazione bloccata prima di spendere token">
+          {formalSpec?.status !== 'VALID'
+            ? 'La specifica formale non è in stato VALID. Completa gli input mancanti o risolvi le ambiguità prima di tentare la generazione del bot.'
+            : `Il research layer ha bloccato la generazione: verdict ${verdict?.verdict}.`}
+        </Alert>
+      )}
 
-        {backtestResult && (
-          <div className="p-4 bg-stone-900 border border-stone-700 rounded space-y-2">
+      {backtestResult && (
+        <div className="p-4 bg-stone-900 border border-stone-700 rounded space-y-2">
             <div className="text-stone-400 text-xs font-bold uppercase tracking-wider">
               Riepilogo backtest — base per il bot
             </div>
@@ -114,12 +117,31 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
                 </span>
               </div>
               <div>
+                <span className="text-stone-500 text-xs">Verdict </span>
+                <span className={`font-bold ${
+                  verdict?.verdict === 'REJECT' || verdict?.verdict === 'NEEDS_RESEARCH'
+                    ? 'text-red-400'
+                    : verdict?.verdict === 'PAPER_TRADE_ONLY'
+                      ? 'text-amber-400'
+                      : 'text-green-400'
+                }`}>
+                  {verdict?.verdict ?? '—'}
+                </span>
+              </div>
+              <div>
                 <span className="text-stone-500 text-xs">Max DD </span>
                 <span className="text-stone-200 font-bold">
                   {backtestResult.out_of_sample.max_drawdown_pct?.toFixed(1) ?? '—'}%
                 </span>
               </div>
             </div>
+            {verdict && (
+              <div className="pt-2 text-xs text-stone-400 space-y-1">
+                {[...(verdict.blockers || []), ...(verdict.reasons || [])].slice(0, 3).map((item, index) => (
+                  <div key={index}>• {item}</div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -171,7 +193,9 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
 
       {!generationSucceeded && (
         <Alert type="error" title="Download disabilitato">
-          {(result?.code_validation?.errors || []).join(' · ') || 'Il backend ha bloccato il download perché il codice è vuoto, incompleto o non valido.'}
+          {(result?.code_validation?.errors || []).join(' · ') ||
+            error ||
+            'Il backend ha bloccato il download perché il codice è vuoto, incompleto o non valido.'}
         </Alert>
       )}
 

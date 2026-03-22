@@ -11,8 +11,15 @@ import uuid
 from modules.parser.strategy_parser import StrategyParser
 from modules.formalizer.formalizer import StrategyFormalizer
 from modules.botgen.mql5_generator import MQL5Generator
-from modules.common.anthropic_client import get_usage_summary
-from api.routers.backtest import get_task_for_session
+from modules.common.anthropic_client import estimate_stage_budget, get_usage_summary
+from modules.common.strategy_validation import (
+    STATUS_INVALID,
+    build_bot_result,
+    validate_strategy_intake,
+)
+from modules.research.decision_engine import is_promoted_verdict
+from db.database import InMemorySessionStore
+from api.routers.backtest import get_task_for_session, get_completed_results_for_session
 
 router = APIRouter()
 
@@ -69,6 +76,28 @@ class ParseResponse(BaseModel):
     usage: dict[str, Any] = Field(default_factory=dict)
 
 
+class PreflightStageEstimate(BaseModel):
+    enabled: bool
+    estimated_input_tokens: int = 0
+    estimated_output_tokens: int = 0
+    max_tokens: int = 0
+    estimated_cost_usd: float = 0.0
+    reason: str = ""
+
+
+class PreflightResponse(BaseModel):
+    status: str
+    message: str
+    blocking_items: int
+    completeness_score: float
+    ambiguities: list[dict[str, Any]] = Field(default_factory=list)
+    required_inputs: list[dict[str, Any]] = Field(default_factory=list)
+    validation: dict[str, Any] = Field(default_factory=dict)
+    expected_stages: dict[str, PreflightStageEstimate]
+    estimated_total_cost_usd: float = 0.0
+    next_recommended_action: str
+
+
 class AmbiguityResolution(BaseModel):
     session_id: str
     resolutions: dict[str, str]
@@ -110,6 +139,76 @@ class BotGenerationResponse(BaseModel):
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 
+
+def _build_preflight_estimates(intake: dict, validation_result: dict) -> dict[str, PreflightStageEstimate]:
+    blocking = int((validation_result.get("validation") or {}).get("blocking_issues", 0))
+    if blocking > 0 or validation_result.get("status") != "VALID":
+        disabled_reason = "Pipeline bloccata dal pre-check locale finché mancano dettagli codificabili."
+        return {
+            "parse": PreflightStageEstimate(enabled=False, reason=disabled_reason),
+            "formalize": PreflightStageEstimate(enabled=False, reason=disabled_reason),
+            "botgen": PreflightStageEstimate(enabled=False, reason=disabled_reason),
+        }
+
+    parse_budget = estimate_stage_budget("parse", intake, expected_output_ratio=0.22)
+    formalize_budget = estimate_stage_budget(
+        "formalize",
+        {"intake": intake, "parsed": validation_result.get("structured_strategy", {})},
+        expected_output_ratio=0.2,
+    )
+    botgen_budget = estimate_stage_budget(
+        "botgen",
+        {"intake": intake, "formalization_expected": "formal_spec + state_machine + parameters"},
+        expected_output_ratio=0.72,
+    )
+    return {
+        "parse": PreflightStageEstimate(
+            enabled=True,
+            reason="La strategia è abbastanza specifica per la revisione AI.",
+            **parse_budget,
+        ),
+        "formalize": PreflightStageEstimate(
+            enabled=True,
+            reason="Formalizzazione disponibile solo dopo parse valida.",
+            **formalize_budget,
+        ),
+        "botgen": PreflightStageEstimate(
+            enabled=True,
+            reason="Generazione consentita solo dopo formal spec valida e verdict research promosso.",
+            **botgen_budget,
+        ),
+    }
+
+
+@router.post("/preflight", response_model=PreflightResponse)
+async def strategy_preflight(req: StrategyIntakeRequest):
+    """Controllo locale gratuito: codificabilità e budget stimato prima di spendere token."""
+    result = validate_strategy_intake(req.model_dump())
+    estimates = _build_preflight_estimates(req.model_dump(), result)
+    total_cost = round(
+        sum(stage.estimated_cost_usd for stage in estimates.values() if stage.enabled),
+        6,
+    )
+    blocking_items = int((result.get("validation") or {}).get("blocking_issues", 0))
+    next_action = (
+        "Puoi procedere con la revisione AI."
+        if result.get("status") == "VALID"
+        else "Completa i dettagli bloccanti prima di spendere token."
+    )
+    return PreflightResponse(
+        status=result.get("status", "INVALID"),
+        message=result.get("message", ""),
+        blocking_items=blocking_items,
+        completeness_score=float(result.get("completeness_score", 0.0)),
+        ambiguities=result.get("ambiguities", []),
+        required_inputs=result.get("required_inputs", []),
+        validation=result.get("validation", {}),
+        expected_stages=estimates,
+        estimated_total_cost_usd=total_cost,
+        next_recommended_action=next_action,
+    )
+
+
 @router.post("/parse", response_model=ParseResponse)
 async def parse_strategy(req: StrategyIntakeRequest):
     """Step 1: parse the strategy with Claude, detect ambiguities."""
@@ -118,6 +217,7 @@ async def parse_strategy(req: StrategyIntakeRequest):
         result = await parser.parse(session_id=session_id, intake=req.model_dump())
         # Store parsed result so formalizer can read it by session_id
         formalizer.store_parsed(session_id, result, req.model_dump())
+        InMemorySessionStore.save(session_id, "parsed_bundle", {"parsed": result, "intake": req.model_dump()})
         return ParseResponse(session_id=session_id, **result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Errore parsing: {str(e)}")
@@ -134,6 +234,7 @@ async def resolve_ambiguities(req: AmbiguityResolution):
         # Store formal spec so bot_gen can read it by session_id
         if result.get("status") == "VALID":
             bot_gen.store_formal_spec(req.session_id, result)
+            InMemorySessionStore.save(req.session_id, "formal_spec_bundle", result)
         return FormalSpecResponse(session_id=req.session_id, **result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Errore formalizzazione: {str(e)}")
@@ -143,6 +244,34 @@ async def resolve_ambiguities(req: AmbiguityResolution):
 async def generate_bot(session_id: str):
     """Step 3: generate MQL5 Expert Advisor from the formal spec."""
     try:
+        backtest_results = get_completed_results_for_session(session_id)
+        final_decision = (backtest_results or {}).get("final_decision") or {}
+        verdict = final_decision.get("verdict")
+        if verdict and not is_promoted_verdict(verdict):
+            return BotGenerationResponse(
+                session_id=session_id,
+                **build_bot_result(
+                    status=STATUS_INVALID,
+                    message=(
+                        "Generazione bloccata dal research layer: verdict=%s. %s"
+                        % (
+                            verdict,
+                            "; ".join(final_decision.get("blockers") or final_decision.get("reasons") or [])
+                            or "Servono più ricerca e validazione prima del codice.",
+                        )
+                    ),
+                    required_inputs=[
+                        {
+                            "id": "req_research_verdict",
+                            "field": "backtest",
+                            "label": "Migliora il research verdict prima di generare il bot",
+                            "why": "Il bot viene generato solo se il verdict finale è almeno PAPER_TRADE_ONLY.",
+                            "example": "Aumenta il campione OOS, riduci il drawdown o migliora la robustezza.",
+                            "blocking": True,
+                        }
+                    ],
+                ),
+            )
         result = await bot_gen.generate(session_id=session_id)
         return BotGenerationResponse(session_id=session_id, **result)
     except Exception as e:

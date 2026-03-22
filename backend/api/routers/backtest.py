@@ -4,19 +4,32 @@ Gestisce il recupero dati storici, esecuzione backtest, walk-forward, Monte Carl
 """
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+import math
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 import pandas as pd
 import os
 import uuid
+from datetime import datetime, timezone
 
 from modules.backtest.engine import BacktestEngine, BacktestConfig
 from modules.bias.bias_checker import BiasChecker
 from modules.data.data_fetcher import DataFetcher
+from modules.research.statistical_validation import StatisticalValidationSuite
+from modules.research.robustness import RobustnessAnalyzer
+from modules.research.regime_analysis import RegimeAnalyzer
+from modules.research.risk_engine import RiskReviewEngine
+from modules.research.decision_engine import DecisionEngine
+from db.database import InMemorySessionStore
 
 router = APIRouter()
 bias_checker = BiasChecker()
+statistical_suite = StatisticalValidationSuite()
+robustness_analyzer = RobustnessAnalyzer()
+regime_analyzer = RegimeAnalyzer()
+risk_engine = RiskReviewEngine()
+decision_engine = DecisionEngine()
 _executor = ThreadPoolExecutor(max_workers=2)
 
 # Task status store in-memory (in produzione: Redis o DB)
@@ -51,10 +64,14 @@ async def run_backtest(req: BacktestRequest):
 
 def _get_formal_spec_from_session(session_id: str) -> dict:
     """
-    In produzione: recupera dal DB.
-    Demo: ritorna specifica vuota che genera una strategia placeholder.
+    Recupera la specifica formale dallo store condiviso.
+    Se assente, usa un fallback demo esplicito.
     """
+    stored = InMemorySessionStore.get(session_id, "formal_spec_bundle")
+    if stored:
+        return stored
     return {
+        "status": "VALID",
         "formal_spec": {
             "indicators": [
                 {"id": "ema20", "type": "EMA", "params": {"period": 20}, "timeframe": "H1"},
@@ -118,6 +135,31 @@ def _build_strategy_function(formal_spec: dict, params: dict = None):
     return strategy
 
 
+def _build_implementation_context(session_id: str, formal_spec_bundle: dict) -> dict:
+    stored = InMemorySessionStore.get(session_id, "formal_spec_bundle")
+    using_real_spec = bool(stored)
+    completeness = 0.58 if using_real_spec else 0.32
+    return {
+        "formal_spec_source": "session_store" if using_real_spec else "demo_fallback",
+        "strategy_adapter": "ema_crossover_proxy",
+        "completeness": completeness,
+        "notes": (
+            "Il backtest usa ancora un adapter proxy EMA crossover; i risultati servono per research gating, "
+            "non per certificare che l'implementazione MQL5 replichi perfettamente la strategia."
+        ),
+    }
+
+
+def _make_json_safe(value):
+    if isinstance(value, dict):
+        return {key: _make_json_safe(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_make_json_safe(item) for item in value]
+    if isinstance(value, float):
+        return value if math.isfinite(value) else 0.0
+    return value
+
+
 def _deserialize_trades(trades_data: list) -> list:
     """Ricostruisce oggetti Trade dai dati serializzati"""
     from modules.backtest.engine import Trade, TradeDirection
@@ -156,6 +198,13 @@ def get_task_for_session(session_id: str) -> Optional[dict]:
     if not task_id:
         return None
     return {"task_id": task_id, **(_task_store.get(task_id) or {})}
+
+
+def get_completed_results_for_session(session_id: str) -> Optional[dict]:
+    task = get_task_for_session(session_id)
+    if not task or task.get("status") != "complete":
+        return None
+    return task.get("results")
 
 
 @router.get("/providers")
@@ -211,7 +260,7 @@ def _run_backtest_sync(payload: dict) -> dict:
     session_id = payload["session_id"]
     fetcher = DataFetcher()
 
-    formal_spec = _get_formal_spec_from_session(session_id)
+    formal_spec_bundle = _get_formal_spec_from_session(session_id)
     provider = cfg.get("provider", "demo")
     symbol = cfg.get("symbol", "EURUSD")
     timeframe = cfg.get("timeframe", "H1")
@@ -248,7 +297,8 @@ def _run_backtest_sync(payload: dict) -> dict:
         random_seed=cfg.get("random_seed", 42),
     )
     engine = BacktestEngine(backtest_cfg)
-    strategy_fn = _build_strategy_function(formal_spec)
+    strategy_fn = _build_strategy_function(formal_spec_bundle)
+    implementation_context = _build_implementation_context(session_id, formal_spec_bundle)
 
     oos_start = cfg.get("date_oos_start")
     if oos_start:
@@ -268,9 +318,10 @@ def _run_backtest_sync(payload: dict) -> dict:
     wf_results = None
     if cfg.get("run_walk_forward", True) and len(data) > 500:
         print("[Backtest] Walk-forward analysis...")
+        wf_data = data.tail(6000) if len(data) > 6000 else data
         wf_results = engine.run_walk_forward(
-            data=data,
-            strategy_factory=lambda params: _build_strategy_function(formal_spec, params),
+            data=wf_data,
+            strategy_factory=lambda params: _build_strategy_function(formal_spec_bundle, params),
             params_optimizer=lambda train_data: {},
         )
 
@@ -280,15 +331,64 @@ def _run_backtest_sync(payload: dict) -> dict:
         trades_obj = _deserialize_trades(oos_results["trades"])
         mc_results = engine.run_monte_carlo(trades_obj, cfg.get("mc_simulations", 1000))
 
+    regime_results = regime_analyzer.analyze(oos_data, oos_results.get("trades", []))
+    oos_results["stability_by_regime"] = regime_results.get("by_regime", [])
+
     print("[Backtest] Bias check...")
     bias_results = bias_checker.run_all_checks(
-        strategy_spec=formal_spec,
+        strategy_spec=formal_spec_bundle,
         backtest_config=cfg,
         backtest_results={**oos_results, "walk_forward": wf_results},
         optimization_history=None,
     )
 
-    return {
+    statistical_results = statistical_suite.evaluate(oos_results)
+    robustness_results = robustness_analyzer.evaluate(
+        base_config=backtest_cfg,
+        oos_data=oos_data,
+        strategy_fn=strategy_fn,
+        in_sample=is_results,
+        out_of_sample=oos_results,
+        walk_forward=wf_results,
+    )
+    risk_results = risk_engine.evaluate(cfg, oos_results, mc_results, statistical_results)
+    final_decision = decision_engine.evaluate(
+        codifiability_status=formal_spec_bundle.get("status", "VALID"),
+        formal_status=formal_spec_bundle.get("status", "VALID"),
+        implementation_context=implementation_context,
+        in_sample=is_results,
+        out_of_sample=oos_results,
+        bias_check=bias_results,
+        statistical=statistical_results,
+        robustness=robustness_results,
+        regime=regime_results,
+        risk=risk_results,
+        data_info={"provider": provider, "symbol": symbol, "timeframe": timeframe},
+    )
+    governance = {
+        "strategy_id": session_id,
+        "strategy_version": 1,
+        "analysis_timestamp": datetime.now(timezone.utc).isoformat(),
+        "config_snapshot": cfg,
+        "metrics_snapshot": {
+            "oos_total_trades": oos_results.get("total_trades"),
+            "oos_expectancy_r": oos_results.get("expectancy_r"),
+            "oos_sharpe_ratio": oos_results.get("sharpe_ratio"),
+            "oos_max_drawdown_pct": oos_results.get("max_drawdown_pct"),
+            "verdict": final_decision.get("verdict"),
+        },
+        "final_verdict": final_decision.get("verdict"),
+        "reasons_for_verdict": final_decision.get("reasons", []),
+        "audit_trail": {
+            "provider": provider,
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "implementation_context": implementation_context,
+            "cleaning_stats": fetcher.get_cleaning_stats(),
+        },
+    }
+
+    result = {
         "session_id": session_id,
         "data_info": {
             "provider": provider,
@@ -305,10 +405,19 @@ def _run_backtest_sync(payload: dict) -> dict:
         "walk_forward": wf_results,
         "monte_carlo": mc_results,
         "bias_check": bias_results,
+        "statistical_validation": statistical_results,
+        "robustness_suite": robustness_results,
+        "regime_analysis": regime_results,
+        "risk_review": risk_results,
+        "final_decision": final_decision,
+        "research_governance": governance,
         "methodology_notes": [
-            "Le metriche OOS (out-of-sample) sono quelle statisticamente rilevanti",
-            "Il bias check rileva automaticamente i problemi metodologici più comuni",
-            "I risultati in-sample servono solo come confronto — non per decisioni",
-            "Un Sharpe OOS > 1.0 con almeno 100 trade è un buon punto di partenza",
+            "Le metriche OOS (out-of-sample) restano il riferimento principale.",
+            "Il research verdict combina qualità OOS, robustezza, regime, rischio e completezza implementativa.",
+            implementation_context["notes"],
+            "Se il verdict è REJECT o NEEDS_RESEARCH, la generazione bot viene bloccata prima di spendere altri token.",
         ],
     }
+    safe_result = _make_json_safe(result)
+    InMemorySessionStore.save(session_id, "backtest_results_bundle", safe_result)
+    return safe_result

@@ -58,6 +58,9 @@ async function request<T>(
 // ─── Strategy endpoints ───────────────────────────────────────────────────────
 
 export const strategyApi = {
+  preflight: (intake: object) =>
+    request('/api/strategy/preflight', { method: 'POST', body: JSON.stringify(intake) }, 30_000),
+
   parse: (intake: object) =>
     request('/api/strategy/parse', { method: 'POST', body: JSON.stringify(intake) }),
 

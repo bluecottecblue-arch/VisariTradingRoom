@@ -287,12 +287,17 @@ function BacktestResults({
   onContinue: () => void
   onBack: () => void
 }) {
-  const [tab, setTab] = useState<'oos' | 'is' | 'wf' | 'mc' | 'bias'>('oos')
+  const [tab, setTab] = useState<'oos' | 'is' | 'wf' | 'mc' | 'research' | 'robust' | 'regime' | 'risk' | 'bias'>('oos')
   const oos = results.out_of_sample
   const is_ = results.in_sample
   const wf = results.walk_forward
   const mc = results.monte_carlo
   const bias = results.bias_check
+  const stats = results.statistical_validation
+  const robustness = results.robustness_suite
+  const regime = results.regime_analysis
+  const risk = results.risk_review
+  const decision = results.final_decision
 
   const metricColor = (v: number, good: number, bad: number) =>
     v >= good ? 'text-green-400' : v <= bad ? 'text-red-400' : 'text-amber-400'
@@ -302,55 +307,77 @@ function BacktestResults({
     { id: 'is' as const, label: 'In-Sample' },
     ...(wf ? [{ id: 'wf' as const, label: 'Walk-Forward' }] : []),
     ...(mc ? [{ id: 'mc' as const, label: 'Monte Carlo' }] : []),
+    { id: 'research' as const, label: 'Statistica' },
+    { id: 'robust' as const, label: 'Robustezza' },
+    { id: 'regime' as const, label: 'Regimi' },
+    { id: 'risk' as const, label: 'Rischio' },
     { id: 'bias' as const, label: `Bias (${bias.critical_count + bias.high_count} ⚠)` },
   ]
 
-  const canProceed = bias.critical_count === 0
+  const canProceed = decision.generate_bot_allowed
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-amber-400 mb-2">Risultati backtest</h1>
         <p className="text-stone-400 text-sm">
-          Leggi prima la tab <strong className="text-amber-400">★ Out-of-Sample</strong> —
-          sono i numeri che contano. La tab Bias indica la affidabilità metodologica.
+          La pipeline ora valuta non solo performance OOS ma anche statistica, robustezza,
+          dipendenza da regime, rischio operativo e completezza dell&apos;implementazione.
         </p>
       </div>
 
-      {/* Bias headline */}
       <div
         className={`px-4 py-3 border rounded flex items-center justify-between ${
-          bias.critical_count > 0
+          decision.verdict === 'REJECT'
             ? 'border-red-700 bg-red-950/20'
-            : bias.high_count > 0
+            : decision.verdict === 'NEEDS_RESEARCH'
               ? 'border-amber-700 bg-amber-950/20'
-              : 'border-green-800 bg-green-950/10'
+              : decision.verdict === 'PAPER_TRADE_ONLY'
+                ? 'border-blue-700 bg-blue-950/20'
+                : 'border-green-800 bg-green-950/10'
         }`}
       >
-        <span className="text-sm font-bold text-stone-200">
-          Affidabilità metodologica:
-        </span>
-        <span
-          className={`text-sm font-bold ${
-            bias.critical_count > 0
-              ? 'text-red-400'
-              : bias.high_count > 0
-                ? 'text-amber-400'
-                : 'text-green-400'
-          }`}
-        >
-          {bias.overall_reliability}
-        </span>
+        <div className="space-y-1">
+          <div className="text-xs uppercase tracking-[0.2em] text-stone-500">Final Decision Engine</div>
+          <div className="flex items-center gap-3">
+            <VerdictPill verdict={decision.verdict} />
+            <span className="text-stone-300 text-sm">
+              score {decision.overall_score.toFixed(2)} · {decision.confidence_label}
+            </span>
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="text-stone-500 text-xs">Pipeline</div>
+          <div className="text-stone-300 text-sm">
+            codifiability → backtest → research → verdict
+          </div>
+        </div>
       </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <MetricCard label="Codifiability" value={`${(decision.score_breakdown.codifiability * 100).toFixed(0)}%`} />
+        <MetricCard label="Robustness" value={`${(decision.score_breakdown.robustness * 100).toFixed(0)}%`} />
+        <MetricCard label="Regime independence" value={`${(decision.score_breakdown.regime_independence * 100).toFixed(0)}%`} />
+        <MetricCard label="Risk quality" value={`${(decision.score_breakdown.risk_quality * 100).toFixed(0)}%`} />
+      </div>
+
+      {(decision.blockers.length > 0 || decision.reasons.length > 0) && (
+        <Alert type={canProceed ? 'info' : 'error'} title={canProceed ? 'Why this is promoted with caution' : 'Why this is rejected / blocked'}>
+          <div className="space-y-1">
+            {[...decision.blockers, ...decision.reasons].map((item, index) => (
+              <div key={index}>• {item}</div>
+            ))}
+          </div>
+        </Alert>
+      )}
 
       <TabBar tabs={tabs} active={tab} onChange={setTab} />
 
-      {/* OOS Tab */}
       {tab === 'oos' && (
         <div className="space-y-4">
           <p className="text-stone-500 text-xs">
-            ★ Questi sono i dati non visti durante lo sviluppo della strategia.
-            Sono il metro di misura più onesto della performance.
+            ★ Questi sono i dati non visti durante lo sviluppo. Restano il metro di misura
+            più onesto, ma adesso vengono letti insieme al research verdict finale.
           </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <MetricCard label="Sharpe Ratio" value={oos.sharpe_ratio?.toFixed(2)}
@@ -381,7 +408,6 @@ function BacktestResults({
         </div>
       )}
 
-      {/* IS Tab */}
       {tab === 'is' && (
         <div className="space-y-4">
           <Alert type="warning">
@@ -411,7 +437,6 @@ function BacktestResults({
         </div>
       )}
 
-      {/* Walk-forward Tab */}
       {tab === 'wf' && wf && (
         <div className="space-y-4">
           <p className="text-stone-400 text-sm">{wf.interpretation}</p>
@@ -432,7 +457,6 @@ function BacktestResults({
         </div>
       )}
 
-      {/* Monte Carlo Tab */}
       {tab === 'mc' && mc && (
         <div className="space-y-4">
           <p className="text-stone-400 text-sm">{mc.interpretation}</p>
@@ -455,7 +479,117 @@ function BacktestResults({
         </div>
       )}
 
-      {/* Bias Tab */}
+      {tab === 'research' && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <MetricCard label="Trade OOS" value={stats.sample_rules.trade_count} />
+            <MetricCard label="Sample status" value={stats.sample_rules.status} />
+            <MetricCard label="Bootstrap edge +" value={`${(stats.bootstrap.positive_expectancy_probability * 100).toFixed(0)}%`} />
+            <MetricCard label="Stability score" value={`${(stats.subperiod_stability.stability_score * 100).toFixed(0)}%`} />
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <MetricCard label="Mean R 95% CI" value={`${stats.confidence_intervals.mean_return_per_trade_r.ci_95_low.toFixed(2)} → ${stats.confidence_intervals.mean_return_per_trade_r.ci_95_high.toFixed(2)}`} />
+            <MetricCard label="Hit rate 95% CI" value={`${(stats.confidence_intervals.hit_rate.ci_95_low * 100).toFixed(0)}% → ${(stats.confidence_intervals.hit_rate.ci_95_high * 100).toFixed(0)}%`} />
+            <MetricCard label="Skew" value={stats.distribution_diagnostics.skew.toFixed(2)} />
+            <MetricCard label="Tail concentration" value={`${(stats.distribution_diagnostics.tail_concentration * 100).toFixed(0)}%`} />
+          </div>
+          <div className="p-4 bg-stone-900 border border-stone-800 rounded space-y-2">
+            <div className="text-stone-300 text-sm font-bold">Sottoperiodi</div>
+            {stats.subperiod_stability.periods.map((period) => (
+              <div key={period.label} className="grid grid-cols-4 gap-3 text-xs text-stone-400">
+                <div>{period.label}</div>
+                <div>{period.trade_count} trade</div>
+                <div>Expectancy {period.expectancy_r.toFixed(2)}R</div>
+                <div>Win rate {(period.hit_rate * 100).toFixed(0)}%</div>
+              </div>
+            ))}
+          </div>
+          {stats.warnings.length > 0 && (
+            <Alert type="warning" title="Statistical humility">
+              <div className="space-y-1">
+                {stats.warnings.map((warning, index) => (
+                  <div key={index}>• {warning}</div>
+                ))}
+              </div>
+            </Alert>
+          )}
+        </div>
+      )}
+
+      {tab === 'robust' && (
+        <div className="space-y-4">
+          <Alert type="info" title="Robustness suite">
+            {robustness.summary}
+          </Alert>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <MetricCard label="Robustness score" value={`${(robustness.robustness_score * 100).toFixed(0)}%`} />
+            <MetricCard label="Cost robustness" value={`${(robustness.cost_robustness_score * 100).toFixed(0)}%`} />
+            <MetricCard label="Fragility" value={`${(robustness.parameter_fragility_score * 100).toFixed(0)}%`} colorClass={metricColor(-robustness.parameter_fragility_score, -0.2, -0.7)} />
+            <MetricCard label="Overfit suspicion" value={`${(robustness.overfit_suspicion_score * 100).toFixed(0)}%`} colorClass={metricColor(-robustness.overfit_suspicion_score, -0.2, -0.7)} />
+          </div>
+          <HeatmapTable heatmap={robustness.heatmap} />
+          <div className="space-y-2">
+            {robustness.stress_scenarios.map((scenario) => (
+              <div key={scenario.label} className="grid grid-cols-5 gap-3 text-xs p-3 bg-stone-900 border border-stone-800 rounded text-stone-400">
+                <div className="font-bold text-stone-300">{scenario.label}</div>
+                <div>Return {scenario.total_return_pct.toFixed(1)}%</div>
+                <div>Expectancy {scenario.expectancy_r.toFixed(2)}R</div>
+                <div>DD {scenario.max_drawdown_pct.toFixed(1)}%</div>
+                <div>Sharpe {scenario.sharpe_ratio.toFixed(2)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === 'regime' && (
+        <div className="space-y-4">
+          {regime.warning && <Alert type="warning">{regime.warning}</Alert>}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <MetricCard label="Dependence score" value={`${(regime.dependence_score * 100).toFixed(0)}%`} colorClass={metricColor(-regime.dependence_score, -0.25, -0.7)} />
+            <MetricCard label="Regimi attivi" value={regime.by_regime.length} />
+          </div>
+          {regime.by_regime.map((item) => (
+            <div key={item.regime} className="p-4 bg-stone-900 border border-stone-800 rounded">
+              <div className="text-stone-200 font-bold text-sm">{item.regime}</div>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-2 text-xs text-stone-400">
+                <div>{item.trade_count} trade</div>
+                <div>Expectancy {item.expectancy_r.toFixed(2)}R</div>
+                <div>Win rate {(item.win_rate * 100).toFixed(0)}%</div>
+                <div>Drawdown {item.drawdown_r.toFixed(2)}R</div>
+                <div>Contrib. {item.contribution_to_total_r_pct.toFixed(0)}%</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {tab === 'risk' && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <MetricCard label="Daily DD guard" value={`${risk.guards.daily_drawdown_guard_pct.toFixed(1)}%`} />
+            <MetricCard label="Kill switch" value={`${risk.guards.equity_kill_switch_pct.toFixed(1)}%`} />
+            <MetricCard label="Consecutive loss guard" value={risk.guards.consecutive_losses_guard} />
+            <MetricCard label="Risk score" value={`${(risk.risk_score * 100).toFixed(0)}%`} />
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <MetricCard label="Worst day" value={`${risk.metrics.worst_daily_return_pct.toFixed(2)}%`} />
+            <MetricCard label="Risk concentration" value={`${risk.metrics.risk_concentration_pct.toFixed(2)}%`} />
+            <MetricCard label="Risk of ruin proxy" value={`${(risk.metrics.risk_of_ruin_proxy * 100).toFixed(1)}%`} />
+            <MetricCard label="Variance pressure" value={`${(risk.metrics.variance_pressure_score * 100).toFixed(0)}%`} />
+          </div>
+          {risk.warnings.length > 0 && (
+            <Alert type="warning" title="Risk review">
+              <div className="space-y-1">
+                {risk.warnings.map((warning, index) => (
+                  <div key={index}>• {warning}</div>
+                ))}
+              </div>
+            </Alert>
+          )}
+        </div>
+      )}
+
       {tab === 'bias' && (
         <div className="space-y-3">
           <p className="text-stone-400 text-sm">{bias.recommendation}</p>
@@ -504,8 +638,7 @@ function BacktestResults({
       />
       {!canProceed && (
         <p className="text-red-400 text-xs text-center">
-          Risolvi i problemi CRITICAL prima di procedere. Torna indietro e modifica
-          la configurazione del backtest.
+          Il bot resta bloccato finché il verdict finale non arriva almeno a `PAPER_TRADE_ONLY`.
         </p>
       )}
     </div>
@@ -529,5 +662,50 @@ function EquityCurve({ data }: { data: number[] }) {
     <svg width="100%" viewBox={`0 0 ${w} ${h}`} className="my-3 p-3 bg-stone-900 border border-stone-800 rounded">
       <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" />
     </svg>
+  )
+}
+
+function VerdictPill({ verdict }: { verdict: string }) {
+  const styles: Record<string, string> = {
+    REJECT: 'bg-red-950/30 border-red-700 text-red-300',
+    NEEDS_RESEARCH: 'bg-amber-950/30 border-amber-700 text-amber-300',
+    PAPER_TRADE_ONLY: 'bg-blue-950/30 border-blue-700 text-blue-300',
+    LIMITED_LIVE_TEST: 'bg-green-950/20 border-green-700 text-green-300',
+    PRODUCTION_CANDIDATE: 'bg-emerald-950/20 border-emerald-700 text-emerald-300',
+  }
+  return (
+    <span className={`px-3 py-1 rounded border text-xs font-bold ${styles[verdict] || 'bg-stone-900 border-stone-700 text-stone-300'}`}>
+      {verdict}
+    </span>
+  )
+}
+
+function HeatmapTable({
+  heatmap,
+}: {
+  heatmap: Array<{
+    spread_multiplier: number
+    cells: Array<{
+      slippage_multiplier: number
+      total_return_pct: number
+      expectancy_r: number
+    }>
+  }>
+}) {
+  if (!heatmap?.length) return null
+  return (
+    <div className="p-4 bg-stone-900 border border-stone-800 rounded space-y-2">
+      <div className="text-stone-300 text-sm font-bold">Heatmap cost sensitivity</div>
+      {heatmap.map((row) => (
+        <div key={row.spread_multiplier} className="grid grid-cols-4 gap-3 text-xs">
+          <div className="text-stone-500">Spread ×{row.spread_multiplier.toFixed(1)}</div>
+          {row.cells.map((cell) => (
+            <div key={cell.slippage_multiplier} className="text-stone-400">
+              Slip ×{cell.slippage_multiplier.toFixed(1)} → {cell.total_return_pct.toFixed(1)}%
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
   )
 }

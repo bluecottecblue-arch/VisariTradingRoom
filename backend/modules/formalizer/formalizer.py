@@ -69,7 +69,6 @@ class StrategyFormalizer:
             system_prompt=FORMALIZATION_SYSTEM,
             payload=self._build_payload(session_payload, readiness["selected_resolutions"]),
             model=self.model,
-            max_tokens=8192,
         )
         data = self._validate_formalization_structure(llm_result["data"], session_payload)
         payload_validation = validate_formal_spec_payload(data)
@@ -143,6 +142,43 @@ class StrategyFormalizer:
                         }
                     )
             state_machine["transitions"] = flat_transitions
+
+        if not state_machine.get("states"):
+            state_machine["states"] = [
+                "FLAT",
+                "SETUP_PENDING",
+                "IN_POSITION_LONG",
+                "IN_POSITION_SHORT",
+            ]
+
+        if not state_machine.get("transitions"):
+            state_machine["transitions"] = [
+                {
+                    "from": "FLAT",
+                    "to": "SETUP_PENDING",
+                    "condition": "entry context valido e filtri di sessione/rischio soddisfatti",
+                },
+                {
+                    "from": "SETUP_PENDING",
+                    "to": "IN_POSITION_LONG",
+                    "condition": "condizioni long vere e ordine eseguito",
+                },
+                {
+                    "from": "SETUP_PENDING",
+                    "to": "IN_POSITION_SHORT",
+                    "condition": "condizioni short vere e ordine eseguito",
+                },
+                {
+                    "from": "IN_POSITION_LONG",
+                    "to": "FLAT",
+                    "condition": "take profit, stop loss o invalidazione",
+                },
+                {
+                    "from": "IN_POSITION_SHORT",
+                    "to": "FLAT",
+                    "condition": "take profit, stop loss o invalidazione",
+                },
+            ]
 
         if not parameters:
             parameters = [

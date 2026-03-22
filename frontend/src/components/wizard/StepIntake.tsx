@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { strategyApi, formatError } from '@/lib/api'
 import { Section, Field, inputCls, textareaCls, Alert, NavButtons } from '@/components/ui'
-import type { ParseResult, StrategyIntake } from '@/types'
+import type { ParseResult, PreflightResult, StrategyIntake } from '@/types'
 
 const TIMEFRAMES = ['M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D1', 'W1']
 const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
@@ -44,6 +44,8 @@ interface Props {
 export default function StepIntake({ onComplete }: Props) {
   const [form, setForm] = useState<StrategyIntake>(DEFAULT_FORM)
   const [loading, setLoading] = useState(false)
+  const [preflight, setPreflight] = useState<PreflightResult | null>(null)
+  const [preflightLoading, setPreflightLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -56,6 +58,35 @@ export default function StepIntake({ onComplete }: Props) {
 
   useEffect(() => {
     sessionStorage.setItem('sf_intake_form', JSON.stringify(form))
+  }, [form])
+
+  useEffect(() => {
+    const requiredReady =
+      !!form.name.trim() &&
+      !!form.market.trim() &&
+      !!form.long_entry.trim() &&
+      !!form.invalidation.trim() &&
+      !!form.stop_loss.trim() &&
+      !!form.take_profit.trim()
+
+    if (!requiredReady) {
+      setPreflight(null)
+      return
+    }
+
+    const timer = window.setTimeout(async () => {
+      setPreflightLoading(true)
+      try {
+        const result = await strategyApi.preflight(form) as PreflightResult
+        setPreflight(result)
+      } catch {
+        setPreflight(null)
+      } finally {
+        setPreflightLoading(false)
+      }
+    }, 450)
+
+    return () => window.clearTimeout(timer)
   }, [form])
 
   const set = <K extends keyof StrategyIntake>(k: K, v: StrategyIntake[K]) =>
@@ -392,6 +423,62 @@ export default function StepIntake({ onComplete }: Props) {
           />
         </Field>
       </Section>
+
+      {preflight && (
+        <section className="rounded-lg border border-stone-800 bg-stone-900/70 p-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-stone-500">Preflight gratuito</p>
+              <h2 className="text-lg font-bold text-stone-100">
+                {preflight.status === 'VALID' ? 'Pipeline pronta' : 'Pipeline bloccata prima dei token'}
+              </h2>
+            </div>
+            <div className={`rounded px-3 py-1 text-xs font-bold ${
+              preflight.status === 'VALID'
+                ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-700/60'
+                : 'bg-amber-500/10 text-amber-300 border border-amber-700/50'
+            }`}>
+              completezza {Math.round(preflight.completeness_score * 100)}%
+            </div>
+          </div>
+          <p className="text-sm text-stone-400">{preflight.message}</p>
+          <div className="grid gap-3 md:grid-cols-3">
+            {Object.entries(preflight.expected_stages).map(([stage, estimate]) => (
+              <div key={stage} className="rounded border border-stone-800 bg-stone-950/70 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-bold uppercase tracking-[0.18em] text-stone-400">{stage}</span>
+                  <span className={`text-[11px] font-bold ${estimate.enabled ? 'text-emerald-300' : 'text-amber-300'}`}>
+                    {estimate.enabled ? `~$${estimate.estimated_cost_usd.toFixed(4)}` : 'stopped'}
+                  </span>
+                </div>
+                <p className="mt-2 text-xs text-stone-500">{estimate.reason}</p>
+                {estimate.enabled && (
+                  <div className="mt-2 space-y-1 text-[11px] text-stone-400">
+                    <div>input ~ {estimate.estimated_input_tokens} tok</div>
+                    <div>output ~ {estimate.estimated_output_tokens} tok</div>
+                    <div>cap {estimate.max_tokens}</div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
+            <p className="text-stone-400">
+              {preflight.next_recommended_action}
+              {preflight.blocking_items > 0 ? ` Blocchi aperti: ${preflight.blocking_items}.` : ''}
+            </p>
+            <p className="font-bold text-stone-200">
+              costo massimo atteso pipeline ~ ${preflight.estimated_total_cost_usd.toFixed(4)}
+            </p>
+          </div>
+        </section>
+      )}
+
+      {preflightLoading && !loading && (
+        <p className="text-stone-500 text-xs text-center">
+          Pre-check locale in corso: nessun token speso.
+        </p>
+      )}
 
       {error && <Alert type="error">{error}</Alert>}
 

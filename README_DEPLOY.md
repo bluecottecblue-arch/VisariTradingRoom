@@ -21,6 +21,7 @@ Deploy gratuito e personale:
 Comportamento atteso:
 - start command: `./start.sh`
 - health check: `/health`
+- auto deploy: attivo su push a `main` se il servizio Render è collegato al repository
 - backend stateless se il DB non è disponibile
 
 ## 2. Frontend su Vercel

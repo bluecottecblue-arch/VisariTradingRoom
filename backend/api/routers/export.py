@@ -10,6 +10,8 @@ import json
 
 from modules.report.generator import ReportGenerator
 from modules.common.strategy_validation import validate_mql5_code
+from modules.research.decision_engine import is_promoted_verdict
+from api.routers.backtest import get_completed_results_for_session
 
 router = APIRouter()
 STORAGE = Path(os.environ.get("STORAGE_PATH", "./storage"))
@@ -19,6 +21,19 @@ report_gen = ReportGenerator(str(STORAGE))
 
 @router.get("/mql5/{session_id}")
 async def download_mql5(session_id: str):
+    backtest_results = get_completed_results_for_session(session_id)
+    final_decision = (backtest_results or {}).get("final_decision") or {}
+    verdict = final_decision.get("verdict")
+    if verdict and not is_promoted_verdict(verdict):
+        raise HTTPException(
+            status_code=409,
+            detail="Download bloccato: verdict finale %s. %s"
+            % (
+                verdict,
+                "; ".join(final_decision.get("blockers") or final_decision.get("reasons") or [])
+                or "La strategia non è stata promossa dal research layer.",
+            ),
+        )
     file_path = STORAGE / f"{session_id}.mq5"
     if not file_path.exists():
         raise HTTPException(status_code=404,
@@ -37,6 +52,19 @@ async def download_mql5(session_id: str):
 
 @router.post("/mql5/{session_id}")
 async def save_mql5(session_id: str, payload: dict):
+    backtest_results = get_completed_results_for_session(session_id)
+    final_decision = (backtest_results or {}).get("final_decision") or {}
+    verdict = final_decision.get("verdict")
+    if verdict and not is_promoted_verdict(verdict):
+        raise HTTPException(
+            status_code=409,
+            detail="Export bloccato: verdict finale %s. %s"
+            % (
+                verdict,
+                "; ".join(final_decision.get("blockers") or final_decision.get("reasons") or [])
+                or "La strategia non è stata promossa dal research layer.",
+            ),
+        )
     code = payload.get("mql5_code", "")
     if not code:
         raise HTTPException(status_code=400, detail="Codice MQL5 vuoto")

@@ -50,7 +50,6 @@ class StrategyParser:
             system_prompt=SYSTEM_PROMPT,
             payload=self._build_payload(intake),
             model=self.model,
-            max_tokens=8192,
         )
         parsed = self._validate_parsed_structure(llm_result["data"])
         issues = extract_llm_parse_issues(parsed)

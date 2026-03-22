@@ -13,6 +13,7 @@ LIMITAZIONI DICHIARATE:
 - Fill sempre al prezzo richiesto (assunzione ottimistica)
 - Non simula gap di liquidità notturni o fine settimana perfettamente
 """
+import math
 import pandas as pd
 import numpy as np
 from dataclasses import dataclass, field
@@ -532,12 +533,21 @@ class BacktestEngine:
         finalized = {}
         for key, value in metrics.items():
             if isinstance(value, np.floating):
-                finalized[key] = float(value)
+                as_float = float(value)
+                finalized[key] = as_float if math.isfinite(as_float) else 0.0
             elif isinstance(value, np.integer):
                 finalized[key] = int(value)
+            elif isinstance(value, float):
+                finalized[key] = value if math.isfinite(value) else 0.0
             elif isinstance(value, list):
                 finalized[key] = [
-                    float(item) if isinstance(item, np.floating) else int(item) if isinstance(item, np.integer) else item
+                    (
+                        float(item)
+                        if isinstance(item, np.floating)
+                        else int(item)
+                        if isinstance(item, np.integer)
+                        else item if not isinstance(item, float) or math.isfinite(item) else 0.0
+                    )
                     for item in value
                 ]
             else:

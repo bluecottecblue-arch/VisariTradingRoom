@@ -7,6 +7,7 @@ import StepFormalSpec from "@/components/wizard/StepFormalSpec";
 import StepBacktest from "@/components/wizard/StepBacktest";
 import StepBot from "@/components/wizard/StepBot";
 import StepGuide from "@/components/wizard/StepGuide";
+import MonetizationSlot from "@/components/MonetizationSlot";
 
 const STEPS = [
   { id: 1, label: "La tua strategia",   description: "Descrivi come operi" },
@@ -172,6 +173,8 @@ export default function WizardPage() {
         {currentStep === 6 && stepReady && (
           <StepGuide botResult={botResult} onBack={goPrev} />
         )}
+
+        <MonetizationSlot slotId="research_footer" />
       </main>
     </div>
   );

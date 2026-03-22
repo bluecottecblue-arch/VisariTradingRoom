@@ -12,6 +12,7 @@ type Phase =
   | 'walk_forward'
   | 'monte_carlo'
   | 'bias_check'
+  | 'research_validation'
   | 'complete'
   | 'error'
 
@@ -23,6 +24,7 @@ const PHASE_LABELS: Record<Phase, string> = {
   walk_forward: 'Walk-forward analysis...',
   monte_carlo: 'Monte Carlo simulation...',
   bias_check: 'Controllo bias metodologici...',
+  research_validation: 'Research validation suite...',
   complete: 'Completato',
   error: 'Errore',
 }
@@ -57,6 +59,7 @@ export function useBacktest() {
         'walk_forward',
         'monte_carlo',
         'bias_check',
+        'research_validation',
       ]
       let phaseIdx = 0
       phaseTimerRef.current = setInterval(() => {

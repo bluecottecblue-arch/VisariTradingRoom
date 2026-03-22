@@ -4,7 +4,7 @@ services:
     env: python
     rootDir: backend
     plan: free
-    autoDeploy: false
+    autoDeploy: true
     buildCommand: pip install -r requirements.txt
     startCommand: ./start.sh
     healthCheckPath: /health

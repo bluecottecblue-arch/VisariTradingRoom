@@ -88,7 +88,6 @@ class MQL5Generator:
             system_prompt=MQL5_SYSTEM_PROMPT,
             payload=self._build_payload(spec),
             model=self.model,
-            max_tokens=8192,
         )
         data = self._parse_mixed_response(llm_result["text"])
         code = (data.get("mql5_code") or "").strip()
