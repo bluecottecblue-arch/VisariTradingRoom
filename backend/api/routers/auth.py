@@ -28,10 +28,19 @@ def _normalize_admin_username() -> str:
     return str(os.environ.get("ADMIN_USERNAME") or "").strip().lower()
 
 
+def _normalize_admin_password() -> str:
+    return str(os.environ.get("ADMIN_PASSWORD") or "").strip()
+
+
 def _validate_admin_credentials(username: str, password: str) -> bool:
     expected_username = _normalize_admin_username()
-    expected_password = str(os.environ.get("ADMIN_PASSWORD") or "")
-    return bool(expected_username and expected_password and username.strip().lower() == expected_username and password == expected_password)
+    expected_password = _normalize_admin_password()
+    return bool(
+        expected_username
+        and expected_password
+        and username.strip().lower() == expected_username
+        and password.strip() == expected_password
+    )
 
 
 @router.post("/login")
@@ -50,7 +59,7 @@ async def login_user(payload: LoginRequest):
 
 @router.post("/admin/login")
 async def login_admin(payload: LoginRequest):
-    if not _normalize_admin_username() or not os.environ.get("ADMIN_PASSWORD"):
+    if not _normalize_admin_username() or not _normalize_admin_password():
         raise HTTPException(status_code=503, detail="Admin non configurato")
     if not _validate_admin_credentials(payload.username, payload.password):
         raise HTTPException(status_code=401, detail="Credenziali admin non valide")
