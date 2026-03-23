@@ -181,6 +181,15 @@ class StrategyParser:
         if not text:
             return False
         ignored_markers = (
+            "account_balance",
+            "account balance",
+            "broker_spread",
+            "broker spread",
+            "spread max",
+            "max spread",
+            "ema calculation method",
+            "ema method",
+            "moving average method",
             "pip_value",
             "pip value",
             "slippage",

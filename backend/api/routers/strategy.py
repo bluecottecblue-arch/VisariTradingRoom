@@ -15,6 +15,7 @@ from modules.common.anthropic_client import estimate_stage_budget, get_usage_sum
 from modules.common.strategy_validation import (
     STATUS_INVALID,
     build_bot_result,
+    enrich_intake_with_technical_defaults,
     validate_strategy_intake,
 )
 from modules.research.decision_engine import is_promoted_verdict
@@ -183,8 +184,9 @@ def _build_preflight_estimates(intake: dict, validation_result: dict) -> dict[st
 @router.post("/preflight", response_model=PreflightResponse)
 async def strategy_preflight(req: StrategyIntakeRequest):
     """Controllo locale gratuito: codificabilità e budget stimato prima di spendere token."""
-    result = validate_strategy_intake(req.model_dump())
-    estimates = _build_preflight_estimates(req.model_dump(), result)
+    intake = enrich_intake_with_technical_defaults(req.model_dump())
+    result = validate_strategy_intake(intake)
+    estimates = _build_preflight_estimates(intake, result)
     total_cost = round(
         sum(stage.estimated_cost_usd for stage in estimates.values() if stage.enabled),
         6,
@@ -214,10 +216,11 @@ async def parse_strategy(req: StrategyIntakeRequest):
     """Step 1: parse the strategy with Claude, detect ambiguities."""
     session_id = str(uuid.uuid4())
     try:
-        result = await parser.parse(session_id=session_id, intake=req.model_dump())
+        intake = enrich_intake_with_technical_defaults(req.model_dump())
+        result = await parser.parse(session_id=session_id, intake=intake)
         # Store parsed result so formalizer can read it by session_id
-        formalizer.store_parsed(session_id, result, req.model_dump())
-        InMemorySessionStore.save(session_id, "parsed_bundle", {"parsed": result, "intake": req.model_dump()})
+        formalizer.store_parsed(session_id, result, intake)
+        InMemorySessionStore.save(session_id, "parsed_bundle", {"parsed": result, "intake": intake})
         return ParseResponse(session_id=session_id, **result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Errore parsing: {str(e)}")

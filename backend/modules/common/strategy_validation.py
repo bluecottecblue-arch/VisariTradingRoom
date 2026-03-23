@@ -15,6 +15,12 @@ STATUS_NEEDS_INPUT = "NEEDS_INPUT"
 STATUS_INVALID = "INVALID"
 STATUS_GENERATION_FAILED = "GENERATION_FAILED"
 
+_TECHNICAL_DEFAULT_NOTES = (
+    ("account_balance", "account_balance=10000 USD"),
+    ("broker_spread", "broker_spread_max=1.5 pips"),
+    ("ema_method", "EMA calculation method = exponential moving average on close price"),
+)
+
 
 def empty_usage(module: str) -> dict:
     return {
@@ -30,6 +36,26 @@ def empty_usage(module: str) -> dict:
         "max_tokens": 0,
         "estimated_cost_usd": 0.0,
     }
+
+
+def enrich_intake_with_technical_defaults(intake: dict) -> dict:
+    enriched = dict(intake or {})
+    raw_notes = str(enriched.get("additional_notes") or "").strip()
+    normalized_notes = _normalize(raw_notes)
+    additions = []
+
+    for key, note in _TECHNICAL_DEFAULT_NOTES:
+        if key == "account_balance" and "account_balance" not in normalized_notes and "account balance" not in normalized_notes:
+            additions.append(note)
+        elif key == "broker_spread" and "broker_spread" not in normalized_notes and "broker spread" not in normalized_notes and "spread_max" not in normalized_notes:
+            additions.append(note)
+        elif key == "ema_method" and "ema calculation method" not in normalized_notes and "ema method" not in normalized_notes:
+            additions.append(note)
+
+    if additions:
+        enriched["additional_notes"] = "; ".join([part for part in [raw_notes, *additions] if part])
+
+    return enriched
 
 
 def build_required_input(
