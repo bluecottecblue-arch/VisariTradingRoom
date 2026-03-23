@@ -8,6 +8,7 @@ import StepBacktest from "@/components/wizard/StepBacktest";
 import StepBot from "@/components/wizard/StepBot";
 import StepGuide from "@/components/wizard/StepGuide";
 import MonetizationSlot from "@/components/MonetizationSlot";
+import AuthToolbar from "@/components/AuthToolbar";
 
 const STEPS = [
   { id: 1, label: "La tua strategia",   description: "Descrivi come operi" },
@@ -54,8 +55,11 @@ export default function WizardPage() {
           <span className="text-stone-100 font-bold text-lg tracking-tight ml-1">TRADING ROOM</span>
           <span className="ml-3 text-stone-500 text-xs">discrezionale → algoritmico → MT5</span>
         </div>
-        <div className="text-stone-500 text-xs">
-          {sessionId ? `Sessione: ${sessionId.slice(0, 8)}...` : "Nuova strategia"}
+        <div className="flex items-center gap-4">
+          <div className="text-stone-500 text-xs">
+            {sessionId ? `Sessione: ${sessionId.slice(0, 8)}...` : "Nuova strategia"}
+          </div>
+          <AuthToolbar />
         </div>
       </header>
 

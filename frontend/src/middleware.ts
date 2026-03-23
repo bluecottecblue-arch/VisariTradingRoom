@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { APP_GATE_COOKIE_NAME, getExpectedGateToken } from '@/lib/password-gate'
+import { SESSION_COOKIE_NAME, SESSION_ROLE_COOKIE_NAME } from '@/lib/auth'
 
 function isPublicPath(pathname: string): boolean {
   return (
-    pathname === '/unlock' ||
-    pathname.startsWith('/api/auth/unlock') ||
+    pathname === '/login' ||
+    pathname === '/admin/login' ||
+    pathname.startsWith('/api/auth/') ||
+    pathname.startsWith('/api/backend/') ||
     pathname.startsWith('/_next') ||
     pathname === '/favicon.ico' ||
     /\.[a-zA-Z0-9]+$/.test(pathname)
@@ -12,20 +14,29 @@ function isPublicPath(pathname: string): boolean {
 }
 
 export async function middleware(request: NextRequest) {
-  const expected = await getExpectedGateToken()
-  if (!expected || isPublicPath(request.nextUrl.pathname)) {
+  const { pathname } = request.nextUrl
+  if (isPublicPath(pathname)) {
     return NextResponse.next()
   }
 
-  const token = request.cookies.get(APP_GATE_COOKIE_NAME)?.value
-  if (token === expected) {
-    return NextResponse.next()
+  const token = request.cookies.get(SESSION_COOKIE_NAME)?.value
+  const role = request.cookies.get(SESSION_ROLE_COOKIE_NAME)?.value
+
+  if (!token) {
+    const loginUrl = request.nextUrl.clone()
+    loginUrl.pathname = pathname.startsWith('/admin') ? '/admin/login' : '/login'
+    loginUrl.searchParams.set('next', pathname)
+    return NextResponse.redirect(loginUrl)
   }
 
-  const unlockUrl = request.nextUrl.clone()
-  unlockUrl.pathname = '/unlock'
-  unlockUrl.searchParams.set('next', request.nextUrl.pathname)
-  return NextResponse.redirect(unlockUrl)
+  if (pathname.startsWith('/admin') && role !== 'admin') {
+    const adminUrl = request.nextUrl.clone()
+    adminUrl.pathname = '/admin/login'
+    adminUrl.searchParams.set('next', pathname)
+    return NextResponse.redirect(adminUrl)
+  }
+
+  return NextResponse.next()
 }
 
 export const config = {

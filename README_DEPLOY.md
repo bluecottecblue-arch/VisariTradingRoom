@@ -13,6 +13,11 @@ Deploy gratuito e personale:
 - Variabili da impostare:
   - `ANTHROPIC_API_KEY`
   - `POLYGON_API_KEY` opzionale
+  - `SESSION_SECRET`
+  - `ADMIN_USERNAME`
+  - `ADMIN_PASSWORD`
+  - `USERS_STORAGE_PATH`
+    - valore consigliato: `./storage/users.json`
   - `CORS_ALLOW_ORIGINS`
     - valore consigliato iniziale: `https://TUO-FRONTEND.vercel.app`
   - `CORS_ALLOW_ORIGIN_REGEX`
@@ -32,14 +37,15 @@ Comportamento atteso:
 - Variabili da impostare:
   - `NEXT_PUBLIC_API_BASE_URL`
     - URL pubblico Render, ad esempio `https://visari-trading-room-api.onrender.com`
-  - `APP_GATE_PASSWORD`
-    - password condivisa per entrare nell'app
+  - `NEXT_PUBLIC_API_PROXY_BASE`
+    - lascia `'/api/backend'` oppure non impostarla
 
-## 3. Password gate
+## 3. Login utenti
 
-- L'app reindirizza a `/unlock` finché non viene inserita la password corretta.
-- La protezione è intenzionalmente semplice e adatta a un progetto personale condiviso con poche persone.
-- Non protegge il backend Render come un sistema enterprise. Protegge l'accesso all'interfaccia web.
+- L'app reindirizza a `/login` se non esiste una sessione utente valida.
+- Il pannello admin è su `/admin` con login separato su `/admin/login`.
+- Gli account cliente sono salvati dal backend in `users.json`.
+- La soluzione è intenzionalmente semplice: adatta a pochi clienti, non enterprise.
 
 ## 4. Fallback locale
 

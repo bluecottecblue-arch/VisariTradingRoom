@@ -3,10 +3,7 @@
  * Gestisce errori, timeout e headers comuni
  */
 
-const BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ||
-  process.env.NEXT_PUBLIC_API_URL ||
-  'http://localhost:8000'
+const BASE_URL = process.env.NEXT_PUBLIC_API_PROXY_BASE || '/api/backend'
 
 class ApiError extends Error {
   constructor(
@@ -30,6 +27,7 @@ async function request<T>(
     const res = await fetch(url, {
       headers: { 'Content-Type': 'application/json', ...options.headers },
       signal: controller.signal,
+      credentials: 'include',
       ...options,
     })
 
