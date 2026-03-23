@@ -76,6 +76,29 @@ export interface StrategyIntake {
   valid_trade_examples?: string
   invalid_trade_examples?: string
   additional_notes?: string
+  fundamental_filters?: FundamentalFilterConfig
+}
+
+export interface FundamentalFilterConfig {
+  enabled: boolean
+  provider: 'none' | 'manual' | 'trading_economics'
+  currencies: string[]
+  impacts: Array<'high' | 'medium' | 'low'>
+  blackout_before_min: number
+  blackout_after_min: number
+  post_event_wait_min: number
+  bias_mode: 'exclude_only' | 'confirm_with_bias' | 'post_event_trigger'
+  directional_bias?: string
+  notes?: string
+  manual_events?: Array<Record<string, unknown>>
+}
+
+export interface CalendarProviderInfo {
+  id: string
+  name: string
+  available: boolean
+  api_key_required: boolean
+  description: string
 }
 
 export interface Ambiguity {
@@ -327,6 +350,25 @@ export interface FinalDecisionResult {
   policy_snapshot?: Record<string, number>
 }
 
+export interface CalendarContext {
+  provider?: string
+  events_used?: number
+  warnings?: string[]
+  windows?: Array<Record<string, unknown>>
+}
+
+export interface BacktestDataInfo {
+  provider?: string
+  symbol?: string
+  timeframe?: string
+  total_bars?: number
+  in_sample_bars?: number
+  out_of_sample_bars?: number
+  quality_warnings?: string[]
+  cleaning_stats?: Record<string, unknown>
+  calendar_context?: CalendarContext
+}
+
 export interface ResearchGovernanceResult {
   strategy_id: string
   strategy_version: number
@@ -367,7 +409,7 @@ export interface BacktestResult {
   risk_review: RiskReviewResult
   final_decision: FinalDecisionResult
   research_governance: ResearchGovernanceResult
-  data_info?: Record<string, unknown>
+  data_info?: BacktestDataInfo
   methodology_notes?: string[]
 }
 
@@ -389,5 +431,97 @@ export interface BotResult {
   download_ready: boolean
   can_generate_code: boolean
   validation: ValidationInfo
+  usage: UsageInfo
+}
+
+export interface BotLabAnalysisResult {
+  session_id: string
+  status: WorkflowStatus
+  message: string
+  file_info: {
+    filename: string
+    language: string
+    platform: string
+    extension: string
+    size_chars: number
+    line_count: number
+    sha256_short: string
+    source_origin: string
+  }
+  code_summary: {
+    functions: string[]
+    indicators: Array<{ type: string; period_ref?: string | null; raw?: string }>
+    trade_actions: string[]
+    protections: string[]
+    sessions: string[]
+    fundamental_flags: {
+      enabled: boolean
+      has_news_blackout: boolean
+      has_directional_bias: boolean
+      has_post_event_rule: boolean
+      keywords: string[]
+    }
+    lines_of_code: number
+    parameter_count: number
+  }
+  bot_profile: {
+    language: string
+    platform: string
+    strategy_style: string
+    entry_logic: string[]
+    exit_logic: string[]
+    risk_model: string[]
+    technical_features: Array<{ type: string; period_ref?: string | null }>
+    fundamental_features: Record<string, unknown>
+    supports_modification: boolean
+  }
+  explanation: {
+    plain_language: string
+    key_rules: string[]
+    beginner_safe_report: string[]
+    improvement_opportunities: string[]
+  }
+  health_check: {
+    score: number
+    strengths: string[]
+    warnings: string[]
+    likely_issues: string[]
+  }
+  formal_spec_bundle: Record<string, unknown>
+  backtest_ready: boolean
+  compare_ready: boolean
+  supported_actions: string[]
+  token_saved: boolean
+  usage: UsageInfo
+}
+
+export interface BotLabModifyResult {
+  status: WorkflowStatus
+  message: string
+  original_session_id: string
+  session_id?: string
+  ambiguities?: string[]
+  change_summary?: string[]
+  conceptual_diff?: string[]
+  implementation_notes?: string[]
+  assumptions?: string[]
+  limitations?: string[]
+  modified_code?: string
+  code_validation?: {
+    is_valid: boolean
+    checks: Record<string, boolean>
+    errors: string[]
+    length?: number
+  }
+  modified_analysis?: BotLabAnalysisResult
+  compare?: {
+    strategy_style: { original?: string; modified?: string }
+    new_indicators: string[]
+    removed_indicators: string[]
+    new_protections: string[]
+    removed_protections: string[]
+    parameter_count_delta: number
+    fundamental_filter_added: boolean
+  }
   usage: UsageInfo
 }

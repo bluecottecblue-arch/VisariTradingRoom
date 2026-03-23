@@ -9,6 +9,7 @@ import StepBot from "@/components/wizard/StepBot";
 import StepGuide from "@/components/wizard/StepGuide";
 import MonetizationSlot from "@/components/MonetizationSlot";
 import AuthToolbar from "@/components/AuthToolbar";
+import BotLabWorkspace from "@/components/botlab/BotLabWorkspace";
 
 const STEPS = [
   { id: 1, label: "La tua strategia",   description: "Descrivi come operi" },
@@ -20,6 +21,7 @@ const STEPS = [
 ];
 
 export default function WizardPage() {
+  const [workspaceMode, setWorkspaceMode] = useState<"strategy" | "botlab">("strategy");
   const [currentStep, setCurrentStep] = useState(1);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [parseResult, setParseResult] = useState<any>(null);
@@ -57,49 +59,79 @@ export default function WizardPage() {
         </div>
         <div className="flex items-center gap-4">
           <div className="text-stone-500 text-xs">
-            {sessionId ? `Sessione: ${sessionId.slice(0, 8)}...` : "Nuova strategia"}
+            {workspaceMode === 'strategy'
+              ? (sessionId ? `Sessione: ${sessionId.slice(0, 8)}...` : "Nuova strategia")
+              : 'Bot Lab attivo'}
           </div>
           <AuthToolbar />
         </div>
       </header>
 
       {/* Step progress bar */}
-      <div className="px-8 py-6 border-b border-stone-800">
-        <div className="flex items-center gap-0 overflow-x-auto">
-          {STEPS.map((step, idx) => (
-            <div key={step.id} className="flex items-center">
-              {/* Step circle */}
-              <button
-                onClick={() => sessionId && setCurrentStep(step.id)}
-                className={`flex items-center gap-2 px-3 py-2 rounded transition-all ${
-                  step.id === currentStep
-                    ? "text-amber-400"
-                    : step.id < currentStep
-                    ? "text-stone-400 cursor-pointer hover:text-stone-200"
-                    : "text-stone-600 cursor-not-allowed"
-                }`}
-                disabled={!sessionId && step.id > 1}
-              >
-                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border ${
-                  step.id === currentStep
-                    ? "border-amber-400 bg-amber-400 text-stone-950"
-                    : step.id < currentStep
-                    ? "border-stone-500 bg-stone-700 text-stone-300"
-                    : "border-stone-700 text-stone-600"
-                }`}>
-                  {step.id < currentStep ? "✓" : step.id}
-                </span>
-                <div className="hidden md:block text-left">
-                  <div className="text-xs font-bold">{step.label}</div>
-                  <div className="text-[10px] opacity-60">{step.description}</div>
-                </div>
-              </button>
-              {idx < STEPS.length - 1 && (
-                <div className={`w-8 h-px mx-1 ${step.id < currentStep ? "bg-stone-500" : "bg-stone-800"}`} />
-              )}
-            </div>
-          ))}
+      <div className="px-8 py-6 border-b border-stone-800 space-y-4">
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={() => setWorkspaceMode("strategy")}
+            className={`px-4 py-2 rounded border text-sm font-bold transition-colors ${
+              workspaceMode === "strategy"
+                ? "border-amber-500 bg-amber-950/30 text-amber-300"
+                : "border-stone-700 bg-stone-900 text-stone-400 hover:border-stone-500"
+            }`}
+          >
+            Create Strategy
+          </button>
+          <button
+            onClick={() => setWorkspaceMode("botlab")}
+            className={`px-4 py-2 rounded border text-sm font-bold transition-colors ${
+              workspaceMode === "botlab"
+                ? "border-amber-500 bg-amber-950/30 text-amber-300"
+                : "border-stone-700 bg-stone-900 text-stone-400 hover:border-stone-500"
+            }`}
+          >
+            Bot Lab
+          </button>
         </div>
+        <div className="text-xs text-stone-500">
+          {workspaceMode === "strategy"
+            ? "Crea una strategia da zero, formalizzala, backtestala e genera il bot MQL5."
+            : "Carica un bot già esistente, analizzalo, modificalo via prompt e confronta l’originale con la nuova versione."}
+        </div>
+        {workspaceMode === "strategy" && (
+          <div className="flex items-center gap-0 overflow-x-auto">
+            {STEPS.map((step, idx) => (
+              <div key={step.id} className="flex items-center">
+                <button
+                  onClick={() => sessionId && setCurrentStep(step.id)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded transition-all ${
+                    step.id === currentStep
+                      ? "text-amber-400"
+                      : step.id < currentStep
+                      ? "text-stone-400 cursor-pointer hover:text-stone-200"
+                      : "text-stone-600 cursor-not-allowed"
+                  }`}
+                  disabled={!sessionId && step.id > 1}
+                >
+                  <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border ${
+                    step.id === currentStep
+                      ? "border-amber-400 bg-amber-400 text-stone-950"
+                      : step.id < currentStep
+                      ? "border-stone-500 bg-stone-700 text-stone-300"
+                      : "border-stone-700 text-stone-600"
+                  }`}>
+                    {step.id < currentStep ? "✓" : step.id}
+                  </span>
+                  <div className="hidden md:block text-left">
+                    <div className="text-xs font-bold">{step.label}</div>
+                    <div className="text-[10px] opacity-60">{step.description}</div>
+                  </div>
+                </button>
+                {idx < STEPS.length - 1 && (
+                  <div className={`w-8 h-px mx-1 ${step.id < currentStep ? "bg-stone-500" : "bg-stone-800"}`} />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Warning metodologico — sempre visibile */}
@@ -111,7 +143,7 @@ export default function WizardPage() {
 
       {/* Step content */}
       <main className="px-8 py-8 max-w-4xl">
-        {!stepReady && (
+        {workspaceMode === "strategy" && !stepReady && (
           <div className="px-8 py-16 text-center space-y-4 border border-stone-800 rounded-lg bg-stone-900/60">
             <p className="text-stone-400">Sessione persa dopo il refresh.</p>
             <button onClick={restart} className="px-6 py-3 bg-amber-500 text-stone-950 font-bold rounded">
@@ -119,7 +151,8 @@ export default function WizardPage() {
             </button>
           </div>
         )}
-        {currentStep === 1 && (
+        {workspaceMode === "botlab" && <BotLabWorkspace />}
+        {workspaceMode === "strategy" && currentStep === 1 && (
           <StepIntake
             onComplete={(id, result) => {
               setSessionId(id);
@@ -131,7 +164,7 @@ export default function WizardPage() {
             }}
           />
         )}
-        {currentStep === 2 && parseResult && stepReady && (
+        {workspaceMode === "strategy" && currentStep === 2 && parseResult && stepReady && (
           <StepAmbiguities
             sessionId={sessionId!}
             parseResult={parseResult}
@@ -144,14 +177,14 @@ export default function WizardPage() {
             onBack={goPrev}
           />
         )}
-        {currentStep === 3 && formalSpec && stepReady && (
+        {workspaceMode === "strategy" && currentStep === 3 && formalSpec && stepReady && (
           <StepFormalSpec
             formalSpec={formalSpec}
             onComplete={goNext}
             onBack={goPrev}
           />
         )}
-        {currentStep === 4 && stepReady && (
+        {workspaceMode === "strategy" && currentStep === 4 && stepReady && (
           <StepBacktest
             sessionId={sessionId!}
             onComplete={(result) => {
@@ -162,7 +195,7 @@ export default function WizardPage() {
             onBack={goPrev}
           />
         )}
-        {currentStep === 5 && stepReady && (
+        {workspaceMode === "strategy" && currentStep === 5 && stepReady && (
           <StepBot
             sessionId={sessionId!}
             formalSpec={formalSpec}
@@ -174,7 +207,7 @@ export default function WizardPage() {
             onBack={goPrev}
           />
         )}
-        {currentStep === 6 && stepReady && (
+        {workspaceMode === "strategy" && currentStep === 6 && stepReady && (
           <StepGuide botResult={botResult} onBack={goPrev} />
         )}
 

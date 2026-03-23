@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { strategyApi, formatError } from '@/lib/api'
+import FundamentalFiltersCard from '@/components/FundamentalFiltersCard'
+import { DEFAULT_FUNDAMENTAL_FILTERS, summarizeFundamentalFilters } from '@/lib/fundamentals'
 import { Section, Field, inputCls, textareaCls, Alert, NavButtons } from '@/components/ui'
 import type { ParseResult, PreflightResult, StrategyIntake } from '@/types'
 
@@ -35,6 +37,7 @@ const DEFAULT_FORM: StrategyIntake = {
   valid_trade_examples: '',
   invalid_trade_examples: '',
   additional_notes: '',
+  fundamental_filters: DEFAULT_FUNDAMENTAL_FILTERS,
 }
 
 interface Props {
@@ -77,7 +80,7 @@ export default function StepIntake({ onComplete }: Props) {
     const timer = window.setTimeout(async () => {
       setPreflightLoading(true)
       try {
-        const result = await strategyApi.preflight(form) as PreflightResult
+        const result = await strategyApi.preflight(buildPayload(form)) as PreflightResult
         setPreflight(result)
       } catch {
         setPreflight(null)
@@ -110,6 +113,11 @@ export default function StepIntake({ onComplete }: Props) {
     return null
   }
 
+  const buildPayload = (value: StrategyIntake) => ({
+    ...value,
+    news_management: summarizeFundamentalFilters(value.fundamental_filters, value.news_management),
+  })
+
   const handleSubmit = async () => {
     const err = validate()
     if (err) { setError(err); return }
@@ -117,7 +125,7 @@ export default function StepIntake({ onComplete }: Props) {
     setLoading(true)
     setError(null)
     try {
-      const result = await strategyApi.parse(form) as ParseResult
+      const result = await strategyApi.parse(buildPayload(form)) as ParseResult
       sessionStorage.removeItem('sf_intake_form')
       onComplete(result.session_id, result)
     } catch (e) {
@@ -384,6 +392,11 @@ export default function StepIntake({ onComplete }: Props) {
           />
         </Field>
       </Section>
+
+      <FundamentalFiltersCard
+        value={form.fundamental_filters}
+        onChange={(next) => set('fundamental_filters', next)}
+      />
 
       {/* Sezione 6 */}
       <Section title="6. Esempi concreti (molto importanti)">

@@ -40,6 +40,7 @@ _DEFAULT_MAX_TOKENS = {
     "parse": 4096,
     "formalize": 4096,
     "botgen": 7168,
+    "botlab_modify": 7168,
 }
 
 _DEFAULT_COSTS_PER_MILLION = {
@@ -50,6 +51,7 @@ _ESTIMATED_SYSTEM_TOKENS = {
     "parse": 650,
     "formalize": 900,
     "botgen": 1200,
+    "botlab_modify": 900,
 }
 
 

@@ -6,7 +6,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from api.routers import auth, strategy, backtest, export, guide
+from api.routers import auth, strategy, backtest, export, guide, botlab
 from modules.auth.security import require_authenticated
 from db.database import init_db
 
@@ -44,6 +44,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
 app.include_router(strategy.router, prefix="/api/strategy", tags=["Strategy"], dependencies=[Depends(require_authenticated)])
 app.include_router(backtest.router, prefix="/api/backtest", tags=["Backtest"], dependencies=[Depends(require_authenticated)])
+app.include_router(botlab.router, prefix="/api/bot-lab", tags=["Bot Lab"], dependencies=[Depends(require_authenticated)])
 app.include_router(export.router, prefix="/api/export", tags=["Export"], dependencies=[Depends(require_authenticated)])
 app.include_router(guide.router, prefix="/api/guide", tags=["Guide"], dependencies=[Depends(require_authenticated)])
 

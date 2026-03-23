@@ -2,9 +2,11 @@
 Router: Backtest
 Gestisce il recupero dati storici, esecuzione backtest, walk-forward, Monte Carlo
 """
+from __future__ import annotations
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import math
+import re
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
@@ -21,6 +23,7 @@ from modules.research.robustness import RobustnessAnalyzer
 from modules.research.regime_analysis import RegimeAnalyzer
 from modules.research.risk_engine import RiskReviewEngine
 from modules.research.decision_engine import DecisionEngine
+from modules.fundamentals.economic_calendar import build_news_windows, fetch_calendar_events
 from db.database import InMemorySessionStore
 
 router = APIRouter()
@@ -58,6 +61,7 @@ async def run_backtest(req: BacktestRequest):
     task_id = str(uuid.uuid4())
     _task_store[task_id] = {"status": "running"}
     _session_task_map[req.session_id] = task_id
+    InMemorySessionStore.save(req.session_id, "backtest_task_ref", {"task_id": task_id})
     asyncio.create_task(_execute_backtest(task_id, req.model_dump()))
     return {"task_id": task_id, "status": "running"}
 
@@ -88,19 +92,46 @@ def _get_formal_spec_from_session(session_id: str) -> dict:
     }
 
 
-def _build_strategy_function(formal_spec: dict, params: dict = None):
+def _build_strategy_function(formal_spec: dict, params: dict = None, news_windows: list[dict] | None = None):
     """
     Costruisce una funzione Python che implementa la strategia.
     In produzione: parsing completo della specifica formale.
     Demo: implementa una semplice EMA crossover come placeholder.
     """
+    spec = (formal_spec or {}).get("formal_spec", {}) if formal_spec else {}
+    indicators = spec.get("indicators") or []
+    strategy_style = str(spec.get("strategy_style") or "").strip().lower() or "trend_following"
+    fundamental_filters = spec.get("fundamental_filters") or {}
+    symbol = str((formal_spec or {}).get("symbol") or spec.get("symbol") or "").upper()
+    risk_management = spec.get("risk_management") or {}
+    news_windows = news_windows or []
+
+    ema_periods = sorted(
+        [value for value in (_extract_indicator_period(indicators, "EMA")) if value],
+    )
+    fast_ema = ema_periods[0] if ema_periods else 20
+    slow_ema = ema_periods[1] if len(ema_periods) > 1 else 50
+    rsi_period = next(iter(_extract_indicator_period(indicators, "RSI")), None) or 14
+    atr_period = next(iter(_extract_indicator_period(indicators, "ATR")), None) or 14
+    rr_ratio = _safe_float((spec.get("take_profit") or {}).get("rr_ratio"), 2.0)
+    atr_multiplier = _safe_float((spec.get("stop_loss") or {}).get("atr_multiplier"), 1.5)
+    session_window = _extract_session_window(risk_management)
+    directional_bias = str(fundamental_filters.get("directional_bias") or "").strip().lower()
+    bias_mode = str(fundamental_filters.get("bias_mode") or "").strip().lower()
+
     def strategy(history: pd.DataFrame):
         if len(history) < 52:
             return None
 
+        last_ts = history.index[-1]
+        if session_window and not _timestamp_in_session(last_ts, session_window):
+            return None
+        if news_windows and _is_in_news_blackout(last_ts, news_windows):
+            return None
+
         close = history["Close"]
-        ema20 = close.ewm(span=20, adjust=False).mean()
-        ema50 = close.ewm(span=50, adjust=False).mean()
+        ema_fast = close.ewm(span=max(2, fast_ema), adjust=False).mean()
+        ema_slow = close.ewm(span=max(max(3, fast_ema + 1), slow_ema), adjust=False).mean()
 
         # ATR per SL
         high = history["High"]
@@ -110,24 +141,51 @@ def _build_strategy_function(formal_spec: dict, params: dict = None):
             "hc": abs(high - close.shift(1)),
             "lc": abs(low - close.shift(1))
         }).max(axis=1)
-        atr = tr.ewm(span=14, adjust=False).mean().iloc[-1]
+        atr = tr.ewm(span=max(2, atr_period), adjust=False).mean().iloc[-1]
+        rsi_series = _compute_rsi(close, rsi_period)
+        last_rsi = float(rsi_series.iloc[-1]) if not rsi_series.empty else 50.0
 
         last_close = close.iloc[-1]
-        prev_ema20 = ema20.iloc[-2]
-        curr_ema20 = ema20.iloc[-1]
-        prev_ema50 = ema50.iloc[-2]
-        curr_ema50 = ema50.iloc[-1]
+        prev_fast = ema_fast.iloc[-2]
+        curr_fast = ema_fast.iloc[-1]
+        prev_slow = ema_slow.iloc[-2]
+        curr_slow = ema_slow.iloc[-1]
 
-        # Crossover long
-        if prev_ema20 <= prev_ema50 and curr_ema20 > curr_ema50:
-            sl = last_close - atr * 1.5
-            tp = last_close + atr * 3.0
+        signal = None
+        if strategy_style == "breakout":
+            rolling_high = high.tail(21).iloc[:-1].max()
+            rolling_low = low.tail(21).iloc[:-1].min()
+            if last_close > rolling_high:
+                signal = "LONG"
+            elif last_close < rolling_low:
+                signal = "SHORT"
+        elif strategy_style == "mean_reversion":
+            if last_rsi <= 30 and curr_fast >= curr_slow:
+                signal = "LONG"
+            elif last_rsi >= 70 and curr_fast <= curr_slow:
+                signal = "SHORT"
+        else:
+            if prev_fast <= prev_slow and curr_fast > curr_slow:
+                signal = "LONG"
+            elif prev_fast >= prev_slow and curr_fast < curr_slow:
+                signal = "SHORT"
+            elif curr_fast > curr_slow and last_rsi > 55:
+                signal = "LONG"
+            elif curr_fast < curr_slow and last_rsi < 45:
+                signal = "SHORT"
+
+        if signal and bias_mode == "confirm_with_bias" and directional_bias:
+            if not _bias_allows_signal(signal, symbol, directional_bias):
+                return None
+
+        if signal == "LONG":
+            sl = last_close - atr * atr_multiplier
+            tp = last_close + atr * max(1.2, atr_multiplier * rr_ratio)
             return {"signal": "LONG", "sl": sl, "tp": tp}
 
-        # Crossover short
-        if prev_ema20 >= prev_ema50 and curr_ema20 < curr_ema50:
-            sl = last_close + atr * 1.5
-            tp = last_close - atr * 3.0
+        if signal == "SHORT":
+            sl = last_close + atr * atr_multiplier
+            tp = last_close - atr * max(1.2, atr_multiplier * rr_ratio)
             return {"signal": "SHORT", "sl": sl, "tp": tp}
 
         return None
@@ -138,14 +196,19 @@ def _build_strategy_function(formal_spec: dict, params: dict = None):
 def _build_implementation_context(session_id: str, formal_spec_bundle: dict) -> dict:
     stored = InMemorySessionStore.get(session_id, "formal_spec_bundle")
     using_real_spec = bool(stored)
+    source = ((formal_spec_bundle or {}).get("formal_spec") or {}).get("source") or ("session_store" if using_real_spec else "demo_fallback")
+    adapter = "ema_crossover_proxy"
     completeness = 0.58 if using_real_spec else 0.32
+    if source == "uploaded_bot":
+        adapter = "uploaded_bot_proxy"
+        completeness = 0.67
     return {
-        "formal_spec_source": "session_store" if using_real_spec else "demo_fallback",
-        "strategy_adapter": "ema_crossover_proxy",
+        "formal_spec_source": source,
+        "strategy_adapter": adapter,
         "completeness": completeness,
         "notes": (
-            "Il backtest usa ancora un adapter proxy EMA crossover; i risultati servono per research gating, "
-            "non per certificare che l'implementazione MQL5 replichi perfettamente la strategia."
+            "Il backtest usa ancora un adapter proxy ricostruito dalla formal spec; i risultati servono per research gating, "
+            "non per certificare che l'implementazione originale replichi perfettamente il bot."
         ),
     }
 
@@ -193,8 +256,19 @@ async def backtest_status(task_id: str):
     return result
 
 
+@router.get("/session/{session_id}")
+async def backtest_status_for_session(session_id: str):
+    task = get_task_for_session(session_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail="Nessun backtest associato a questa sessione")
+    return task
+
+
 def get_task_for_session(session_id: str) -> Optional[dict]:
     task_id = _session_task_map.get(session_id)
+    if not task_id:
+        stored = InMemorySessionStore.get(session_id, "backtest_task_ref") or {}
+        task_id = stored.get("task_id")
     if not task_id:
         return None
     return {"task_id": task_id, **(_task_store.get(task_id) or {})}
@@ -297,7 +371,39 @@ def _run_backtest_sync(payload: dict) -> dict:
         random_seed=cfg.get("random_seed", 42),
     )
     engine = BacktestEngine(backtest_cfg)
-    strategy_fn = _build_strategy_function(formal_spec_bundle)
+    calendar_context = {
+        "provider": "none",
+        "events_used": 0,
+        "warnings": [],
+        "windows": [],
+    }
+    fundamental_filters = cfg.get("fundamental_filters") or ((formal_spec_bundle.get("formal_spec") or {}).get("fundamental_filters") or {})
+    if fundamental_filters.get("enabled"):
+        calendar_result = asyncio.run(
+            fetch_calendar_events(
+                provider_id=fundamental_filters.get("provider", "none"),
+                date_from=date_from,
+                date_to=date_to,
+                currencies=fundamental_filters.get("currencies") or _infer_currencies_from_symbol(symbol),
+                impacts=fundamental_filters.get("impacts") or ["high"],
+                manual_events=fundamental_filters.get("manual_events") or [],
+            )
+        )
+        news_windows = build_news_windows(
+            calendar_result.get("events", []),
+            blackout_before_min=int(fundamental_filters.get("blackout_before_min", 30) or 30),
+            blackout_after_min=int(fundamental_filters.get("blackout_after_min", 30) or 30),
+        )
+        calendar_context = {
+            "provider": calendar_result.get("provider"),
+            "events_used": len(calendar_result.get("events", [])),
+            "warnings": calendar_result.get("warnings", []),
+            "windows": news_windows[:50],
+        }
+    else:
+        news_windows = []
+    formal_spec_bundle["symbol"] = symbol
+    strategy_fn = _build_strategy_function(formal_spec_bundle, news_windows=news_windows)
     implementation_context = _build_implementation_context(session_id, formal_spec_bundle)
 
     oos_start = cfg.get("date_oos_start")
@@ -385,6 +491,7 @@ def _run_backtest_sync(payload: dict) -> dict:
             "timeframe": timeframe,
             "implementation_context": implementation_context,
             "cleaning_stats": fetcher.get_cleaning_stats(),
+            "calendar_context": calendar_context,
         },
     }
 
@@ -399,6 +506,7 @@ def _run_backtest_sync(payload: dict) -> dict:
             "out_of_sample_bars": len(oos_data),
             "quality_warnings": fetcher.get_quality_warnings(),
             "cleaning_stats": fetcher.get_cleaning_stats(),
+            "calendar_context": calendar_context,
         },
         "in_sample": is_results,
         "out_of_sample": oos_results,
@@ -416,8 +524,96 @@ def _run_backtest_sync(payload: dict) -> dict:
             "Il research verdict combina qualità OOS, robustezza, regime, rischio e completezza implementativa.",
             implementation_context["notes"],
             "Se il verdict è REJECT o NEEDS_RESEARCH, la generazione bot viene bloccata prima di spendere altri token.",
+            *calendar_context.get("warnings", []),
         ],
     }
     safe_result = _make_json_safe(result)
     InMemorySessionStore.save(session_id, "backtest_results_bundle", safe_result)
     return safe_result
+
+
+def _extract_indicator_period(indicators: list[dict], indicator_type: str) -> list[int]:
+    periods = []
+    for indicator in indicators or []:
+        if str(indicator.get("type") or "").upper() != indicator_type.upper():
+            continue
+        raw = indicator.get("period_ref") or indicator.get("params", {}).get("period")
+        match = re.search(r"(\d+)", str(raw or ""))
+        if match:
+            periods.append(int(match.group(1)))
+    return periods
+
+
+def _safe_float(value, fallback: float) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return fallback
+
+
+def _compute_rsi(close: pd.Series, period: int) -> pd.Series:
+    period = max(2, int(period))
+    delta = close.diff()
+    gains = delta.clip(lower=0)
+    losses = -delta.clip(upper=0)
+    avg_gain = gains.ewm(alpha=1 / period, adjust=False).mean()
+    avg_loss = losses.ewm(alpha=1 / period, adjust=False).mean().replace(0, 1e-9)
+    rs = avg_gain / avg_loss
+    return 100 - (100 / (1 + rs))
+
+
+def _extract_session_window(risk_management: dict) -> tuple[int, int] | None:
+    start = risk_management.get("session_start_hour")
+    end = risk_management.get("session_end_hour")
+    if start is None or end is None:
+        sessions = risk_management.get("sessions") or []
+        for session in sessions:
+            match = re.search(r"(\d{1,2}):?(\d{2})?\s*-\s*(\d{1,2}):?(\d{2})?", str(session))
+            if match:
+                return int(match.group(1)), int(match.group(3))
+        return None
+    return int(start), int(end)
+
+
+def _timestamp_in_session(timestamp: pd.Timestamp, session_window: tuple[int, int]) -> bool:
+    start_hour, end_hour = session_window
+    hour = timestamp.hour
+    if start_hour <= end_hour:
+        return start_hour <= hour < end_hour
+    return hour >= start_hour or hour < end_hour
+
+
+def _is_in_news_blackout(timestamp: pd.Timestamp, news_windows: list[dict]) -> bool:
+    ts = timestamp.to_pydatetime().astimezone(timezone.utc)
+    for window in news_windows:
+        try:
+            start = datetime.fromisoformat(window["start"].replace("Z", "+00:00"))
+            end = datetime.fromisoformat(window["end"].replace("Z", "+00:00"))
+        except Exception:
+            continue
+        if start <= ts <= end:
+            return True
+    return False
+
+
+def _infer_currencies_from_symbol(symbol: str) -> list[str]:
+    normalized = (symbol or "").upper()
+    if len(normalized) >= 6:
+        return [normalized[:3], normalized[3:6]]
+    return ["USD"]
+
+
+def _bias_allows_signal(signal: str, symbol: str, directional_bias: str) -> bool:
+    symbol = (symbol or "").upper()
+    bias = directional_bias.lower()
+    if "usd" not in bias:
+        return True
+    bullish = "bullish" in bias or "positive" in bias
+    bearish = "bearish" in bias or "negative" in bias
+    if not bullish and not bearish:
+        return True
+    if symbol.endswith("USD"):
+        return (signal == "SHORT" if bullish else signal == "LONG")
+    if symbol.startswith("USD"):
+        return (signal == "LONG" if bullish else signal == "SHORT")
+    return True

@@ -5,6 +5,8 @@ import { useBacktest } from '@/hooks/useBacktest'
 import {
   Section, Field, inputCls, Alert, MetricCard, NavButtons, Spinner, ProgressBar, TabBar
 } from '@/components/ui'
+import FundamentalFiltersCard from '@/components/FundamentalFiltersCard'
+import { DEFAULT_FUNDAMENTAL_FILTERS } from '@/lib/fundamentals'
 import type { BacktestResult } from '@/types'
 
 const TF_DEFAULT_YEARS: Record<string, number> = {
@@ -39,6 +41,7 @@ const DEFAULT_CONFIG = {
   run_walk_forward: true,
   run_monte_carlo: true,
   mc_simulations: 1000,
+  fundamental_filters: DEFAULT_FUNDAMENTAL_FILTERS,
 }
 
 export default function StepBacktest({ sessionId, onComplete, onBack }: Props) {
@@ -254,6 +257,13 @@ export default function StepBacktest({ sessionId, onComplete, onBack }: Props) {
         </div>
       </Section>
 
+      <FundamentalFiltersCard
+        value={config.fundamental_filters}
+        onChange={(next) => setConfig((c) => ({ ...c, fundamental_filters: next }))}
+        title="Confluenza tecnica + fondamentale per il backtest"
+        compact
+      />
+
       {error && <Alert type="error">{error}</Alert>}
 
       {isRunning && (
@@ -298,6 +308,7 @@ function BacktestResults({
   const regime = results.regime_analysis
   const risk = results.risk_review
   const decision = results.final_decision
+  const calendarContext = results.data_info?.calendar_context
 
   const metricColor = (v: number, good: number, bad: number) =>
     v >= good ? 'text-green-400' : v <= bad ? 'text-red-400' : 'text-amber-400'
@@ -360,6 +371,22 @@ function BacktestResults({
         <MetricCard label="Regime independence" value={`${(decision.score_breakdown.regime_independence * 100).toFixed(0)}%`} />
         <MetricCard label="Risk quality" value={`${(decision.score_breakdown.risk_quality * 100).toFixed(0)}%`} />
       </div>
+
+      {(calendarContext?.provider && calendarContext.provider !== 'none') || (calendarContext?.warnings?.length ?? 0) > 0 ? (
+        <Alert type={calendarContext?.provider && calendarContext.provider !== 'none' ? 'info' : 'warning'} title="News / Fundamentals context">
+          <div className="space-y-1">
+            {calendarContext?.provider && (
+              <div>
+                Provider: <span className="font-bold">{calendarContext.provider}</span>
+                {typeof calendarContext.events_used === 'number' ? ` · eventi usati ${calendarContext.events_used}` : ''}
+              </div>
+            )}
+            {(calendarContext?.warnings || []).map((warning, index) => (
+              <div key={index}>• {warning}</div>
+            ))}
+          </div>
+        </Alert>
+      ) : null}
 
       {(decision.blockers.length > 0 || decision.reasons.length > 0) && (
         <Alert type={canProceed ? 'info' : 'error'} title={canProceed ? 'Why this is promoted with caution' : 'Why this is rejected / blocked'}>

@@ -91,6 +91,23 @@ export const backtestApi = {
     request('/api/backtest/providers'),
 }
 
+export const botLabApi = {
+  upload: (payload: object) =>
+    request('/api/bot-lab/upload', { method: 'POST', body: JSON.stringify(payload) }),
+
+  modify: (payload: object) =>
+    request('/api/bot-lab/modify', { method: 'POST', body: JSON.stringify(payload) }),
+
+  session: (sessionId: string) =>
+    request(`/api/bot-lab/session/${sessionId}`),
+
+  calendarProviders: () =>
+    request('/api/bot-lab/calendar/providers'),
+
+  previewCalendar: (payload: object) =>
+    request('/api/bot-lab/calendar/preview', { method: 'POST', body: JSON.stringify(payload) }),
+}
+
 // ─── Export endpoints ─────────────────────────────────────────────────────────
 
 export const exportApi = {
