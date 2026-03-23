@@ -81,7 +81,7 @@ export interface StrategyIntake {
 
 export interface FundamentalFilterConfig {
   enabled: boolean
-  provider: 'none' | 'manual' | 'trading_economics'
+  provider: 'none' | 'manual' | 'trading_economics' | 'forexfactory' | 'bloomberg' | 'morningstar' | 'investing' | 'fxstreet'
   currencies: string[]
   impacts: Array<'high' | 'medium' | 'low'>
   blackout_before_min: number
@@ -98,6 +98,7 @@ export interface CalendarProviderInfo {
   name: string
   available: boolean
   api_key_required: boolean
+  integration_status?: 'live' | 'demo' | 'requires_config' | 'restricted'
   description: string
 }
 

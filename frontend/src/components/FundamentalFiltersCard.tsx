@@ -78,7 +78,11 @@ export default function FundamentalFiltersCard({
                 {providers.length === 0 && <option value="none">Nessun provider</option>}
                 {providers.map((provider) => (
                   <option key={provider.id} value={provider.id} disabled={!provider.available && provider.id !== 'none'}>
-                    {provider.name}{provider.available ? '' : ' (non configurato)'}
+                    {provider.name}
+                    {provider.integration_status === 'demo' ? ' (demo)' : ''}
+                    {provider.integration_status === 'requires_config' ? ' (richiede config)' : ''}
+                    {provider.integration_status === 'restricted' ? ' (solo catalogato)' : ''}
+                    {!provider.available && provider.integration_status !== 'restricted' && provider.id !== 'none' ? ' (non configurato)' : ''}
                   </option>
                 ))}
               </select>

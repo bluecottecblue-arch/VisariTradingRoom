@@ -5,6 +5,8 @@ Provider disponibili:
 - none: filtri news disattivati / fallback pulito
 - manual: eventi manuali o demo deterministici, utile per test e setup senza API
 - trading_economics: provider esterno opzionale via env
+- forexfactory / bloomberg / morningstar / investing / fxstreet:
+  opzioni visibili in UI ma non integrate automaticamente in modo affidabile
 """
 from __future__ import annotations
 
@@ -15,7 +17,7 @@ from typing import Any
 import httpx
 
 
-def list_calendar_providers() -> list[dict[str, Any]]:
+def _provider_catalog() -> list[dict[str, Any]]:
     te_api_key = (os.getenv("TRADING_ECONOMICS_API_KEY") or "").strip()
     return [
         {
@@ -23,6 +25,7 @@ def list_calendar_providers() -> list[dict[str, Any]]:
             "name": "Nessun provider",
             "available": True,
             "api_key_required": False,
+            "integration_status": "live",
             "description": "Nessun filtro macro applicato. Il backtest continua senza crash.",
         },
         {
@@ -30,6 +33,7 @@ def list_calendar_providers() -> list[dict[str, Any]]:
             "name": "Manual / Demo news events",
             "available": True,
             "api_key_required": False,
+            "integration_status": "demo",
             "description": "Usa eventi inseriti manualmente o eventi demo deterministicamente generati.",
         },
         {
@@ -37,13 +41,58 @@ def list_calendar_providers() -> list[dict[str, Any]]:
             "name": "Trading Economics",
             "available": bool(te_api_key),
             "api_key_required": True,
+            "integration_status": "live" if te_api_key else "requires_config",
             "description": "Provider esterno opzionale per calendario economico. Richiede env TRADING_ECONOMICS_API_KEY.",
+        },
+        {
+            "id": "forexfactory",
+            "name": "Forex Factory",
+            "available": False,
+            "api_key_required": False,
+            "integration_status": "restricted",
+            "description": "Calendario retail molto usato. L'accesso automatico diretto oggi è protetto da challenge anti-bot, quindi non è interrogabile in modo affidabile dal backend.",
+        },
+        {
+            "id": "bloomberg",
+            "name": "Bloomberg",
+            "available": False,
+            "api_key_required": False,
+            "integration_status": "restricted",
+            "description": "Fonte premium/proprietaria. La web property pubblica non è adatta come feed calendario integrabile direttamente in questa build.",
+        },
+        {
+            "id": "morningstar",
+            "name": "Morningstar",
+            "available": False,
+            "api_key_required": False,
+            "integration_status": "restricted",
+            "description": "Fonte macro/market research utile come riferimento, ma non c'è un feed calendario automatico affidabile collegato a questa app.",
+        },
+        {
+            "id": "investing",
+            "name": "Investing.com",
+            "available": False,
+            "api_key_required": False,
+            "integration_status": "restricted",
+            "description": "Fonte retail molto diffusa. L'accesso automatico diretto non è attivato in questa build per evitare scraping fragile.",
+        },
+        {
+            "id": "fxstreet",
+            "name": "FXStreet",
+            "available": False,
+            "api_key_required": False,
+            "integration_status": "restricted",
+            "description": "Fonte utile per calendario/news FX. Provider mostrato in UI ma non ancora integrato come feed live nel backend.",
         },
     ]
 
 
+def list_calendar_providers() -> list[dict[str, Any]]:
+    return _provider_catalog()
+
+
 def provider_status(provider_id: str) -> dict[str, Any]:
-    for provider in list_calendar_providers():
+    for provider in _provider_catalog():
         if provider["id"] == provider_id:
             return provider
     return {"id": provider_id, "name": provider_id, "available": False, "api_key_required": False}
@@ -100,6 +149,17 @@ async def fetch_calendar_events(
             "provider": "trading_economics",
             "events": _apply_event_filters(ranged, currencies, impacts),
             "warnings": [] if ranged else ["Il provider Trading Economics non ha restituito eventi nel range richiesto."],
+        }
+
+    unsupported = provider_status(provider_id)
+    if unsupported and provider_id in {"forexfactory", "bloomberg", "morningstar", "investing", "fxstreet"}:
+        return {
+            "provider": provider_id,
+            "events": [],
+            "warnings": [
+                f"Il provider {unsupported.get('name')} è visibile in UI ma non è interrogabile automaticamente in questa build.",
+                unsupported.get("description") or "Provider non ancora integrato.",
+            ],
         }
 
     return {
@@ -258,4 +318,3 @@ def _apply_event_filters(events: list[dict[str, Any]], currencies: list[str], im
             continue
         filtered.append(event)
     return filtered
-
