@@ -9,6 +9,7 @@ Non va mai deployato in live senza revisione manuale da un developer MQL5.
 """
 import json
 import re
+from typing import Optional
 
 from modules.common.anthropic_client import get_anthropic_model, invoke_text, parse_json_response
 from modules.common.strategy_validation import (
@@ -16,6 +17,7 @@ from modules.common.strategy_validation import (
     STATUS_INVALID,
     STATUS_VALID,
     build_bot_result,
+    normalize_claude_access,
     validate_formal_spec_payload,
     validate_mql5_code,
 )
@@ -40,6 +42,27 @@ The MQL5 code MUST include:
 7. IsNewBar() helper using static datetime
 8. IsSessionActive() checking TimeCurrent() against input hours
 9. IsSpreadOk() checking SymbolInfoInteger SYMBOL_SPREAD
+10. If formal_spec.macro_news.enabled is true, ALSO include:
+   - input bool UseMacroNewsFilter
+   - input string MacroNewsProvider
+   - input string MacroNewsApiKey with empty default value
+   - input string MacroNewsCurrencies
+   - input int MacroNewsPreBlockMinutes
+   - input int MacroNewsPostBlockMinutes
+   - input int MacroNewsPostEventWaitMinutes
+   - input string MacroNewsMode
+   - input string MacroDirectionalBias
+   - RefreshMacroCalendarIfNeeded()
+   - IsMacroTradingBlocked()
+   - MacroBiasAllowsTrade()
+   - WebRequest-based fetch to the provider API
+   - macro/news checks BEFORE entry signals inside OnTick()
+11. Never ignore macro_news when enabled.
+12. For Trading Economics use a GET request to https://api.tradingeconomics.com/calendar?c=<api_key>.
+13. Cache the fetched events in memory, refresh periodically, and convert them into pre/post-event blackout windows.
+14. If MacroNewsMode is confirm_with_bias/post_event_trigger, use explicit helper logic; no pseudo-code.
+15. Never hardcode secrets. MacroNewsApiKey must stay user-configurable at runtime.
+16. Never output TODO, placeholder, FIXME, or stub comments.
 No markdown fences."""
 
 
@@ -48,11 +71,15 @@ class MQL5Generator:
         self.model = get_anthropic_model("botgen")
         self._sessions: dict = {}
 
-    def store_formal_spec(self, session_id: str, spec: dict):
-        self._sessions[session_id] = spec
+    def store_formal_spec(self, session_id: str, spec: dict, claude_access: Optional[dict] = None):
+        self._sessions[session_id] = {
+            "spec": spec,
+            "claude_access": normalize_claude_access(claude_access),
+        }
 
     async def generate(self, session_id: str) -> dict:
-        spec = self._sessions.get(session_id, {})
+        session_payload = self._sessions.get(session_id, {}) or {}
+        spec = session_payload.get("spec", {})
         if not spec:
             return build_bot_result(
                 status=STATUS_INVALID,
@@ -83,15 +110,20 @@ class MQL5Generator:
                 ],
             )
 
+        claude_access = session_payload.get("claude_access") or {}
         llm_result = await invoke_text(
             module="botgen",
             system_prompt=MQL5_SYSTEM_PROMPT,
             payload=self._build_payload(spec),
             model=self.model,
+            api_key_override=claude_access.get("api_key") if claude_access.get("credential_source") == "personal" else None,
         )
         data = self._parse_mixed_response(llm_result["text"])
         code = (data.get("mql5_code") or "").strip()
         code_validation = validate_mql5_code(code)
+        macro_validation = self._validate_macro_runtime(code, spec)
+        if macro_validation["required"]:
+            code_validation = self._merge_code_validation(code_validation, macro_validation)
         if not code_validation["is_valid"]:
             return build_bot_result(
                 status=STATUS_GENERATION_FAILED,
@@ -151,14 +183,86 @@ class MQL5Generator:
         return normalized
 
     def _build_payload(self, spec: dict) -> dict:
+        formal_spec = dict(spec.get("formal_spec") or {})
+        macro_news = dict(formal_spec.get("macro_news") or {})
+        if macro_news:
+            macro_news["api_key"] = ""
+            formal_spec["macro_news"] = macro_news
+        fundamental_filters = dict(formal_spec.get("fundamental_filters") or {})
+        if fundamental_filters:
+            fundamental_filters["api_key"] = ""
+            formal_spec["fundamental_filters"] = fundamental_filters
         return {
             "task": "generate_mql5_ea",
             "app_name": "VisariTradingRoom",
-            "formal_spec": spec.get("formal_spec", {}),
+            "formal_spec": formal_spec,
             "state_machine": spec.get("state_machine", {}),
             "parameters": spec.get("parameters", []),
             "non_optimizable": spec.get("non_optimizable", []),
             "assumptions": spec.get("assumptions", []),
+            "macro_news": macro_news,
+            "provider_endpoints": {
+                "trading_economics": "https://api.tradingeconomics.com/calendar",
+            },
+        }
+
+    def _validate_macro_runtime(self, code: str, spec: dict) -> dict:
+        macro_news = ((spec.get("formal_spec") or {}).get("macro_news") or {})
+        enabled = bool(macro_news.get("enabled"))
+        if not enabled:
+            return {"required": False, "is_valid": True, "errors": [], "checks": {}}
+
+        checks = {
+            "has_macro_inputs": "UseMacroNewsFilter" in code and "MacroNewsProvider" in code,
+            "has_web_request": "WebRequest(" in code,
+            "has_refresh_helper": "RefreshMacroCalendarIfNeeded(" in code,
+            "has_block_helper": "IsMacroTradingBlocked(" in code,
+            "has_bias_helper": "MacroBiasAllowsTrade(" in code or "MacroBiasAllowsTrade (" in code,
+            "has_ontick_macro_gate": "IsMacroTradingBlocked()" in code or "RefreshMacroCalendarIfNeeded();" in code,
+            "has_mode_input": "MacroNewsMode" in code,
+            "has_api_key_input": "MacroNewsApiKey" in code,
+        }
+
+        errors = []
+        for key, ok in checks.items():
+            if ok:
+                continue
+            if key == "has_macro_inputs":
+                errors.append("manca il blocco input per macro/news live")
+            elif key == "has_web_request":
+                errors.append("manca WebRequest per il feed macro live")
+            elif key == "has_refresh_helper":
+                errors.append("manca RefreshMacroCalendarIfNeeded()")
+            elif key == "has_block_helper":
+                errors.append("manca IsMacroTradingBlocked()")
+            elif key == "has_bias_helper":
+                errors.append("manca MacroBiasAllowsTrade()")
+            elif key == "has_ontick_macro_gate":
+                errors.append("OnTick() non applica il filtro macro/news prima degli ingressi")
+            elif key == "has_mode_input":
+                errors.append("manca MacroNewsMode")
+            elif key == "has_api_key_input":
+                errors.append("manca MacroNewsApiKey")
+
+        return {
+            "required": True,
+            "is_valid": not errors,
+            "errors": errors,
+            "checks": checks,
+        }
+
+    def _merge_code_validation(self, base: dict, extra: dict) -> dict:
+        checks = dict(base.get("checks") or {})
+        checks.update(extra.get("checks") or {})
+        errors = list(base.get("errors") or [])
+        for item in extra.get("errors") or []:
+            if item not in errors:
+                errors.append(item)
+        return {
+            **base,
+            "checks": checks,
+            "errors": errors,
+            "is_valid": not errors,
         }
 
 

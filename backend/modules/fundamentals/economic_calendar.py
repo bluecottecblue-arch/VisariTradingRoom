@@ -1,36 +1,33 @@
 """
 Economic calendar provider layer.
 
-Provider disponibili:
-- none: filtri news disattivati / fallback pulito
-- manual: eventi manuali o demo deterministici, utile per test e setup senza API
-- trading_economics: provider esterno opzionale via env
-- forexfactory / bloomberg / morningstar / investing / fxstreet:
-  opzioni visibili in UI ma non integrate automaticamente in modo affidabile
+Obiettivo pragmatico:
+- supportare davvero il bot finale con provider utilizzabili
+- mantenere un fallback demo per test/research senza API
+- evitare provider "vetrina" non interrogabili in modo affidabile
 """
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 import os
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 import httpx
 
 
-def _provider_catalog() -> list[dict[str, Any]]:
-    te_api_key = (os.getenv("TRADING_ECONOMICS_API_KEY") or "").strip()
+def _provider_catalog() -> List[Dict[str, Any]]:
     return [
         {
             "id": "none",
             "name": "Nessun provider",
             "available": True,
             "api_key_required": False,
-            "integration_status": "live",
+            "integration_status": "disabled",
             "description": "Nessun filtro macro applicato. Il backtest continua senza crash.",
         },
         {
             "id": "manual",
-            "name": "Manual / Demo news events",
+            "name": "Manual / Demo events",
             "available": True,
             "api_key_required": False,
             "integration_status": "demo",
@@ -39,63 +36,56 @@ def _provider_catalog() -> list[dict[str, Any]]:
         {
             "id": "trading_economics",
             "name": "Trading Economics",
-            "available": bool(te_api_key),
+            "available": True,
             "api_key_required": True,
-            "integration_status": "live" if te_api_key else "requires_config",
-            "description": "Provider esterno opzionale per calendario economico. Richiede env TRADING_ECONOMICS_API_KEY.",
-        },
-        {
-            "id": "forexfactory",
-            "name": "Forex Factory",
-            "available": False,
-            "api_key_required": False,
-            "integration_status": "restricted",
-            "description": "Calendario retail molto usato. L'accesso automatico diretto oggi è protetto da challenge anti-bot, quindi non è interrogabile in modo affidabile dal backend.",
-        },
-        {
-            "id": "bloomberg",
-            "name": "Bloomberg",
-            "available": False,
-            "api_key_required": False,
-            "integration_status": "restricted",
-            "description": "Fonte premium/proprietaria. La web property pubblica non è adatta come feed calendario integrabile direttamente in questa build.",
-        },
-        {
-            "id": "morningstar",
-            "name": "Morningstar",
-            "available": False,
-            "api_key_required": False,
-            "integration_status": "restricted",
-            "description": "Fonte macro/market research utile come riferimento, ma non c'è un feed calendario automatico affidabile collegato a questa app.",
-        },
-        {
-            "id": "investing",
-            "name": "Investing.com",
-            "available": False,
-            "api_key_required": False,
-            "integration_status": "restricted",
-            "description": "Fonte retail molto diffusa. L'accesso automatico diretto non è attivato in questa build per evitare scraping fragile.",
-        },
-        {
-            "id": "fxstreet",
-            "name": "FXStreet",
-            "available": False,
-            "api_key_required": False,
-            "integration_status": "restricted",
-            "description": "Fonte utile per calendario/news FX. Provider mostrato in UI ma non ancora integrato come feed live nel backend.",
+            "integration_status": "live",
+            "description": "Provider live supportato. Richiede API key Trading Economics.",
         },
     ]
 
 
-def list_calendar_providers() -> list[dict[str, Any]]:
+def list_calendar_providers() -> List[Dict[str, Any]]:
     return _provider_catalog()
 
 
-def provider_status(provider_id: str) -> dict[str, Any]:
+def provider_status(provider_id: str) -> Dict[str, Any]:
     for provider in _provider_catalog():
         if provider["id"] == provider_id:
             return provider
     return {"id": provider_id, "name": provider_id, "available": False, "api_key_required": False}
+
+
+def normalize_macro_news_config(raw: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    raw = raw if isinstance(raw, dict) else {}
+    provider = str(raw.get("provider") or "none").strip() or "none"
+    mode = str(raw.get("mode") or "").strip().lower()
+    bias_mode = str(raw.get("bias_mode") or "").strip().lower()
+    if not mode:
+        mode = {
+            "exclude_only": "filter",
+            "confirm_with_bias": "confirm",
+            "post_event_trigger": "event_driven",
+        }.get(bias_mode, "filter")
+    bias_mode = {
+        "filter": "exclude_only",
+        "confirm": "confirm_with_bias",
+        "event_driven": "post_event_trigger",
+    }.get(mode, "exclude_only")
+    return {
+        "enabled": bool(raw.get("enabled", False)),
+        "provider": provider,
+        "api_key": str(raw.get("api_key") or raw.get("provider_api_key") or "").strip(),
+        "currencies": [str(item).strip().upper() for item in (raw.get("currencies") or []) if str(item).strip()],
+        "impacts": [str(item).strip().lower() for item in (raw.get("impacts") or ["high"]) if str(item).strip()],
+        "pre_event_block_minutes": int(raw.get("pre_event_block_minutes", raw.get("blackout_before_min", 30)) or 30),
+        "post_event_block_minutes": int(raw.get("post_event_block_minutes", raw.get("blackout_after_min", 30)) or 30),
+        "post_event_wait_minutes": int(raw.get("post_event_wait_minutes", raw.get("post_event_wait_min", 15)) or 15),
+        "mode": mode,
+        "bias_mode": bias_mode,
+        "directional_bias": str(raw.get("directional_bias") or "").strip(),
+        "notes": str(raw.get("notes") or "").strip(),
+        "manual_events": raw.get("manual_events") or [],
+    }
 
 
 async def fetch_calendar_events(
@@ -103,10 +93,11 @@ async def fetch_calendar_events(
     provider_id: str,
     date_from: str,
     date_to: str,
-    currencies: list[str] | None = None,
-    impacts: list[str] | None = None,
-    manual_events: list[dict[str, Any]] | None = None,
-) -> dict[str, Any]:
+    currencies: Optional[List[str]] = None,
+    impacts: Optional[List[str]] = None,
+    manual_events: Optional[List[Dict[str, Any]]] = None,
+    api_key: Optional[str] = None,
+) -> Dict[str, Any]:
     provider_id = (provider_id or "none").strip() or "none"
     currencies = [currency.upper() for currency in (currencies or []) if currency]
     impacts = [impact.lower() for impact in (impacts or []) if impact]
@@ -127,18 +118,25 @@ async def fetch_calendar_events(
         }
 
     if provider_id == "trading_economics":
-        api_key = (os.getenv("TRADING_ECONOMICS_API_KEY") or "").strip()
-        if not api_key:
+        effective_api_key = str(api_key or os.getenv("TRADING_ECONOMICS_API_KEY") or "").strip()
+        if not effective_api_key:
             return {
                 "provider": "trading_economics",
                 "events": [],
-                "warnings": ["TRADING_ECONOMICS_API_KEY non configurata: filtri macro disattivati."],
+                "warnings": ["API key Trading Economics mancante: filtri macro live disattivati."],
             }
         url = "https://api.tradingeconomics.com/calendar"
-        async with httpx.AsyncClient(timeout=25.0) as client:
-            response = await client.get(url, params={"c": api_key})
-            response.raise_for_status()
-            raw = response.json()
+        try:
+            async with httpx.AsyncClient(timeout=25.0) as client:
+                response = await client.get(url, params={"c": effective_api_key})
+                response.raise_for_status()
+                raw = response.json()
+        except httpx.HTTPError as exc:
+            return {
+                "provider": "trading_economics",
+                "events": [],
+                "warnings": [f"Trading Economics non disponibile o API key non valida: {exc}"],
+            }
         events = normalize_events(raw)
         ranged = [
             event
@@ -151,17 +149,6 @@ async def fetch_calendar_events(
             "warnings": [] if ranged else ["Il provider Trading Economics non ha restituito eventi nel range richiesto."],
         }
 
-    unsupported = provider_status(provider_id)
-    if unsupported and provider_id in {"forexfactory", "bloomberg", "morningstar", "investing", "fxstreet"}:
-        return {
-            "provider": provider_id,
-            "events": [],
-            "warnings": [
-                f"Il provider {unsupported.get('name')} è visibile in UI ma non è interrogabile automaticamente in questa build.",
-                unsupported.get("description") or "Provider non ancora integrato.",
-            ],
-        }
-
     return {
         "provider": provider_id,
         "events": [],
@@ -169,7 +156,7 @@ async def fetch_calendar_events(
     }
 
 
-def normalize_events(raw_events: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+def normalize_events(raw_events: Optional[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
     normalized = []
     for item in raw_events or []:
         if not isinstance(item, dict):
@@ -207,11 +194,11 @@ def normalize_events(raw_events: list[dict[str, Any]] | None) -> list[dict[str, 
 
 
 def build_news_windows(
-    events: list[dict[str, Any]],
+    events: List[Dict[str, Any]],
     *,
     blackout_before_min: int,
     blackout_after_min: int,
-) -> list[dict[str, Any]]:
+) -> List[Dict[str, Any]]:
     windows = []
     for event in events:
         try:
@@ -230,7 +217,7 @@ def build_news_windows(
     return windows
 
 
-def _generate_demo_events(date_from: str, date_to: str, currencies: list[str]) -> list[dict[str, Any]]:
+def _generate_demo_events(date_from: str, date_to: str, currencies: List[str]) -> List[Dict[str, Any]]:
     start = datetime.fromisoformat(f"{date_from}T00:00:00+00:00")
     end = datetime.fromisoformat(f"{date_to}T00:00:00+00:00")
     currencies = currencies or ["USD"]
@@ -265,7 +252,7 @@ def _days_in_month(year: int, month: int) -> int:
     return (next_month - this_month).days
 
 
-def _normalize_timestamp(value: Any) -> str | None:
+def _normalize_timestamp(value: Any) -> Optional[str]:
     if not value:
         return None
     raw = str(value).strip().replace("Z", "+00:00")
@@ -309,7 +296,7 @@ def _normalize_currency(value: Any) -> str:
     return raw or "ALL"
 
 
-def _apply_event_filters(events: list[dict[str, Any]], currencies: list[str], impacts: list[str]) -> list[dict[str, Any]]:
+def _apply_event_filters(events: List[Dict[str, Any]], currencies: List[str], impacts: List[str]) -> List[Dict[str, Any]]:
     filtered = []
     for event in events:
         if currencies and event.get("currency") not in currencies and event.get("currency") != "ALL":

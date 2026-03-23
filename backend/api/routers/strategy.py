@@ -57,6 +57,8 @@ class StrategyIntakeRequest(BaseModel):
     valid_trade_examples: Optional[str] = None
     invalid_trade_examples: Optional[str] = None
     additional_notes: Optional[str] = None
+    claude_access: Optional[dict[str, Any]] = None
+    macro_news: Optional[dict[str, Any]] = None
 
 
 class ParseResponse(BaseModel):
@@ -236,7 +238,9 @@ async def resolve_ambiguities(req: AmbiguityResolution):
         )
         # Store formal spec so bot_gen can read it by session_id
         if result.get("status") == "VALID":
-            bot_gen.store_formal_spec(req.session_id, result)
+            parsed_bundle = InMemorySessionStore.get(req.session_id, "parsed_bundle") or {}
+            intake = parsed_bundle.get("intake") or {}
+            bot_gen.store_formal_spec(req.session_id, result, intake.get("claude_access"))
             InMemorySessionStore.save(req.session_id, "formal_spec_bundle", result)
         return FormalSpecResponse(session_id=req.session_id, **result)
     except Exception as e:
@@ -286,7 +290,8 @@ async def get_session(session_id: str):
     """Debug: check session state."""
     parsed_bundle = formalizer._sessions.get(session_id) or {}
     parsed = parsed_bundle.get("parsed")
-    spec = bot_gen._sessions.get(session_id)
+    spec_bundle = bot_gen._sessions.get(session_id) or {}
+    spec = spec_bundle.get("spec")
     return {
         "session_id": session_id,
         "has_parsed": parsed is not None,

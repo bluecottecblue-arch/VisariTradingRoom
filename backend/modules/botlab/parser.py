@@ -12,9 +12,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 import hashlib
 import re
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 from modules.common.strategy_validation import STATUS_INVALID, STATUS_VALID
+from modules.fundamentals.economic_calendar import normalize_macro_news_config
 
 
 SUPPORTED_EXTENSIONS = {
@@ -55,9 +56,9 @@ def analyze_bot_code(
     filename: str,
     content: str,
     source_origin: str = "user",
-    platform_hint: str | None = None,
-    fundamental_filters: dict[str, Any] | None = None,
-) -> dict[str, Any]:
+    platform_hint: Optional[str] = None,
+    fundamental_filters: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     normalized = (content or "").replace("\r\n", "\n").replace("\r", "\n")
     if not normalized.strip():
         return {
@@ -161,6 +162,7 @@ def analyze_bot_code(
         sessions=sessions,
         inferred_logic=inferred_logic,
         fundamental_flags=fundamental_flags,
+        configured_macro_news=fundamental_filters or {},
     )
     explanation = _build_explanation(
         file_info=file_info,
@@ -242,7 +244,7 @@ def summarize_bot_diff(original: dict[str, Any], modified: dict[str, Any]) -> di
     }
 
 
-def _detect_file_info(filename: str, content: str, source_origin: str, platform_hint: str | None) -> BotFileInfo:
+def _detect_file_info(filename: str, content: str, source_origin: str, platform_hint: Optional[str]) -> BotFileInfo:
     raw_name = (filename or "uploaded_bot").strip() or "uploaded_bot"
     extension = ""
     if "." in raw_name:
@@ -325,7 +327,7 @@ def _extract_indicators(content: str) -> list[dict[str, Any]]:
     return deduped[:12]
 
 
-def _extract_call_based_indicator(indicator_type: str, pattern: re.Pattern[str], content: str, default_mode: str | None = None) -> list[dict[str, Any]]:
+def _extract_call_based_indicator(indicator_type: str, pattern: re.Pattern[str], content: str, default_mode: Optional[str] = None) -> List[Dict[str, Any]]:
     items = []
     for match in pattern.findall(content):
         args = [part.strip() for part in match.split(",")]
@@ -392,7 +394,7 @@ def _extract_sessions(content: str) -> list[str]:
     return sessions
 
 
-def _extract_fundamental_flags(content: str, configured_filters: dict[str, Any] | None) -> dict[str, Any]:
+def _extract_fundamental_flags(content: str, configured_filters: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     lowered = content.lower()
     flags = {
         "enabled": False,
@@ -550,6 +552,7 @@ def _build_formal_spec_bundle(
     sessions: list[str],
     inferred_logic: dict[str, Any],
     fundamental_flags: dict[str, Any],
+    configured_macro_news: dict[str, Any],
 ) -> dict[str, Any]:
     if not parameters:
         parameters = [
@@ -582,6 +585,7 @@ def _build_formal_spec_bundle(
     }
     if "spread_filter" in protections:
         risk_management["spread_guard_enabled"] = True
+    macro_news = normalize_macro_news_config(configured_macro_news)
 
     formal_spec = {
         "source": "uploaded_bot",
@@ -597,8 +601,20 @@ def _build_formal_spec_bundle(
         },
         "take_profit": {"type": "rr_ratio", "rr_ratio": 2.0},
         "risk_management": risk_management,
+        "macro_news": macro_news,
         "fundamental_filters": {
-            "enabled": fundamental_flags.get("enabled", False),
+            "enabled": macro_news.get("enabled", False),
+            "provider": macro_news.get("provider", "none"),
+            "api_key": macro_news.get("api_key", ""),
+            "currencies": macro_news.get("currencies", []),
+            "impacts": macro_news.get("impacts", []),
+            "blackout_before_min": macro_news.get("pre_event_block_minutes", 30),
+            "blackout_after_min": macro_news.get("post_event_block_minutes", 30),
+            "post_event_wait_min": macro_news.get("post_event_wait_minutes", 15),
+            "bias_mode": macro_news.get("bias_mode", "exclude_only"),
+            "directional_bias": macro_news.get("directional_bias", ""),
+            "notes": macro_news.get("notes", ""),
+            "manual_events": macro_news.get("manual_events", []),
             "has_news_blackout": fundamental_flags.get("has_news_blackout", False),
             "has_directional_bias": fundamental_flags.get("has_directional_bias", False),
             "has_post_event_rule": fundamental_flags.get("has_post_event_rule", False),
@@ -714,7 +730,7 @@ def _guess_numeric_param(parameters: list[dict[str, Any]], name_markers: list[st
     return float(fallback)
 
 
-def _parse_period(raw: Any) -> int | None:
+def _parse_period(raw: Any) -> Optional[int]:
     if raw is None:
         return None
     match = re.search(r"(\d+)", str(raw))

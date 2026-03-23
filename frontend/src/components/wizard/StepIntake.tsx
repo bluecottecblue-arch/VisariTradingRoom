@@ -37,7 +37,11 @@ const DEFAULT_FORM: StrategyIntake = {
   valid_trade_examples: '',
   invalid_trade_examples: '',
   additional_notes: '',
-  fundamental_filters: DEFAULT_FUNDAMENTAL_FILTERS,
+  claude_access: {
+    credential_source: 'integrated',
+    api_key: '',
+  },
+  macro_news: DEFAULT_FUNDAMENTAL_FILTERS,
 }
 
 interface Props {
@@ -115,7 +119,8 @@ export default function StepIntake({ onComplete }: Props) {
 
   const buildPayload = (value: StrategyIntake) => ({
     ...value,
-    news_management: summarizeFundamentalFilters(value.fundamental_filters, value.news_management),
+    macro_news: value.macro_news,
+    news_management: summarizeFundamentalFilters(value.macro_news, value.news_management),
   })
 
   const handleSubmit = async () => {
@@ -148,6 +153,64 @@ export default function StepIntake({ onComplete }: Props) {
           su formalizzazione e codice quando mancano dettagli decisivi.
         </p>
       </div>
+
+      <Section title="Accesso Claude">
+        <div className="space-y-4">
+          <div className="text-xs text-stone-500">
+            Scegli se usare la Claude API key integrata nella piattaforma oppure una tua chiave personale.
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            {[
+              {
+                id: 'integrated' as const,
+                label: 'Usa la Claude key integrata',
+                description: 'Le chiamate AI usano la chiave Anthropic già configurata sul backend.',
+              },
+              {
+                id: 'personal' as const,
+                label: 'Usa la mia Claude key',
+                description: 'Le chiamate AI di questa sessione usano la tua API key personale.',
+              },
+            ].map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => set('claude_access', { ...form.claude_access, credential_source: option.id })}
+                className={`rounded border px-4 py-3 text-left transition-colors ${
+                  form.claude_access?.credential_source === option.id
+                    ? 'border-amber-500 bg-amber-950/30'
+                    : 'border-stone-800 bg-stone-900/60 hover:border-stone-700'
+                }`}
+              >
+                <div className="text-sm font-bold text-stone-200">{option.label}</div>
+                <div className="mt-1 text-xs text-stone-500">{option.description}</div>
+              </button>
+            ))}
+          </div>
+          {form.claude_access?.credential_source === 'personal' && (
+            <Field label="Claude API key personale">
+              <input
+                type="password"
+                value={form.claude_access?.api_key || ''}
+                onChange={(e) =>
+                  set('claude_access', {
+                    credential_source: form.claude_access?.credential_source || 'personal',
+                    api_key: e.target.value,
+                  })
+                }
+                className={inputCls}
+                placeholder="sk-ant-..."
+              />
+            </Field>
+          )}
+        </div>
+      </Section>
+
+      <FundamentalFiltersCard
+        title="Macro news live nel bot finale"
+        value={form.macro_news}
+        onChange={(next) => set('macro_news', next)}
+      />
 
       {/* Sezione 1 */}
       <Section title="1. Identità della strategia">
@@ -392,11 +455,6 @@ export default function StepIntake({ onComplete }: Props) {
           />
         </Field>
       </Section>
-
-      <FundamentalFiltersCard
-        value={form.fundamental_filters}
-        onChange={(next) => set('fundamental_filters', next)}
-      />
 
       {/* Sezione 6 */}
       <Section title="6. Esempi concreti (molto importanti)">

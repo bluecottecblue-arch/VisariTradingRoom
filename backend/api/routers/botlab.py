@@ -29,6 +29,7 @@ modifier = BotModifier()
 class FundamentalFiltersRequest(BaseModel):
     enabled: bool = False
     provider: str = "none"
+    api_key: Optional[str] = None
     currencies: list[str] = Field(default_factory=list)
     impacts: list[str] = Field(default_factory=lambda: ["high"])
     blackout_before_min: int = 30
@@ -69,6 +70,7 @@ async def calendar_preview(filters: FundamentalFiltersRequest):
         currencies=filters.currencies,
         impacts=filters.impacts,
         manual_events=filters.manual_events,
+        api_key=filters.api_key,
     )
     return {
         "provider": result["provider"],

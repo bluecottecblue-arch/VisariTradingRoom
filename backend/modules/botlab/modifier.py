@@ -7,7 +7,7 @@ local re-analysis -> compare summary
 """
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Dict, Optional
 
 from modules.common.anthropic_client import get_anthropic_model, invoke_json
 from modules.common.strategy_validation import STATUS_INVALID, STATUS_VALID, empty_usage, validate_mql5_code
@@ -35,7 +35,7 @@ class BotModifier:
     def __init__(self) -> None:
         self.model = get_anthropic_model("botlab_modify")
 
-    def validate_prompt(self, prompt: str, fundamental_filters: dict[str, Any] | None = None) -> dict[str, Any]:
+    def validate_prompt(self, prompt: str, fundamental_filters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         text = (prompt or "").strip()
         if len(text) < 8:
             return {
@@ -106,7 +106,7 @@ class BotModifier:
         original_code: str,
         original_analysis: dict[str, Any],
         prompt: str,
-        fundamental_filters: dict[str, Any] | None = None,
+        fundamental_filters: Optional[Dict[str, Any]] = None,
     ) -> dict[str, Any]:
         llm_result = await invoke_json(
             module="botlab_modify",
@@ -177,4 +177,3 @@ def _ensure_list(value: Any) -> list[str]:
     if isinstance(value, str) and value.strip():
         return [value.strip()]
     return []
-

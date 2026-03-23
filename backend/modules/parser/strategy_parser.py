@@ -16,6 +16,7 @@ from modules.common.strategy_validation import (
     build_required_input,
     count_blocking_issues,
     extract_llm_parse_issues,
+    normalize_claude_access,
     validate_strategy_intake,
 )
 
@@ -44,12 +45,14 @@ class StrategyParser:
         local_result = validate_strategy_intake(intake)
         if local_result["status"] != STATUS_VALID:
             return local_result
+        claude_access = normalize_claude_access(intake.get("claude_access"))
 
         llm_result = await invoke_json(
             module="parse",
             system_prompt=SYSTEM_PROMPT,
             payload=self._build_payload(intake),
             model=self.model,
+            api_key_override=claude_access.get("api_key") if claude_access.get("credential_source") == "personal" else None,
         )
         parsed = self._validate_parsed_structure(llm_result["data"])
         issues = extract_llm_parse_issues(parsed)
@@ -197,6 +200,15 @@ class StrategyParser:
             "timezone",
             "period confirmation",
             "session timezone",
+            "news_api_credentials",
+            "news api credentials",
+            "news provider api key",
+            "trading_economics_api_key",
+            "trading economics api key",
+            "macro news api key",
+            "macro provider api key",
+            "provider api key",
+            "economic calendar api key",
         )
         return not any(marker in text for marker in ignored_markers)
 
@@ -258,6 +270,7 @@ class StrategyParser:
                     "context": intake.get("context_filter"),
                     "news": intake.get("news_management"),
                 },
+                "macro_news": intake.get("macro_news") or intake.get("fundamental_filters") or {},
                 "notes": intake.get("additional_notes"),
             },
         }

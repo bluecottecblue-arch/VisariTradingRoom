@@ -76,12 +76,20 @@ export interface StrategyIntake {
   valid_trade_examples?: string
   invalid_trade_examples?: string
   additional_notes?: string
+  claude_access?: ClaudeAccessConfig
+  macro_news?: MacroNewsConfig
   fundamental_filters?: FundamentalFilterConfig
 }
 
-export interface FundamentalFilterConfig {
+export interface ClaudeAccessConfig {
+  credential_source: 'integrated' | 'personal'
+  api_key?: string
+}
+
+export interface MacroNewsConfig {
   enabled: boolean
-  provider: 'none' | 'manual' | 'trading_economics' | 'forexfactory' | 'bloomberg' | 'morningstar' | 'investing' | 'fxstreet'
+  provider: 'none' | 'manual' | 'trading_economics'
+  api_key?: string
   currencies: string[]
   impacts: Array<'high' | 'medium' | 'low'>
   blackout_before_min: number
@@ -93,12 +101,14 @@ export interface FundamentalFilterConfig {
   manual_events?: Array<Record<string, unknown>>
 }
 
+export type FundamentalFilterConfig = MacroNewsConfig
+
 export interface CalendarProviderInfo {
   id: string
   name: string
   available: boolean
   api_key_required: boolean
-  integration_status?: 'live' | 'demo' | 'requires_config' | 'restricted'
+  integration_status?: 'live' | 'demo' | 'requires_config' | 'disabled'
   description: string
 }
 

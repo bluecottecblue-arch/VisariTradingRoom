@@ -9,7 +9,7 @@ import math
 import re
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Optional
+from typing import List, Optional, Tuple
 import pandas as pd
 import os
 import uuid
@@ -23,7 +23,11 @@ from modules.research.robustness import RobustnessAnalyzer
 from modules.research.regime_analysis import RegimeAnalyzer
 from modules.research.risk_engine import RiskReviewEngine
 from modules.research.decision_engine import DecisionEngine
-from modules.fundamentals.economic_calendar import build_news_windows, fetch_calendar_events
+from modules.fundamentals.economic_calendar import (
+    build_news_windows,
+    fetch_calendar_events,
+    normalize_macro_news_config,
+)
 from db.database import InMemorySessionStore
 
 router = APIRouter()
@@ -92,7 +96,7 @@ def _get_formal_spec_from_session(session_id: str) -> dict:
     }
 
 
-def _build_strategy_function(formal_spec: dict, params: dict = None, news_windows: list[dict] | None = None):
+def _build_strategy_function(formal_spec: dict, params: dict = None, news_windows: Optional[List[dict]] = None):
     """
     Costruisce una funzione Python che implementa la strategia.
     In produzione: parsing completo della specifica formale.
@@ -101,7 +105,9 @@ def _build_strategy_function(formal_spec: dict, params: dict = None, news_window
     spec = (formal_spec or {}).get("formal_spec", {}) if formal_spec else {}
     indicators = spec.get("indicators") or []
     strategy_style = str(spec.get("strategy_style") or "").strip().lower() or "trend_following"
-    fundamental_filters = spec.get("fundamental_filters") or {}
+    macro_news = normalize_macro_news_config(
+        spec.get("macro_news") or spec.get("fundamental_filters")
+    )
     symbol = str((formal_spec or {}).get("symbol") or spec.get("symbol") or "").upper()
     risk_management = spec.get("risk_management") or {}
     news_windows = news_windows or []
@@ -116,8 +122,8 @@ def _build_strategy_function(formal_spec: dict, params: dict = None, news_window
     rr_ratio = _safe_float((spec.get("take_profit") or {}).get("rr_ratio"), 2.0)
     atr_multiplier = _safe_float((spec.get("stop_loss") or {}).get("atr_multiplier"), 1.5)
     session_window = _extract_session_window(risk_management)
-    directional_bias = str(fundamental_filters.get("directional_bias") or "").strip().lower()
-    bias_mode = str(fundamental_filters.get("bias_mode") or "").strip().lower()
+    directional_bias = str(macro_news.get("directional_bias") or "").strip().lower()
+    bias_mode = str(macro_news.get("bias_mode") or "").strip().lower()
 
     def strategy(history: pd.DataFrame):
         if len(history) < 52:
@@ -377,29 +383,40 @@ def _run_backtest_sync(payload: dict) -> dict:
         "warnings": [],
         "windows": [],
     }
-    fundamental_filters = cfg.get("fundamental_filters") or ((formal_spec_bundle.get("formal_spec") or {}).get("fundamental_filters") or {})
-    if fundamental_filters.get("enabled"):
+    macro_news = normalize_macro_news_config(
+        cfg.get("macro_news")
+        or cfg.get("fundamental_filters")
+        or ((formal_spec_bundle.get("formal_spec") or {}).get("macro_news"))
+        or ((formal_spec_bundle.get("formal_spec") or {}).get("fundamental_filters"))
+    )
+    if macro_news.get("enabled"):
         calendar_result = asyncio.run(
             fetch_calendar_events(
-                provider_id=fundamental_filters.get("provider", "none"),
+                provider_id=macro_news.get("provider", "none"),
                 date_from=date_from,
                 date_to=date_to,
-                currencies=fundamental_filters.get("currencies") or _infer_currencies_from_symbol(symbol),
-                impacts=fundamental_filters.get("impacts") or ["high"],
-                manual_events=fundamental_filters.get("manual_events") or [],
+                currencies=macro_news.get("currencies") or _infer_currencies_from_symbol(symbol),
+                impacts=macro_news.get("impacts") or ["high"],
+                manual_events=macro_news.get("manual_events") or [],
+                api_key=macro_news.get("api_key") or None,
             )
         )
         news_windows = build_news_windows(
             calendar_result.get("events", []),
-            blackout_before_min=int(fundamental_filters.get("blackout_before_min", 30) or 30),
-            blackout_after_min=int(fundamental_filters.get("blackout_after_min", 30) or 30),
+            blackout_before_min=int(macro_news.get("pre_event_block_minutes", 30) or 30),
+            blackout_after_min=int(macro_news.get("post_event_block_minutes", 30) or 30),
         )
         calendar_context = {
             "provider": calendar_result.get("provider"),
             "events_used": len(calendar_result.get("events", [])),
             "warnings": calendar_result.get("warnings", []),
             "windows": news_windows[:50],
+            "mode": macro_news.get("mode"),
         }
+        if macro_news.get("mode") == "event_driven":
+            calendar_context["warnings"] = list(calendar_context["warnings"]) + [
+                "Modalità event-driven nel backtest trattata in modo conservativo: il gating è più affidabile del timing preciso post-evento."
+            ]
     else:
         news_windows = []
     formal_spec_bundle["symbol"] = symbol
@@ -562,7 +579,7 @@ def _compute_rsi(close: pd.Series, period: int) -> pd.Series:
     return 100 - (100 / (1 + rs))
 
 
-def _extract_session_window(risk_management: dict) -> tuple[int, int] | None:
+def _extract_session_window(risk_management: dict) -> Optional[Tuple[int, int]]:
     start = risk_management.get("session_start_hour")
     end = risk_management.get("session_end_hour")
     if start is None or end is None:

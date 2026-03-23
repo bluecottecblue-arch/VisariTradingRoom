@@ -68,9 +68,9 @@ def _load_project_env() -> None:
     _ENV_LOADED = True
 
 
-def get_anthropic_api_key() -> Optional[str]:
+def get_anthropic_api_key(api_key_override: Optional[str] = None) -> Optional[str]:
     _load_project_env()
-    api_key = os.getenv("ANTHROPIC_API_KEY", "").strip()
+    api_key = str(api_key_override or "").strip() or os.getenv("ANTHROPIC_API_KEY", "").strip()
     return api_key or None
 
 
@@ -83,15 +83,18 @@ def get_anthropic_model(module: Optional[str] = None) -> str:
     return os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
 
 
-def get_anthropic_client():
+def get_anthropic_client(api_key_override: Optional[str] = None):
     global _CLIENT
     import anthropic
 
-    api_key = get_anthropic_api_key()
+    api_key = get_anthropic_api_key(api_key_override)
     if not api_key:
         raise RuntimeError(
-            "ANTHROPIC_API_KEY non configurata. Aggiungila in .env oppure esportala nella shell."
+            "Claude API key mancante. Configura ANTHROPIC_API_KEY nel backend oppure passa una chiave personale dalla UI."
         )
+
+    if api_key_override:
+        return anthropic.Anthropic(api_key=api_key)
 
     if _CLIENT is None:
         _CLIENT = anthropic.Anthropic(api_key=api_key)
@@ -159,13 +162,22 @@ async def invoke_text(
     max_tokens: Optional[int] = None,
     model: Optional[str] = None,
     use_cache: bool = True,
+    api_key_override: Optional[str] = None,
 ) -> dict:
-    client = get_anthropic_client()
+    client = get_anthropic_client(api_key_override)
     model = model or get_anthropic_model(module)
     max_tokens = max_tokens or get_default_max_tokens(module)
     system_prompt = system_prompt.strip()
     prompt = compact_json(payload)
-    cache_key = _build_cache_key("text", module, model, system_prompt, prompt, max_tokens)
+    cache_key = _build_cache_key(
+        "text",
+        module,
+        model,
+        system_prompt,
+        prompt,
+        max_tokens,
+        _api_key_fingerprint(api_key_override),
+    )
 
     if use_cache and cache_key in _CACHE:
         cached = copy.deepcopy(_CACHE[cache_key])
@@ -244,6 +256,7 @@ async def invoke_json(
     max_tokens: Optional[int] = None,
     model: Optional[str] = None,
     use_cache: bool = True,
+    api_key_override: Optional[str] = None,
 ) -> dict:
     llm_result = await invoke_text(
         module=module,
@@ -252,6 +265,7 @@ async def invoke_json(
         max_tokens=max_tokens,
         model=model,
         use_cache=use_cache,
+        api_key_override=api_key_override,
     )
     parsed = parse_json_response(llm_result["text"])
     return {"data": parsed, "usage": llm_result["usage"], "raw_text": llm_result["text"]}
@@ -301,16 +315,25 @@ def _build_cache_key(
     system_prompt: str,
     prompt: str,
     max_tokens: int,
+    api_key_fingerprint: str,
 ) -> str:
-    payload = "%s|%s|%s|%s|%s|%s" % (
+    payload = "%s|%s|%s|%s|%s|%s|%s" % (
         kind,
         module,
         model,
         max_tokens,
         system_prompt,
         prompt,
+        api_key_fingerprint,
     )
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _api_key_fingerprint(api_key_override: Optional[str]) -> str:
+    raw = str(api_key_override or "").strip()
+    if not raw:
+        return "integrated"
+    return "personal:%s" % hashlib.sha256(raw.encode("utf-8")).hexdigest()[:12]
 
 
 def _estimate_cost_usd(model: str, input_tokens: int, output_tokens: int) -> float:

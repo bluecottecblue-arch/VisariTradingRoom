@@ -18,7 +18,7 @@ interface Props {
 export default function FundamentalFiltersCard({
   value = DEFAULT_FUNDAMENTAL_FILTERS,
   onChange,
-  title = 'Filtri fondamentali / News Confluence',
+  title = 'Calendario macroeconomico live',
   compact = false,
 }: Props) {
   const [providers, setProviders] = useState<CalendarProviderInfo[]>([])
@@ -59,9 +59,9 @@ export default function FundamentalFiltersCard({
           className="mt-0.5 w-4 h-4 accent-amber-500"
         />
         <div>
-          <div className="text-stone-300 text-sm font-bold">Attiva confluenza macro / news</div>
+          <div className="text-stone-300 text-sm font-bold">Use live macroeconomic calendar / news filter</div>
           <div className="text-stone-500 text-xs">
-            Usa il calendario economico come filtro di esclusione, conferma o trigger post-evento.
+            Il bot finale userà il calendario macro per bloccare, confermare o ritardare i trade.
           </div>
         </div>
       </label>
@@ -75,14 +75,20 @@ export default function FundamentalFiltersCard({
                 onChange={(e) => set('provider', e.target.value as FundamentalFilterConfig['provider'])}
                 className={inputCls}
               >
-                {providers.length === 0 && <option value="none">Nessun provider</option>}
+                {providers.length === 0 && (
+                  <>
+                    <option value="none">Nessun provider</option>
+                    <option value="manual">Manual / Demo events</option>
+                    <option value="trading_economics">Trading Economics</option>
+                  </>
+                )}
                 {providers.map((provider) => (
                   <option key={provider.id} value={provider.id} disabled={!provider.available && provider.id !== 'none'}>
                     {provider.name}
-                    {provider.integration_status === 'demo' ? ' (demo)' : ''}
-                    {provider.integration_status === 'requires_config' ? ' (richiede config)' : ''}
-                    {provider.integration_status === 'restricted' ? ' (solo catalogato)' : ''}
-                    {!provider.available && provider.integration_status !== 'restricted' && provider.id !== 'none' ? ' (non configurato)' : ''}
+                    {provider.id !== 'none' && provider.integration_status === 'demo' ? ' (demo)' : ''}
+                    {provider.id !== 'none' && provider.integration_status === 'requires_config' ? ' (richiede config)' : ''}
+                    {provider.id !== 'none' && provider.integration_status === 'disabled' ? ' (disattivato)' : ''}
+                    {!provider.available && provider.integration_status !== 'disabled' && provider.id !== 'none' ? ' (non configurato)' : ''}
                   </option>
                 ))}
               </select>
@@ -103,10 +109,22 @@ export default function FundamentalFiltersCard({
               >
                 <option value="exclude_only">Solo filtro di esclusione</option>
                 <option value="confirm_with_bias">Conferma direzionale macro</option>
-                <option value="post_event_trigger">Trigger post-evento</option>
+                <option value="post_event_trigger">Event-driven post-news</option>
               </select>
             </Field>
           </div>
+
+          {value.provider === 'trading_economics' && (
+            <Field label="API key provider calendario">
+              <input
+                type="password"
+                value={value.api_key || ''}
+                onChange={(e) => set('api_key', e.target.value)}
+                className={inputCls}
+                placeholder="client:secret del provider macro"
+              />
+            </Field>
+          )}
 
           <div className="space-y-2">
             <div className="text-stone-400 text-xs">Impatto da considerare</div>
@@ -182,6 +200,11 @@ export default function FundamentalFiltersCard({
             {providers.find((provider) => provider.id === value.provider)?.description ||
               'Se nessun provider è configurato, il sistema non crasha: segnala il fallback e continua.'}
           </div>
+          {value.provider === 'trading_economics' && (
+            <div className="rounded border border-amber-900/60 bg-amber-950/20 p-3 text-xs text-amber-200">
+              La chiave del provider macro è sempre dell’utente e viene usata anche dal bot finale generato.
+            </div>
+          )}
         </div>
       )}
     </Section>

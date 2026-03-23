@@ -9,6 +9,8 @@ Obiettivi:
 import re
 from typing import Any, Dict, List, Optional
 
+from modules.fundamentals.economic_calendar import normalize_macro_news_config
+
 
 STATUS_VALID = "VALID"
 STATUS_NEEDS_INPUT = "NEEDS_INPUT"
@@ -20,6 +22,17 @@ _TECHNICAL_DEFAULT_NOTES = (
     ("broker_spread", "broker_spread_max=1.5 pips"),
     ("ema_method", "EMA calculation method = exponential moving average on close price"),
 )
+
+
+def normalize_claude_access(raw: Optional[dict]) -> dict:
+    raw = raw if isinstance(raw, dict) else {}
+    credential_source = str(raw.get("credential_source") or "integrated").strip().lower()
+    if credential_source not in {"integrated", "personal"}:
+        credential_source = "integrated"
+    return {
+        "credential_source": credential_source,
+        "api_key": str(raw.get("api_key") or "").strip(),
+    }
 
 
 def empty_usage(module: str) -> dict:
@@ -239,6 +252,8 @@ def validate_strategy_intake(intake: dict) -> dict:
     bias_warnings: List[str] = []
     assumptions: List[str] = []
     seen_keys = set()
+    macro_news = normalize_macro_news_config(intake.get("macro_news") or intake.get("fundamental_filters"))
+    claude_access = normalize_claude_access(intake.get("claude_access"))
 
     def add_required(field: str, label: str, why: str, example: str, source_text: str = "") -> None:
         key = ("required", field, label)
@@ -309,6 +324,37 @@ def validate_strategy_intake(intake: dict) -> dict:
             why="La size position richiede un rischio percentuale positivo.",
             example="1.0",
         )
+
+    if claude_access.get("credential_source") == "personal" and not claude_access.get("api_key"):
+        add_required(
+            field="claude_access.api_key",
+            label="Inserisci la tua Claude API key personale oppure usa quella integrata",
+            why="Hai selezionato l'uso di una chiave Claude personale, ma il campo è vuoto.",
+            example="sk-ant-...",
+        )
+
+    if macro_news.get("enabled"):
+        if macro_news.get("provider") == "none":
+            add_required(
+                field="macro_news.provider",
+                label="Scegli un provider macro live o disattiva il filtro macro",
+                why="Il bot finale non può usare news live senza sapere da dove leggere gli eventi.",
+                example="Trading Economics",
+            )
+        elif macro_news.get("provider") == "trading_economics" and not macro_news.get("api_key"):
+            add_required(
+                field="macro_news.api_key",
+                label="Inserisci la API key del provider macro live",
+                why="Il bot finale deve potersi collegare al provider economico in tempo reale.",
+                example="client:secret di Trading Economics",
+            )
+        if not macro_news.get("currencies"):
+            add_required(
+                field="macro_news.currencies",
+                label="Definisci le valute da monitorare nel calendario macro",
+                why="Senza valute target il filtro news live non sa quali eventi devono bloccare o confermare i trade.",
+                example="USD,EUR",
+            )
 
     combined_text = " ".join(
         str(intake.get(field, "") or "")
@@ -498,12 +544,18 @@ def validate_formal_spec_payload(payload: dict) -> dict:
     formal_spec = payload.get("formal_spec") or {}
     state_machine = payload.get("state_machine") or {}
     parameters = payload.get("parameters") or []
+    macro_news = normalize_macro_news_config(
+        formal_spec.get("macro_news") or formal_spec.get("fundamental_filters")
+    )
 
     if not formal_spec.get("entry_conditions"):
         errors.append("entry_conditions mancanti")
     else:
-        has_long = bool((formal_spec.get("entry_conditions", {}).get("long") or {}).get("conditions"))
-        has_short = bool((formal_spec.get("entry_conditions", {}).get("short") or {}).get("conditions"))
+        entry_conditions = formal_spec.get("entry_conditions") or {}
+        if not isinstance(entry_conditions, dict):
+            entry_conditions = {}
+        has_long = bool((entry_conditions.get("long") or {}).get("conditions")) if isinstance(entry_conditions.get("long"), dict) else False
+        has_short = bool((entry_conditions.get("short") or {}).get("conditions")) if isinstance(entry_conditions.get("short"), dict) else False
         if not has_long and not has_short:
             errors.append("nessuna condizione di ingresso formale")
 
@@ -515,6 +567,16 @@ def validate_formal_spec_payload(payload: dict) -> dict:
 
     if not parameters:
         errors.append("parameters vuoti")
+
+    if macro_news.get("enabled"):
+        if macro_news.get("provider") == "none":
+            errors.append("macro_news provider mancante")
+        if macro_news.get("provider") == "trading_economics" and not macro_news.get("api_key"):
+            errors.append("macro_news api_key mancante")
+        if not macro_news.get("currencies"):
+            errors.append("macro_news currencies mancanti")
+        if not macro_news.get("impacts"):
+            errors.append("macro_news impacts mancanti")
 
     return {
         "is_valid": not errors,
@@ -625,6 +687,7 @@ def _build_local_strategy_skeleton(intake: dict) -> dict:
     days = intake.get("trading_days") or []
     start = intake.get("trading_hours_start")
     end = intake.get("trading_hours_end")
+    macro_news = normalize_macro_news_config(intake.get("macro_news") or intake.get("fundamental_filters"))
     return {
         "metadata": {
             "strategy_name": intake.get("name", ""),
@@ -649,11 +712,13 @@ def _build_local_strategy_skeleton(intake: dict) -> dict:
             "max_daily_trades": intake.get("max_daily_trades"),
             "trading_days": days,
         },
+        "macro_news": macro_news,
     }
 
 
 def _build_local_codeable_rules(intake: dict) -> List[dict]:
     rules = []
+    macro_news = normalize_macro_news_config(intake.get("macro_news") or intake.get("fundamental_filters"))
     if intake.get("risk_per_trade_pct"):
         rules.append(
             {
@@ -682,6 +747,23 @@ def _build_local_codeable_rules(intake: dict) -> List[dict]:
                     "start": intake.get("trading_hours_start"),
                     "end": intake.get("trading_hours_end"),
                     "days": intake.get("trading_days", []),
+                },
+            }
+        )
+    if macro_news.get("enabled"):
+        rules.append(
+            {
+                "id": "rule_local_004",
+                "description": "Filtro macro/news live",
+                "condition": "blocca, conferma o ritarda i trade in funzione del calendario macroeconomico",
+                "parameters": {
+                    "provider": macro_news.get("provider"),
+                    "currencies": macro_news.get("currencies"),
+                    "impacts": macro_news.get("impacts"),
+                    "mode": macro_news.get("mode"),
+                    "pre_event_block_minutes": macro_news.get("pre_event_block_minutes"),
+                    "post_event_block_minutes": macro_news.get("post_event_block_minutes"),
+                    "post_event_wait_minutes": macro_news.get("post_event_wait_minutes"),
                 },
             }
         )
