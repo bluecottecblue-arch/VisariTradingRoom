@@ -11,16 +11,17 @@ import StepGuide from "@/components/wizard/StepGuide";
 import MonetizationSlot from "@/components/MonetizationSlot";
 import AuthToolbar from "@/components/AuthToolbar";
 import BotLabWorkspace from "@/components/botlab/BotLabWorkspace";
+import WorkspaceOverview from "@/components/workspace/WorkspaceOverview";
 import { projectApi } from "@/lib/api";
 import type { ProjectDetail, ProjectSummary } from "@/types";
 
 const STEPS = [
-  { id: 1, label: "La tua strategia",   description: "Descrivi come operi" },
-  { id: 2, label: "Revisione AI",       description: "Ambiguità e alternative" },
-  { id: 3, label: "Specifica formale",  description: "Regole codificate" },
-  { id: 4, label: "Backtest",          description: "Dati storici reali" },
-  { id: 5, label: "Il tuo bot",         description: "Expert Advisor MQL5" },
-  { id: 6, label: "Installa su MT5",    description: "Guida passo passo" },
+  { id: 1, label: "Strategy Intake", description: "Describe the trading logic" },
+  { id: 2, label: "AI Review", description: "Clarify blockers and ambiguities" },
+  { id: 3, label: "Formal Spec", description: "Codified trading rules" },
+  { id: 4, label: "Backtest", description: "Historical validation" },
+  { id: 5, label: "Bot Export", description: "MT5 Expert Advisor output" },
+  { id: 6, label: "Deployment Guide", description: "Install and run on MT5" },
 ];
 
 export default function WizardPage() {
@@ -194,7 +195,7 @@ export default function WizardPage() {
                 ))}
                 {projects.filter((project) => project.mode === workspaceMode).length === 0 && (
                   <div className="border border-dashed border-slate-800 px-4 py-4 text-xs text-slate-500">
-                    Nessun progetto ancora salvato per questo workspace.
+                    No saved projects in this workspace yet.
                   </div>
                 )}
               </div>
@@ -302,11 +303,23 @@ export default function WizardPage() {
           </div>
 
           <div className="border-b border-slate-800 px-6 py-4 text-xs text-slate-500 lg:px-8">
-            Public-facing flow. Authenticated users can operate with a personal Claude API key or with a Claude key assigned to their account by admin; live macro execution remains tied to the user’s economic-calendar provider key.
+            Professional workflow: per-user Claude access, macro-aware validation and MT5-ready export package. The economic-calendar key, when used for live macro filters, remains user-controlled.
           </div>
 
           <main className="flex-1 px-6 py-8 lg:px-8">
             <div className="mx-auto max-w-6xl">
+              <WorkspaceOverview
+                workspaceMode={workspaceMode}
+                setWorkspaceMode={setWorkspaceMode}
+                projects={projects}
+                currentProjectId={currentProjectId}
+                setCurrentProjectId={setCurrentProjectId}
+                createProject={createProject}
+                currentProject={currentProject}
+                currentStep={currentStep}
+              />
+
+              <div className="mt-8 border-t border-slate-800/90 pt-8">
         {workspaceMode === "strategy" && !stepReady && (
           <div className="border border-slate-800 bg-slate-950/60 px-8 py-16 text-center space-y-4">
             <p className="text-slate-400">Sessione persa dopo il refresh.</p>
@@ -380,6 +393,7 @@ export default function WizardPage() {
         {workspaceMode === "strategy" && currentStep === 6 && stepReady && (
           <StepGuide botResult={botResult} onBack={goPrev} />
         )}
+              </div>
 
               <MonetizationSlot slotId="research_footer" />
             </div>

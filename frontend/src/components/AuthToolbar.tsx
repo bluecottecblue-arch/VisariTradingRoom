@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { authApi } from '@/lib/api'
 
 type SessionInfo = {
   authenticated: boolean
@@ -16,9 +17,8 @@ export default function AuthToolbar() {
 
   useEffect(() => {
     let cancelled = false
-    fetch('/api/auth/me', { cache: 'no-store' })
-      .then(async (response) => {
-        const body = await response.json().catch(() => null)
+    authApi.me()
+      .then((body) => {
         if (!cancelled) setSession(body)
       })
       .catch(() => {
@@ -30,7 +30,7 @@ export default function AuthToolbar() {
   }, [])
 
   async function logout() {
-    await fetch('/api/auth/logout', { method: 'POST' })
+    await authApi.logout().catch(() => null)
     router.replace('/login')
     router.refresh()
   }

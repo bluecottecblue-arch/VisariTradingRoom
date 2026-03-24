@@ -21,28 +21,38 @@ async function request<T>(
   timeoutMs = 120_000,
 ): Promise<T> {
   const controller = new AbortController()
+  const onExternalAbort = () => controller.abort()
+  if (options.signal) {
+    options.signal.addEventListener('abort', onExternalAbort)
+  }
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   const url = `${BASE_URL}${path}`
   try {
     const res = await fetch(url, {
       headers: { 'Content-Type': 'application/json', ...options.headers },
-      signal: controller.signal,
       credentials: 'include',
       ...options,
+      signal: controller.signal,
     })
 
     if (!res.ok) {
       let detail = `HTTP ${res.status}`
       try {
         const body = await res.json()
-        detail = body.detail || JSON.stringify(body)
+        detail = body?.detail || body?.error || JSON.stringify(body)
       } catch {
         detail = await res.text().catch(() => detail)
       }
       throw new ApiError(res.status, detail)
     }
 
-    return res.json() as Promise<T>
+    const text = await res.text()
+    if (!text) return {} as T
+    try {
+      return JSON.parse(text) as T
+    } catch {
+      return text as unknown as T
+    }
   } catch (e) {
     if (e instanceof DOMException && e.name === 'AbortError') {
       throw new ApiError(408, 'Richiesta scaduta — il server ha impiegato troppo. Riprova.')
@@ -53,14 +63,29 @@ async function request<T>(
     throw e
   } finally {
     clearTimeout(timer)
+    if (options.signal) {
+      options.signal.removeEventListener('abort', onExternalAbort)
+    }
   }
 }
 
 // ─── Strategy endpoints ───────────────────────────────────────────────────────
 
+export const authApi = {
+  me: () =>
+    request<{
+      authenticated: boolean
+      username: string | null
+      role: string | null
+      claude_key_configured?: boolean
+    }>('/api/auth/me', {}, 10_000),
+  logout: () =>
+    request('/api/auth/logout', { method: 'POST' }),
+}
+
 export const strategyApi = {
-  preflight: (intake: object) =>
-    request('/api/strategy/preflight', { method: 'POST', body: JSON.stringify(intake) }, 30_000),
+  preflight: (intake: object, options?: RequestInit) =>
+    request('/api/strategy/preflight', { method: 'POST', body: JSON.stringify(intake), ...options }, 30_000),
 
   parse: (intake: object) =>
     request('/api/strategy/parse', { method: 'POST', body: JSON.stringify(intake) }),

@@ -11,12 +11,12 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
   return (
     <LoginForm
       endpoint="/api/auth/login"
-      title="Login cliente"
-      description="Entra con username e password che hai creato per il cliente."
-      submitLabel="Entra nell'app"
+      title="Client Access"
+      description="Access your strategy workspace, Bot Lab, validated backtests and MT5 delivery pipeline."
+      submitLabel="Enter Platform"
       nextPath={nextPath}
       secondaryHref="/admin/login"
-      secondaryLabel="Vai al login admin"
+      secondaryLabel="Admin access"
     />
   )
 }

@@ -1,18 +1,25 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { strategyApi, formatError } from '@/lib/api'
+import { useEffect, useState, useRef } from 'react'
+import { strategyApi, formatError, authApi } from '@/lib/api'
 import FundamentalFiltersCard from '@/components/FundamentalFiltersCard'
 import { DEFAULT_FUNDAMENTAL_FILTERS, summarizeFundamentalFilters } from '@/lib/fundamentals'
-import { Section, Field, inputCls, textareaCls, Alert, NavButtons } from '@/components/ui'
+import { Alert, Field, NavButtons, Section, inputCls, textareaCls } from '@/components/ui'
 import type { ParseResult, PreflightResult, StrategyIntake } from '@/types'
 
 const TIMEFRAMES = ['M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D1', 'W1']
 const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
 const DAY_LABELS: Record<string, string> = {
-  MON: 'Lun', TUE: 'Mar', WED: 'Mer', THU: 'Gio',
-  FRI: 'Ven', SAT: 'Sab', SUN: 'Dom',
+  MON: 'Mon', TUE: 'Tue', WED: 'Wed', THU: 'Thu',
+  FRI: 'Fri', SAT: 'Sat', SUN: 'Sun',
 }
+const FORM_STEPS = [
+  { id: 1, label: 'Market & access', detail: 'Instrument, timeframes and Claude access' },
+  { id: 2, label: 'Entry logic', detail: 'Long, short and invalidation rules' },
+  { id: 3, label: 'Exit & risk', detail: 'Stop, target and sizing constraints' },
+  { id: 4, label: 'Filters', detail: 'Sessions, trend, volatility and macro/news' },
+  { id: 5, label: 'Examples & review', detail: 'Concrete trades and final preflight' },
+]
 
 const DEFAULT_FORM: StrategyIntake = {
   name: '',
@@ -49,33 +56,43 @@ interface Props {
   onComplete: (sessionId: string, result: ParseResult) => void
 }
 
+function QualityHint({ value }: { value: string }) {
+  return (
+    <div className="mt-2 flex items-center justify-between text-xs">
+      <span className={value.length < 50 ? 'text-amber-400' : 'text-cyan-300'}>
+        {value.length < 50 ? 'Add more detail to improve codifiability.' : 'Good level of detail.'}
+      </span>
+      <span className="text-slate-600">{value.length} chars</span>
+    </div>
+  )
+}
+
 export default function StepIntake({ projectId, onComplete }: Props) {
   const [form, setForm] = useState<StrategyIntake>(DEFAULT_FORM)
+  const [formStep, setFormStep] = useState(1)
   const [accountClaudeAvailable, setAccountClaudeAvailable] = useState(false)
   const [loading, setLoading] = useState(false)
   const [preflight, setPreflight] = useState<PreflightResult | null>(null)
   const [preflightLoading, setPreflightLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const preflightReqIdRef = useRef(0)
+  const preflightDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const preflightAbortRef = useRef<AbortController | null>(null)
+
   useEffect(() => {
     const saved = sessionStorage.getItem('sf_intake_form')
     if (!saved) return
     try {
-      setForm((current) => ({
-        ...current,
-        ...JSON.parse(saved),
-      }))
+      setForm((current) => ({ ...current, ...JSON.parse(saved) }))
     } catch {}
   }, [])
 
   useEffect(() => {
     let cancelled = false
-    fetch('/api/auth/me', { cache: 'no-store' })
-      .then(async (response) => {
-        const body = await response.json().catch(() => null)
-        if (!cancelled) {
-          setAccountClaudeAvailable(Boolean(body?.claude_key_configured))
-        }
+    authApi.me()
+      .then((body) => {
+        if (!cancelled) setAccountClaudeAvailable(Boolean(body?.claude_key_configured))
       })
       .catch(() => {
         if (!cancelled) setAccountClaudeAvailable(false)
@@ -86,8 +103,18 @@ export default function StepIntake({ projectId, onComplete }: Props) {
   }, [])
 
   useEffect(() => {
-    sessionStorage.setItem('sf_intake_form', JSON.stringify(form))
+    const timer = setTimeout(() => {
+      sessionStorage.setItem('sf_intake_form', JSON.stringify(form))
+    }, 500)
+    return () => clearTimeout(timer)
   }, [form])
+
+  const buildPayload = (value: StrategyIntake) => ({
+    ...value,
+    project_id: projectId || undefined,
+    macro_news: value.macro_news,
+    news_management: summarizeFundamentalFilters(value.macro_news, value.news_management),
+  })
 
   useEffect(() => {
     const requiredReady =
@@ -99,62 +126,105 @@ export default function StepIntake({ projectId, onComplete }: Props) {
       !!form.take_profit.trim()
 
     if (!requiredReady) {
+      preflightReqIdRef.current += 1
+      if (preflightDebounceRef.current) clearTimeout(preflightDebounceRef.current)
+      if (preflightAbortRef.current) preflightAbortRef.current.abort()
       setPreflight(null)
+      setPreflightLoading(false)
       return
     }
 
-    const timer = window.setTimeout(async () => {
+    preflightReqIdRef.current += 1
+    const currentReqId = preflightReqIdRef.current
+    if (preflightDebounceRef.current) clearTimeout(preflightDebounceRef.current)
+    if (preflightAbortRef.current) preflightAbortRef.current.abort()
+
+    preflightDebounceRef.current = setTimeout(async () => {
+      if (preflightReqIdRef.current !== currentReqId) return
       setPreflightLoading(true)
+      preflightAbortRef.current = new AbortController()
+
       try {
-        const result = await strategyApi.preflight(buildPayload(form)) as PreflightResult
-        setPreflight(result)
-      } catch {
-        setPreflight(null)
+        const result = await strategyApi.preflight(buildPayload(form), { signal: preflightAbortRef.current.signal }) as PreflightResult
+        if (preflightReqIdRef.current === currentReqId) {
+          setPreflight(result)
+        }
+      } catch (e: unknown) {
+        const isAbort = e instanceof Error && (e.name === 'AbortError' || (e as any).status === 408)
+        if (isAbort) return
+        
+        if (preflightReqIdRef.current === currentReqId) {
+          setPreflight(null)
+        }
       } finally {
-        setPreflightLoading(false)
+        if (preflightReqIdRef.current === currentReqId) {
+          setPreflightLoading(false)
+        }
       }
     }, 450)
 
-    return () => window.clearTimeout(timer)
+    return () => {
+      if (preflightDebounceRef.current) clearTimeout(preflightDebounceRef.current)
+      if (preflightAbortRef.current) preflightAbortRef.current.abort()
+    }
   }, [form])
 
-  const set = <K extends keyof StrategyIntake>(k: K, v: StrategyIntake[K]) =>
-    setForm((f) => ({ ...f, [k]: v }))
+  const set = <K extends keyof StrategyIntake>(key: K, value: StrategyIntake[K]) =>
+    setForm((current) => ({ ...current, [key]: value }))
 
   const toggleDay = (day: string) =>
     set(
       'trading_days',
       form.trading_days.includes(day)
-        ? form.trading_days.filter((d) => d !== day)
+        ? form.trading_days.filter((item) => item !== day)
         : [...form.trading_days, day],
     )
 
   const validate = () => {
-    if (!form.name.trim()) return 'Inserisci il nome della strategia'
-    if (!form.market.trim()) return 'Inserisci il mercato (es. EURUSD)'
+    if (!form.name.trim()) return 'Give the strategy a name.'
+    if (!form.market.trim()) return 'Select the market or instrument.'
     if (form.claude_access?.credential_source === 'account' && !accountClaudeAvailable) {
-      return 'Per questo account non risulta configurata una Claude API key. Usa la tua key personale oppure chiedi all’admin di assegnartene una.'
+      return 'This account has no Claude key assigned yet. Switch to your personal key or ask admin to assign one.'
     }
     if (form.claude_access?.credential_source !== 'account' && !(form.claude_access?.api_key || '').trim()) {
-      return 'Inserisci la tua Claude API key personale'
+      return 'Insert your Claude API key to continue.'
     }
-    if (!form.long_entry.trim()) return 'Descrivi il setup di ingresso long'
-    if (!form.stop_loss.trim()) return 'Descrivi il tuo stop loss'
-    if (!form.invalidation.trim()) return 'Descrivi le condizioni di invalidazione'
-    if (!form.take_profit.trim()) return 'Descrivi il take profit'
+    if (!form.long_entry.trim()) return 'Describe the long setup.'
+    if (!form.invalidation.trim()) return 'Describe the invalidation logic.'
+    if (!form.stop_loss.trim()) return 'Describe the stop loss logic.'
+    if (!form.take_profit.trim()) return 'Describe the take profit logic.'
     return null
   }
 
-  const buildPayload = (value: StrategyIntake) => ({
-    ...value,
-    project_id: projectId || undefined,
-    macro_news: value.macro_news,
-    news_management: summarizeFundamentalFilters(value.macro_news, value.news_management),
-  })
+  const canAdvanceStep = (step: number) => {
+    if (step === 1) {
+      if (!form.name.trim() || !form.market.trim()) return false
+      if (form.claude_access?.credential_source === 'account') return accountClaudeAvailable
+      return Boolean((form.claude_access?.api_key || '').trim())
+    }
+    if (step === 2) return Boolean(form.long_entry.trim() && form.invalidation.trim())
+    if (step === 3) return Boolean(form.stop_loss.trim() && form.take_profit.trim())
+    return true
+  }
+
+  const nextFormStep = () => {
+    if (!canAdvanceStep(formStep)) {
+      const err = validate()
+      if (err) setError(err)
+      return
+    }
+    setError(null)
+    setFormStep((current) => Math.min(FORM_STEPS.length, current + 1))
+  }
+
+  const prevFormStep = () => setFormStep((current) => Math.max(1, current - 1))
 
   const handleSubmit = async () => {
     const err = validate()
-    if (err) { setError(err); return }
+    if (err) {
+      setError(err)
+      return
+    }
 
     setLoading(true)
     setError(null)
@@ -171,466 +241,421 @@ export default function StepIntake({ projectId, onComplete }: Props) {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="mb-2 text-3xl font-semibold text-slate-50">
-          Strategy Intake
-        </h1>
-        <p className="text-sm leading-relaxed text-slate-400">
-          Scrivi come operi davvero. Il sistema verifica prima se la strategia è
-          codificabile e blocca subito le parti troppo vaghe, così non sprechi token
-          su formalizzazione e codice quando mancano dettagli decisivi.
-        </p>
+      <div className="space-y-5 border border-slate-800/90 bg-[linear-gradient(135deg,rgba(8,47,73,0.18),rgba(15,23,42,0.82)_36%,rgba(2,6,23,0.96))] px-6 py-7">
+        <div className="space-y-2">
+          <div className="text-[11px] uppercase tracking-[0.24em] text-cyan-300">Create Strategy</div>
+          <h1 className="text-4xl font-semibold tracking-tight text-slate-50">
+            Structured strategy intake for serious trading systems
+          </h1>
+          <p className="max-w-3xl text-sm leading-relaxed text-slate-400">
+            Define the market, the setup, the risk framework and the macro filters in a guided builder. Preflight keeps running in the background so you only trigger paid AI steps when the strategy is specific enough.
+          </p>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="border border-slate-800/90 bg-slate-950/55 px-4 py-4">
+            <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Strategy</div>
+            <div className="mt-2 text-lg font-semibold text-slate-50">{form.name || 'Unnamed strategy'}</div>
+            <div className="mt-1 text-sm text-slate-500">{form.market || 'Market not selected'}</div>
+          </div>
+          <div className="border border-slate-800/90 bg-slate-950/55 px-4 py-4">
+            <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Execution frame</div>
+            <div className="mt-2 text-lg font-semibold text-slate-50">{form.analysis_timeframe} / {form.execution_timeframe}</div>
+            <div className="mt-1 text-sm text-slate-500">Context and trigger horizon</div>
+          </div>
+          <div className="border border-slate-800/90 bg-slate-950/55 px-4 py-4">
+            <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Readiness</div>
+            <div className="mt-2 text-lg font-semibold text-slate-50">{preflight ? `${Math.round(preflight.completeness_score * 100)}%` : 'Waiting'}</div>
+            <div className="mt-1 text-sm text-slate-500">{preflight ? preflight.status.replaceAll('_', ' ') : 'Fill the critical fields to unlock preflight.'}</div>
+          </div>
+        </div>
       </div>
 
-      <Section title="Accesso Claude">
-        <div className="space-y-4">
-          <div className="text-xs text-stone-500">
-            Parse, formalizzazione e generazione bot usano sempre una Claude API key per-utente: puoi usare quella assegnata al tuo account dall’admin oppure inserire la tua key personale solo per questa esecuzione.
-          </div>
-          <div className="rounded border border-stone-800 bg-stone-900/60 px-4 py-3 text-xs text-stone-500">
-            Nessuna chiave Claude condivisa globale. Ogni workflow usa solo una key personale inserita dall’utente oppure una key dedicata assegnata a quel singolo account dalla dashboard admin.
-          </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            <button
-              type="button"
-              onClick={() =>
-                accountClaudeAvailable &&
-                set('claude_access', {
-                  ...(form.claude_access || { api_key: '' }),
-                  credential_source: 'account',
-                })
-              }
-              disabled={!accountClaudeAvailable}
-              className={`border px-4 py-3 text-left transition-colors ${
-                form.claude_access?.credential_source === 'account'
-                  ? 'border-slate-500 bg-slate-900 text-slate-100'
-                  : 'border-slate-800 bg-transparent text-slate-400 hover:border-slate-700 hover:text-slate-100'
-              } ${!accountClaudeAvailable ? 'cursor-not-allowed opacity-50' : ''}`}
-            >
-              <div className="text-sm font-medium">Usa la Claude key assegnata al mio account</div>
-              <div className="mt-1 text-xs text-slate-500">
-                {accountClaudeAvailable
-                  ? 'Configurata dall’admin per questo utente.'
-                  : 'Nessuna key account configurata.'}
-              </div>
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                set('claude_access', {
-                  ...(form.claude_access || { api_key: '' }),
-                  credential_source: 'personal',
-                })
-              }
-              className={`border px-4 py-3 text-left transition-colors ${
-                form.claude_access?.credential_source === 'personal'
-                  ? 'border-slate-500 bg-slate-900 text-slate-100'
-                  : 'border-slate-800 bg-transparent text-slate-400 hover:border-slate-700 hover:text-slate-100'
-              }`}
-            >
-              <div className="text-sm font-medium">Usa la mia Claude key personale</div>
-              <div className="mt-1 text-xs text-slate-500">
-                La key viene usata solo per questo workflow.
-              </div>
-            </button>
-          </div>
-          {form.claude_access?.credential_source === 'personal' ? (
-            <Field label="Claude API key personale" required>
-              <input
-                type="password"
-                value={form.claude_access?.api_key || ''}
-                onChange={(e) =>
-                  set('claude_access', {
-                    credential_source: 'personal',
-                    api_key: e.target.value,
-                  })
-                }
-                className={inputCls}
-                placeholder="sk-ant-..."
-              />
-            </Field>
-          ) : (
-            <div className="rounded border border-slate-800 bg-slate-950/60 px-4 py-3 text-xs text-slate-500">
-              {accountClaudeAvailable
-                ? 'Questo workflow userà la Claude key già assegnata al tuo account, senza mostrartela in chiaro.'
-                : 'Per usare questa modalità, l’admin deve prima assegnare una Claude key al tuo account.'}
-            </div>
-          )}
-        </div>
-      </Section>
-
-      <FundamentalFiltersCard
-        title="Macro news live nel bot finale"
-        value={form.macro_news}
-        onChange={(next) => set('macro_news', next)}
-      />
-
-      {/* Sezione 1 */}
-      <Section title="1. Identità della strategia">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Field
-            label="Nome della strategia"
-            required
-            tooltip="Un nome che ti aiuti a riconoscerla. Es. 'London Breakout EMA' o 'Pullback su supporto'"
-          >
-            <input
-              value={form.name}
-              onChange={(e) => set('name', e.target.value)}
-              className={inputCls}
-              placeholder="Es. London Breakout Pullback"
-            />
-          </Field>
-          <Field
-            label="Mercato / Strumento"
-            required
-            tooltip="Quale strumento tradi? Es. EURUSD, XAUUSD, NQ100, BTCUSD"
-          >
-            <input
-              value={form.market}
-              onChange={(e) => set('market', e.target.value)}
-              className={inputCls}
-              placeholder="Es. EURUSD"
-            />
-          </Field>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <Field
-            label="Timeframe di analisi"
-            tooltip="Dove vedi il contesto e identifichi il setup"
-          >
-            <select
-              value={form.analysis_timeframe}
-              onChange={(e) => set('analysis_timeframe', e.target.value)}
-              className={inputCls}
-            >
-              {TIMEFRAMES.map((tf) => (
-                <option key={tf}>{tf}</option>
-              ))}
-            </select>
-          </Field>
-          <Field
-            label="Timeframe di esecuzione"
-            tooltip="Dove entri effettivamente nel trade"
-          >
-            <select
-              value={form.execution_timeframe}
-              onChange={(e) => set('execution_timeframe', e.target.value)}
-              className={inputCls}
-            >
-              {TIMEFRAMES.map((tf) => (
-                <option key={tf}>{tf}</option>
-              ))}
-            </select>
-          </Field>
-        </div>
-      </Section>
-
-      {/* Sezione 2 */}
-      <Section title="2. Setup di ingresso">
-        <Field
-          label="Setup LONG — quando entri long?"
-          required
-          tooltip="Descrivi le condizioni precise. Menziona indicatori, price action, struttura di mercato, timeframe. Più sei specifico, meglio Claude potrà codificarlo."
-        >
-          <textarea
-            value={form.long_entry}
-            onChange={(e) => set('long_entry', e.target.value)}
-            className={`${textareaCls} h-32`}
-            placeholder="Es. Su H4 il prezzo deve essere sopra la EMA200. Aspetto che il prezzo torni sulla EMA20 e formi una rejection candle (wick lungo verso il basso, corpo nella metà superiore). Entro su M15 alla chiusura della prima candela bullish dopo la rejection, solo se l'RSI14 è sotto 50 e sta risalendo..."
-          />
-          <QualityHint value={form.long_entry} />
-        </Field>
-        <Field
-          label="Setup SHORT — quando entri short? (opzionale)"
-          tooltip="Lascia vuoto se operi solo in direzione long"
-        >
-          <textarea
-            value={form.short_entry}
-            onChange={(e) => set('short_entry', e.target.value)}
-            className={`${textareaCls} h-24`}
-            placeholder="Lascia vuoto se operi solo long"
-          />
-        </Field>
-        <Field
-          label="Invalidazione — quando il setup NON è più valido?"
-          required
-          tooltip="Cosa deve succedere per 'uccidere' il setup prima ancora di entrare?"
-        >
-          <textarea
-            value={form.invalidation}
-            onChange={(e) => set('invalidation', e.target.value)}
-            className={`${textareaCls} h-20`}
-            placeholder="Es. Se il prezzo chiude sopra il massimo della rejection candle, oppure se passa più di 1 ora senza entry, il setup è invalidato..."
-          />
-          <QualityHint value={form.invalidation} />
-        </Field>
-      </Section>
-
-      {/* Sezione 3 */}
-      <Section title="3. Gestione del rischio">
-        <Field
-          label="Stop Loss — dove lo metti e perché?"
-          required
-          tooltip="Descrivi la logica del posizionamento, non solo un numero fisso. Es. 'sotto il minimo della candela di setup' è meglio di '20 pips'"
-        >
-          <textarea
-            value={form.stop_loss}
-            onChange={(e) => set('stop_loss', e.target.value)}
-            className={`${textareaCls} h-20`}
-            placeholder="Es. Sotto il minimo della rejection candle + 5 pips di buffer, oppure sotto il livello di supporto più vicino su H4..."
-          />
-          <QualityHint value={form.stop_loss} />
-        </Field>
-        <Field
-          label="Take Profit — dove esci con profitto?"
-          tooltip="Target fisso, rapporto R:R, struttura di mercato, trailing, uscita manuale..."
-        >
-          <textarea
-            value={form.take_profit}
-            onChange={(e) => set('take_profit', e.target.value)}
-            className={`${textareaCls} h-20`}
-            placeholder="Es. 2R dal rischio iniziale, oppure alla prossima resistenza su H4, oppure gestisco manualmente lo scalare della posizione..."
-          />
-        </Field>
-        <Field
-          label="Trailing stop (opzionale)"
-          tooltip="Come gestisci lo stop mentre sei in profitto?"
-        >
-          <input
-            value={form.trailing_stop}
-            onChange={(e) => set('trailing_stop', e.target.value)}
-            className={inputCls}
-            placeholder="Es. Breakeven a 1R, poi trailing di 15 pips ogni 0.5R guadagnato"
-          />
-        </Field>
-        <div className="grid grid-cols-2 gap-4">
-          <Field
-            label="Rischio per trade (%)"
-            tooltip="Percentuale del capitale totale che rischi su ogni singolo trade"
-          >
-            <input
-              type="number"
-              min={0.1}
-              max={10}
-              step={0.1}
-              value={form.risk_per_trade_pct}
-              onChange={(e) => set('risk_per_trade_pct', parseFloat(e.target.value))}
-              className={inputCls}
-            />
-          </Field>
-          <Field
-            label="Max trade al giorno"
-            tooltip="Quanti trade al massimo apri in una singola giornata?"
-          >
-            <input
-              type="number"
-              min={1}
-              max={20}
-              value={form.max_daily_trades}
-              onChange={(e) => set('max_daily_trades', parseInt(e.target.value))}
-              className={inputCls}
-            />
-          </Field>
-        </div>
-      </Section>
-
-      {/* Sezione 4 */}
-      <Section title="4. Sessioni e orari">
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="Inizio sessione (UTC)">
-            <input
-              type="time"
-              value={form.trading_hours_start}
-              onChange={(e) => set('trading_hours_start', e.target.value)}
-              className={inputCls}
-            />
-          </Field>
-          <Field label="Fine sessione (UTC)">
-            <input
-              type="time"
-              value={form.trading_hours_end}
-              onChange={(e) => set('trading_hours_end', e.target.value)}
-              className={inputCls}
-            />
-          </Field>
-        </div>
-        <Field label="Giorni di trading">
-          <div className="flex gap-2 flex-wrap">
-            {DAYS.map((day) => (
+      <div className="grid gap-6 xl:grid-cols-[0.36fr_0.64fr]">
+        <aside className="space-y-3">
+          {FORM_STEPS.map((step) => {
+            const active = step.id === formStep
+            const completed = step.id < formStep
+            return (
               <button
-                key={day}
+                key={step.id}
                 type="button"
-                onClick={() => toggleDay(day)}
-                className={`px-3 py-1.5 rounded text-xs font-bold border transition-colors ${
-                  form.trading_days.includes(day)
-                    ? 'bg-amber-500 border-amber-500 text-stone-950'
-                    : 'bg-stone-900 border-stone-700 text-stone-400 hover:border-stone-500'
+                onClick={() => setFormStep(step.id)}
+                className={`w-full border px-4 py-4 text-left transition-colors ${
+                  active
+                    ? 'border-cyan-900/70 bg-cyan-950/10'
+                    : completed
+                    ? 'border-slate-800 bg-slate-950/60 text-slate-300'
+                    : 'border-slate-900 bg-slate-950/30 text-slate-500 hover:border-slate-700'
                 }`}
               >
-                {DAY_LABELS[day]}
-              </button>
-            ))}
-          </div>
-        </Field>
-      </Section>
-
-      {/* Sezione 5 */}
-      <Section title="5. Filtri e condizioni (opzionale ma utile)">
-        <p className="text-stone-500 text-xs">
-          Descrivi in linguaggio naturale. Claude identificherà cosa è codificabile
-          e proporrà alternative oggettive per le parti soggettive.
-        </p>
-        <Field
-          label="Filtro di trend"
-          tooltip="Come stabilisci se il mercato è in trend prima di cercare setup?"
-        >
-          <input
-            value={form.trend_filter}
-            onChange={(e) => set('trend_filter', e.target.value)}
-            className={inputCls}
-            placeholder="Es. Opero solo se su D1 il prezzo è sopra la MA200 e la MA50 è inclinata verso l'alto"
-          />
-        </Field>
-        <Field label="Filtro di volatilità">
-          <input
-            value={form.volatility_filter}
-            onChange={(e) => set('volatility_filter', e.target.value)}
-            className={inputCls}
-            placeholder="Es. Evito quando l'ATR giornaliero è sotto 50 pips o sopra 200 pips"
-          />
-        </Field>
-        <Field label="Gestione notizie macro">
-          <input
-            value={form.news_management}
-            onChange={(e) => set('news_management', e.target.value)}
-            className={inputCls}
-            placeholder="Es. Non apro trade 30 minuti prima e dopo notizie ad alto impatto (NFP, BCE, Fed)"
-          />
-        </Field>
-      </Section>
-
-      {/* Sezione 6 */}
-      <Section title="6. Esempi concreti (molto importanti)">
-        <p className="text-stone-500 text-xs">
-          Gli esempi sono la cosa più utile che puoi fornire. Aiutano Claude a capire
-          esattamente cosa intendi con parole come &quot;setup pulito&quot; o
-          &quot;mercato in trend&quot;.
-        </p>
-        <Field
-          label="Esempi di trade VALIDI"
-          tooltip="2-3 trade che hai fatto (o avresti fatto) che rispettavano perfettamente la tua strategia. Con date se ricordi."
-        >
-          <textarea
-            value={form.valid_trade_examples}
-            onChange={(e) => set('valid_trade_examples', e.target.value)}
-            className={`${textareaCls} h-28`}
-            placeholder="Es. EURUSD 12 marzo 2024: su H4 il prezzo era in trend rialzista con EMA20 sopra EMA50. Alle 10:15 UTC ha toccato la EMA20 su H4 con una candela di rimbalzo forte. Su M15 ho aspettato la chiusura della prima candela bullish e sono entrato long a 1.0892, SL a 1.0865, TP a 1.0946..."
-          />
-        </Field>
-        <Field
-          label="Esempi di trade INVALIDI"
-          tooltip="Situazioni che sembravano setup ma non lo erano. Fondamentale per definire bene i filtri."
-        >
-          <textarea
-            value={form.invalid_trade_examples}
-            onChange={(e) => set('invalid_trade_examples', e.target.value)}
-            className={`${textareaCls} h-20`}
-            placeholder="Es. Evito setup durante le prime 30 minuti di sessione americana perché troppo volatile. Evito quando il mercato è appena uscito da una notizia macro anche se il setup sembra buono..."
-          />
-        </Field>
-        <Field label="Note aggiuntive">
-          <textarea
-            value={form.additional_notes}
-            onChange={(e) => set('additional_notes', e.target.value)}
-            className={`${textareaCls} h-16`}
-            placeholder="Qualsiasi altra cosa che ritieni importante e che non hai inserito sopra..."
-          />
-        </Field>
-      </Section>
-
-      {preflight && (
-        <section className="rounded-lg border border-stone-800 bg-stone-900/70 p-4 space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-stone-500">Preflight gratuito</p>
-              <h2 className="text-lg font-bold text-stone-100">
-                {preflight.status === 'VALID' ? 'Pipeline pronta' : 'Pipeline bloccata prima dei token'}
-              </h2>
-            </div>
-            <div className={`rounded px-3 py-1 text-xs font-bold ${
-              preflight.status === 'VALID'
-                ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-700/60'
-                : 'bg-amber-500/10 text-amber-300 border border-amber-700/50'
-            }`}>
-              completezza {Math.round(preflight.completeness_score * 100)}%
-            </div>
-          </div>
-          <p className="text-sm text-stone-400">{preflight.message}</p>
-          <div className="grid gap-3 md:grid-cols-3">
-            {Object.entries(preflight.expected_stages).map(([stage, estimate]) => (
-              <div key={stage} className="rounded border border-stone-800 bg-stone-950/70 p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-bold uppercase tracking-[0.18em] text-stone-400">{stage}</span>
-                  <span className={`text-[11px] font-bold ${estimate.enabled ? 'text-emerald-300' : 'text-amber-300'}`}>
-                    {estimate.enabled ? `~$${estimate.estimated_cost_usd.toFixed(4)}` : 'stopped'}
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-medium">{step.label}</span>
+                  <span className={`text-[10px] uppercase tracking-[0.16em] ${completed ? 'text-cyan-300' : 'text-slate-600'}`}>
+                    {completed ? 'done' : `0${step.id}`}
                   </span>
                 </div>
-                <p className="mt-2 text-xs text-stone-500">{estimate.reason}</p>
-                {estimate.enabled && (
-                  <div className="mt-2 space-y-1 text-[11px] text-stone-400">
-                    <div>input ~ {estimate.estimated_input_tokens} tok</div>
-                    <div>output ~ {estimate.estimated_output_tokens} tok</div>
-                    <div>cap {estimate.max_tokens}</div>
+                <div className="mt-1 text-xs text-slate-500">{step.detail}</div>
+              </button>
+            )
+          })}
+        </aside>
+
+        <div className="space-y-8">
+          {formStep === 1 && (
+            <>
+              <Section title="Claude access">
+                <div className="space-y-4">
+                  <div className="text-xs text-stone-500">
+                    Strategy analysis, formalization and bot generation require a Claude key. You can use the key assigned to your account by admin or provide your own personal key for this run.
                   </div>
-                )}
+                  <div className="rounded border border-stone-800 bg-stone-900/60 px-4 py-3 text-xs text-stone-500">
+                    No global shared key is exposed to users. Every workflow uses either your personal key or the key assigned to your account.
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => accountClaudeAvailable && set('claude_access', { ...(form.claude_access || { api_key: '' }), credential_source: 'account' })}
+                      disabled={!accountClaudeAvailable}
+                      className={`border px-4 py-3 text-left transition-colors ${
+                        form.claude_access?.credential_source === 'account'
+                          ? 'border-slate-500 bg-slate-900 text-slate-100'
+                          : 'border-slate-800 bg-transparent text-slate-400 hover:border-slate-700 hover:text-slate-100'
+                      } ${!accountClaudeAvailable ? 'cursor-not-allowed opacity-50' : ''}`}
+                    >
+                      <div className="text-sm font-medium">Use account Claude key</div>
+                      <div className="mt-1 text-xs text-slate-500">
+                        {accountClaudeAvailable ? 'Assigned by admin to this user.' : 'No account key configured.'}
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => set('claude_access', { ...(form.claude_access || { api_key: '' }), credential_source: 'personal' })}
+                      className={`border px-4 py-3 text-left transition-colors ${
+                        form.claude_access?.credential_source === 'personal'
+                          ? 'border-slate-500 bg-slate-900 text-slate-100'
+                          : 'border-slate-800 bg-transparent text-slate-400 hover:border-slate-700 hover:text-slate-100'
+                      }`}
+                    >
+                      <div className="text-sm font-medium">Use my personal Claude key</div>
+                      <div className="mt-1 text-xs text-slate-500">Used only for this strategy workflow.</div>
+                    </button>
+                  </div>
+                  {form.claude_access?.credential_source === 'personal' ? (
+                    <Field label="Claude API key" required>
+                      <input
+                        type="password"
+                        value={form.claude_access?.api_key || ''}
+                        onChange={(e) => set('claude_access', { credential_source: 'personal', api_key: e.target.value })}
+                        className={inputCls}
+                        placeholder="sk-ant-..."
+                      />
+                    </Field>
+                  ) : (
+                    <div className="rounded border border-slate-800 bg-slate-950/60 px-4 py-3 text-xs text-slate-500">
+                      {accountClaudeAvailable
+                        ? 'This run will use the Claude key already assigned to your account.'
+                        : 'Switch to personal key or ask admin to assign a Claude key to your account.'}
+                    </div>
+                  )}
+                </div>
+              </Section>
+
+              <Section title="Market & timeframes">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="Strategy name" required>
+                    <input value={form.name} onChange={(e) => set('name', e.target.value)} className={inputCls} placeholder="London Breakout Pullback" />
+                  </Field>
+                  <Field label="Market / instrument" required>
+                    <input value={form.market} onChange={(e) => set('market', e.target.value)} className={inputCls} placeholder="EURUSD" />
+                  </Field>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="Analysis timeframe">
+                    <select value={form.analysis_timeframe} onChange={(e) => set('analysis_timeframe', e.target.value)} className={inputCls}>
+                      {TIMEFRAMES.map((tf) => <option key={tf}>{tf}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Execution timeframe">
+                    <select value={form.execution_timeframe} onChange={(e) => set('execution_timeframe', e.target.value)} className={inputCls}>
+                      {TIMEFRAMES.map((tf) => <option key={tf}>{tf}</option>)}
+                    </select>
+                  </Field>
+                </div>
+              </Section>
+            </>
+          )}
+
+          {formStep === 2 && (
+            <Section title="Entry rules">
+              <Field label="Long setup" required tooltip="Describe the exact conditions that must be true before a long trade is allowed.">
+                <textarea
+                  value={form.long_entry}
+                  onChange={(e) => set('long_entry', e.target.value)}
+                  className={`${textareaCls} h-36`}
+                  placeholder="Example: On H4 price must be above EMA200. Wait for a pullback into EMA20, then enter on M15 after the first bullish close if RSI(14) is rising and no high-impact news window is active."
+                />
+                <QualityHint value={form.long_entry} />
+              </Field>
+              <Field label="Short setup" tooltip="Optional. Leave blank if the strategy is long only.">
+                <textarea
+                  value={form.short_entry}
+                  onChange={(e) => set('short_entry', e.target.value)}
+                  className={`${textareaCls} h-28`}
+                  placeholder="Optional short-side logic"
+                />
+              </Field>
+              <Field label="Invalidation logic" required tooltip="What cancels the setup before entry?">
+                <textarea
+                  value={form.invalidation}
+                  onChange={(e) => set('invalidation', e.target.value)}
+                  className={`${textareaCls} h-28`}
+                  placeholder="Example: If price closes beyond the rejection candle high or more than one hour passes without the trigger, the setup is invalidated."
+                />
+                <QualityHint value={form.invalidation} />
+              </Field>
+            </Section>
+          )}
+
+          {formStep === 3 && (
+            <Section title="Exit & risk management">
+              <Field label="Stop loss logic" required>
+                <textarea
+                  value={form.stop_loss}
+                  onChange={(e) => set('stop_loss', e.target.value)}
+                  className={`${textareaCls} h-28`}
+                  placeholder="Example: Below the setup candle low plus a small buffer, or below the nearest H4 support."
+                />
+                <QualityHint value={form.stop_loss} />
+              </Field>
+              <Field label="Take profit logic" required>
+                <textarea
+                  value={form.take_profit}
+                  onChange={(e) => set('take_profit', e.target.value)}
+                  className={`${textareaCls} h-28`}
+                  placeholder="Example: Fixed 2R target, next structural resistance, or partials plus runner."
+                />
+              </Field>
+              <Field label="Trailing stop">
+                <input
+                  value={form.trailing_stop}
+                  onChange={(e) => set('trailing_stop', e.target.value)}
+                  className={inputCls}
+                  placeholder="Breakeven at 1R, then trail by ATR or swing structure"
+                />
+              </Field>
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field label="Risk per trade (%)">
+                  <input
+                    type="number"
+                    min={0.1}
+                    max={10}
+                    step={0.1}
+                    value={form.risk_per_trade_pct}
+                    onChange={(e) => set('risk_per_trade_pct', parseFloat(e.target.value))}
+                    className={inputCls}
+                  />
+                </Field>
+                <Field label="Max trades per day">
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={form.max_daily_trades}
+                    onChange={(e) => set('max_daily_trades', parseInt(e.target.value))}
+                    className={inputCls}
+                  />
+                </Field>
               </div>
-            ))}
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
-            <p className="text-stone-400">
-              {preflight.next_recommended_action}
-              {preflight.blocking_items > 0 ? ` Blocchi aperti: ${preflight.blocking_items}.` : ''}
+            </Section>
+          )}
+
+          {formStep === 4 && (
+            <>
+              <Section title="Sessions and filters">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="Session start (UTC)">
+                    <input type="time" value={form.trading_hours_start} onChange={(e) => set('trading_hours_start', e.target.value)} className={inputCls} />
+                  </Field>
+                  <Field label="Session end (UTC)">
+                    <input type="time" value={form.trading_hours_end} onChange={(e) => set('trading_hours_end', e.target.value)} className={inputCls} />
+                  </Field>
+                </div>
+                <Field label="Trading days">
+                  <div className="flex flex-wrap gap-2">
+                    {DAYS.map((day) => (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => toggleDay(day)}
+                        className={`border px-3 py-2 text-xs font-semibold ${
+                          form.trading_days.includes(day)
+                            ? 'border-cyan-900/70 bg-cyan-950/10 text-cyan-300'
+                            : 'border-slate-800 bg-slate-950/50 text-slate-500 hover:border-slate-700'
+                        }`}
+                      >
+                        {DAY_LABELS[day]}
+                      </button>
+                    ))}
+                  </div>
+                </Field>
+                <Field label="Trend filter">
+                  <input
+                    value={form.trend_filter}
+                    onChange={(e) => set('trend_filter', e.target.value)}
+                    className={inputCls}
+                    placeholder="Only trade with higher timeframe trend or structural bias"
+                  />
+                </Field>
+                <Field label="Volatility filter">
+                  <input
+                    value={form.volatility_filter}
+                    onChange={(e) => set('volatility_filter', e.target.value)}
+                    className={inputCls}
+                    placeholder="Avoid compressed or extreme volatility conditions"
+                  />
+                </Field>
+                <Field label="Context notes">
+                  <input
+                    value={form.context_filter}
+                    onChange={(e) => set('context_filter', e.target.value)}
+                    className={inputCls}
+                    placeholder="Session, structure, liquidity, correlated market context"
+                  />
+                </Field>
+                <Field label="News handling notes">
+                  <input
+                    value={form.news_management}
+                    onChange={(e) => set('news_management', e.target.value)}
+                    className={inputCls}
+                    placeholder="Example: block trading 30 minutes before and after high-impact USD events"
+                  />
+                </Field>
+              </Section>
+
+              <FundamentalFiltersCard
+                title="Macro / news filters"
+                value={form.macro_news}
+                onChange={(next) => set('macro_news', next)}
+              />
+            </>
+          )}
+
+          {formStep === 5 && (
+            <>
+              <Section title="Examples and trader notes">
+                <Field label="Examples of valid trades">
+                  <textarea
+                    value={form.valid_trade_examples}
+                    onChange={(e) => set('valid_trade_examples', e.target.value)}
+                    className={`${textareaCls} h-32`}
+                    placeholder="Describe 2–3 concrete trades that perfectly matched the strategy."
+                  />
+                </Field>
+                <Field label="Examples of invalid trades">
+                  <textarea
+                    value={form.invalid_trade_examples}
+                    onChange={(e) => set('invalid_trade_examples', e.target.value)}
+                    className={`${textareaCls} h-24`}
+                    placeholder="Describe situations that looked tradable but should be rejected."
+                  />
+                </Field>
+                <Field label="Additional notes">
+                  <textarea
+                    value={form.additional_notes}
+                    onChange={(e) => set('additional_notes', e.target.value)}
+                    className={`${textareaCls} h-20`}
+                    placeholder="Anything else that matters for execution or interpretation."
+                  />
+                </Field>
+              </Section>
+
+              {preflight && (
+                <section className="rounded-lg border border-slate-800 bg-slate-950/70 p-4 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Free preflight</p>
+                      <h2 className="text-lg font-semibold text-slate-100">
+                        {preflight.status === 'VALID' ? 'Pipeline ready' : 'Pipeline blocked before token spend'}
+                      </h2>
+                    </div>
+                    <div className={`border px-3 py-1 text-xs font-semibold ${
+                      preflight.status === 'VALID'
+                        ? 'border-cyan-900/70 bg-cyan-950/10 text-cyan-300'
+                        : 'border-amber-900/70 bg-amber-950/10 text-amber-300'
+                    }`}>
+                      completeness {Math.round(preflight.completeness_score * 100)}%
+                    </div>
+                  </div>
+                  <p className="text-sm text-slate-400">{preflight.message}</p>
+                  <div className="grid gap-3 md:grid-cols-3">
+                    {Object.entries(preflight.expected_stages).map(([stage, estimate]) => (
+                      <div key={stage} className="border border-slate-800 bg-slate-950/70 p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{stage}</span>
+                          <span className={`text-[11px] font-semibold ${estimate.enabled ? 'text-cyan-300' : 'text-amber-300'}`}>
+                            {estimate.enabled ? `~$${estimate.estimated_cost_usd.toFixed(4)}` : 'stopped'}
+                          </span>
+                        </div>
+                        <p className="mt-2 text-xs text-slate-500">{estimate.reason}</p>
+                        {estimate.enabled && (
+                          <div className="mt-2 space-y-1 text-[11px] text-slate-400">
+                            <div>input ~ {estimate.estimated_input_tokens} tok</div>
+                            <div>output ~ {estimate.estimated_output_tokens} tok</div>
+                            <div>cap {estimate.max_tokens}</div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
+                    <p className="text-slate-400">
+                      {preflight.next_recommended_action}
+                      {preflight.blocking_items > 0 ? ` Open blockers: ${preflight.blocking_items}.` : ''}
+                    </p>
+                    <p className="font-semibold text-slate-200">
+                      max expected pipeline cost ~ ${preflight.estimated_total_cost_usd.toFixed(4)}
+                    </p>
+                  </div>
+                </section>
+              )}
+            </>
+          )}
+
+          {preflightLoading && !loading && (
+            <p className="text-xs text-slate-500">
+              Running local pre-check. No tokens spent.
             </p>
-            <p className="font-bold text-stone-200">
-              costo massimo atteso pipeline ~ ${preflight.estimated_total_cost_usd.toFixed(4)}
+          )}
+
+          {error && <Alert type="error">{error}</Alert>}
+
+          {formStep < FORM_STEPS.length ? (
+            <NavButtons
+              onBack={formStep > 1 ? prevFormStep : undefined}
+              onNext={nextFormStep}
+              nextLabel="Continue section →"
+              backLabel="← Previous section"
+              disabled={loading}
+            />
+          ) : (
+            <NavButtons
+              onBack={prevFormStep}
+              onNext={handleSubmit}
+              nextLabel={loading ? 'Analyzing strategy...' : 'Analyze Strategy →'}
+              backLabel="← Previous section"
+              loading={loading}
+              disabled={loading}
+            />
+          )}
+
+          {loading && (
+            <p className="text-xs text-slate-500">
+              Claude is translating the strategy into structured trading logic. Typical runtime: 20–60 seconds.
             </p>
-          </div>
-        </section>
-      )}
-
-      {preflightLoading && !loading && (
-        <p className="text-stone-500 text-xs text-center">
-          Pre-check locale in corso: nessun token speso.
-        </p>
-      )}
-
-      {error && <Alert type="error">{error}</Alert>}
-
-      <NavButtons
-        onNext={handleSubmit}
-        nextLabel={loading ? 'Claude sta analizzando...' : 'Analizza la mia strategia →'}
-        loading={loading}
-        disabled={loading}
-      />
-
-      {loading && (
-        <p className="text-stone-500 text-xs text-center">
-          Claude analizzerà la tua strategia e identificherà le parti codificabili.
-          Richiede 20–60 secondi.
-        </p>
-      )}
-    </div>
-  )
-}
-
-function QualityHint({ value }: { value: string }) {
-  return (
-    <div className="flex justify-between text-xs mt-1">
-      <span className={value.length < 50 ? 'text-amber-600' : 'text-stone-600'}>
-        {value.length < 50 ? '⚠ Aggiungi più dettagli per una traduzione migliore' : '✓ Buona descrizione'}
-      </span>
-      <span className="text-stone-700">{value.length} caratteri</span>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

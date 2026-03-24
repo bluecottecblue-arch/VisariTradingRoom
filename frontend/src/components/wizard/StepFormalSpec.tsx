@@ -15,19 +15,19 @@ export default function StepFormalSpec({ formalSpec, onComplete, onBack }: Props
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-amber-400 mb-2">Specifica algoritmica formale</h1>
+        <h1 className="text-2xl font-bold text-amber-400 mb-2">Formal algorithmic specification</h1>
         <p className="text-stone-400 text-sm">
-          La tua strategia è stata convertita in una specifica algoritmica rigorosa.
-          Leggi attentamente — questa è la base del bot che verrà generato.
-          Se qualcosa non corrisponde a ciò che intendevi, torna indietro e modifica.
+          Your strategy has been translated into a rigorous algorithmic specification.
+          Review it carefully: this is the direct blueprint for the final bot.
+          If something does not match your intent, go back and adjust it now.
         </p>
       </div>
 
       {/* Macchina a stati */}
       {sm.states && (
-        <Section title="🔄 Macchina a stati del bot">
+        <Section title="Bot state machine">
           <p className="text-stone-500 text-xs mb-3">
-            Il bot si muove attraverso questi stati. Capire questo aiuta a capire il comportamento del bot.
+            The bot moves through these states. Understanding them explains how the system behaves at runtime.
           </p>
           <div className="flex flex-wrap gap-2 mb-4">
             {sm.states.map((s: string) => (
@@ -41,7 +41,7 @@ export default function StepFormalSpec({ formalSpec, onComplete, onBack }: Props
               <span className="text-stone-500 font-mono">{t.from}</span>
               <span className="text-amber-600">→</span>
               <span className="text-stone-300 font-mono">{t.to}</span>
-              <span className="text-stone-600">se</span>
+              <span className="text-stone-600">if</span>
               <span className="text-stone-400 italic">{t.condition}</span>
             </div>
           ))}
@@ -50,7 +50,7 @@ export default function StepFormalSpec({ formalSpec, onComplete, onBack }: Props
 
       {/* Condizioni di ingresso */}
       {spec.entry_conditions && (
-        <Section title="📈 Condizioni di ingresso">
+        <Section title="Entry conditions">
           {spec.entry_conditions.long?.conditions?.length > 0 && (
             <div className="mb-4">
               <div className="text-stone-400 text-xs font-bold mb-2">LONG (logica: {spec.entry_conditions.long.logic})</div>
@@ -78,7 +78,7 @@ export default function StepFormalSpec({ formalSpec, onComplete, onBack }: Props
 
       {/* Risk management */}
       {spec.risk_management && (
-        <Section title="🛡️ Gestione del rischio">
+          <Section title="Risk management">
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {Object.entries(spec.risk_management).map(([k, v]) => (
               <div key={k} className="px-3 py-2 bg-stone-900 border border-stone-800 rounded">
@@ -92,10 +92,9 @@ export default function StepFormalSpec({ formalSpec, onComplete, onBack }: Props
 
       {/* Parametri ottimizzabili */}
       {params.length > 0 && (
-        <Section title="⚙️ Parametri del bot">
+        <Section title="Bot parameters">
           <p className="text-stone-500 text-xs mb-3">
-            Questi parametri possono essere modificati nel bot. Quelli marcati come
-            "non ottimizzare" NON devono essere usati in ottimizzazione — rischio curve fitting.
+            These parameters can be changed in the bot. Items marked as non-optimizable should not be tuned in optimization because they create curve-fitting risk.
           </p>
           <div className="space-y-2">
             {params.map((p: any) => (
@@ -106,7 +105,7 @@ export default function StepFormalSpec({ formalSpec, onComplete, onBack }: Props
                     <span className={`text-xs px-1.5 py-0.5 rounded ${
                       p.optimize ? "bg-green-950 text-green-400" : "bg-stone-800 text-stone-500"
                     }`}>
-                      {p.optimize ? "ottimizzabile" : "fisso"}
+                      {p.optimize ? "optimizable" : "fixed"}
                     </span>
                   </div>
                   <div className="text-stone-500 text-xs mt-0.5">{p.description}</div>
@@ -128,11 +127,10 @@ export default function StepFormalSpec({ formalSpec, onComplete, onBack }: Props
       {nonOpt.length > 0 && (
         <div className="p-4 bg-red-950/10 border border-red-800/40 rounded">
           <h3 className="text-red-400 font-bold text-sm mb-2">
-            🚫 Non ottimizzare mai questi aspetti
+            Never optimize these items
           </h3>
           <p className="text-stone-500 text-xs mb-3">
-            Ottimizzare questi parametri porta a curve fitting — il bot imparerà a memoria
-            il passato senza capacità predittiva.
+            Optimizing these parameters leads to curve fitting and weak live performance.
           </p>
           <ul className="space-y-1">
             {nonOpt.map((item: string, i: number) => (
@@ -146,19 +144,19 @@ export default function StepFormalSpec({ formalSpec, onComplete, onBack }: Props
 
       <div className="p-4 bg-stone-900 border border-stone-700 rounded text-stone-400 text-xs">
         <strong className="text-stone-300">Prima di continuare, chiediti:</strong><br />
-        Questa specifica corrisponde a ciò che fai davvero quando tradi?
-        Se cSe c'è qualcosaapos;è qualcosa che non quadra, torna indietro e chiariscilo.
-        Il bot genererà esattamente ciò che è scritto qui sopra.
+        Does this specification truly match how you trade?
+        If something feels off, go back and clarify it now.
+        The final bot will implement exactly what is written above.
       </div>
 
       <div className="flex gap-4">
         <button onClick={onBack}
           className="px-6 py-3 border border-stone-700 text-stone-400 hover:text-stone-200 rounded transition-colors">
-          ← Indietro
+          Back
         </button>
         <button onClick={onComplete}
           className="flex-1 py-3 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold rounded transition-colors">
-          Procedi al backtest →
+          Proceed to Backtest
         </button>
       </div>
     </div>

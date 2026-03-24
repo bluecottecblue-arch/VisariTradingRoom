@@ -17,9 +17,9 @@ const SEVERITY_COLORS: Record<string, string> = {
   LOW:    'border-stone-700 bg-stone-900/30',
 }
 const SEVERITY_LABELS: Record<string, string> = {
-  HIGH:   '⛔ Non codificabile direttamente',
-  MEDIUM: '⚠️  Parzialmente codificabile',
-  LOW:    '✅ Codificabile con approssimazione',
+  HIGH:   'CRITICAL BLOCKER',
+  MEDIUM: 'REQUIRES DECISION',
+  LOW:    'CAN BE APPROXIMATED',
 }
 
 export default function StepAmbiguities({ sessionId, parseResult, onComplete, onBack }: Props) {
@@ -47,11 +47,11 @@ export default function StepAmbiguities({ sessionId, parseResult, onComplete, on
 
   const handleContinue = async () => {
     if (missingRequiredInputs > 0) {
-      setError('Mancano informazioni obbligatorie. Torna allo step precedente e completa la strategia prima di formalizzare.')
+      setError('Required information is still missing. Go back and complete the strategy before formalizing it.')
       return
     }
     if (unresolvedHigh > 0) {
-      setError(`Risolvi prima le ${unresolvedHigh} ambiguità CRITICHE.`)
+      setError(`Resolve the ${unresolvedHigh} critical blockers before continuing.`)
       return
     }
     setLoading(true)
@@ -70,10 +70,9 @@ export default function StepAmbiguities({ sessionId, parseResult, onComplete, on
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-amber-400 mb-2">Revisione AI della tua strategia</h1>
+        <h1 className="text-2xl font-bold text-amber-400 mb-2">Strategy review and ambiguity control</h1>
         <p className="text-stone-400 text-sm">
-          Qui sotto vedi cosa è codificabile, cosa richiede una tua scelta e cosa blocca
-          la generazione finché non inserisci dettagli binari o numerici.
+          Review what is already codifiable, what requires a trader decision and what still blocks bot generation until the rules become binary and testable.
         </p>
       </div>
 
@@ -82,19 +81,19 @@ export default function StepAmbiguities({ sessionId, parseResult, onComplete, on
           ? 'bg-green-950/20 border-green-800/40'
           : 'bg-red-950/20 border-red-800/40'
       }`}>
-        <div className="text-stone-200 text-sm font-bold">Stato: {parseResult.status}</div>
+        <div className="text-stone-200 text-sm font-bold">Status: {parseResult.status}</div>
         <div className="text-stone-400 text-xs mt-1">{message}</div>
         <div className="text-stone-500 text-xs mt-2">
-          {validation?.llm_skipped ? 'Pre-validazione locale: token risparmiati' : 'Revisione LLM completata'}
-          {' · '}Issue bloccanti: {validation?.blocking_issues ?? missingRequiredInputs + unresolvedHigh}
-          {' · '}Token input stimati: {usage?.estimated_input_tokens ?? 0}
+          {validation?.llm_skipped ? 'Local pre-validation: tokens saved' : 'LLM review completed'}
+          {' · '}Blocking issues: {validation?.blocking_issues ?? missingRequiredInputs + unresolvedHigh}
+          {' · '}Estimated input tokens: {usage?.estimated_input_tokens ?? 0}
         </div>
       </div>
 
       {/* Completeness score */}
       <div className="px-5 py-4 bg-stone-900 border border-stone-700 rounded-lg">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-stone-300 text-sm font-bold">Codificabilità della strategia</span>
+          <span className="text-stone-300 text-sm font-bold">Strategy codifiability</span>
           <span className={`text-lg font-bold ${
             completeness_score >= 0.7 ? 'text-green-400'
             : completeness_score >= 0.4 ? 'text-amber-400'
@@ -115,17 +114,17 @@ export default function StepAmbiguities({ sessionId, parseResult, onComplete, on
         </div>
         <p className="text-stone-500 text-xs mt-2">
           {completeness_score >= 0.7
-            ? 'Ottimo! La maggior parte è algoritmizzabile.'
+            ? 'Strong structure: most of the strategy is ready for algorithmic translation.'
             : completeness_score >= 0.4
-            ? 'Buona parte è codificabile ma ci sono elementi soggettivi importanti.'
-            : "Molte parti sono discrezionali. Il bot sarà un'approssimazione — questo va saputo."}
+            ? 'Good starting point, but some key decisions are still discretionary.'
+            : 'Too much of the logic is discretionary. The bot would still be a rough approximation.'}
         </p>
       </div>
 
       {/* Bias warnings */}
       {bias_warnings.length > 0 && (
         <div className="px-5 py-4 bg-purple-950/20 border border-purple-800 rounded-lg space-y-2">
-          <h3 className="text-purple-300 font-bold text-sm">🧠 Bias cognitivi rilevati</h3>
+          <h3 className="text-purple-300 font-bold text-sm">Detected discretionary biases</h3>
           {bias_warnings.map((w, i) => (
             <div key={i} className="text-purple-200 text-xs flex gap-2">
               <span>→</span><span>{w}</span>
@@ -138,7 +137,7 @@ export default function StepAmbiguities({ sessionId, parseResult, onComplete, on
       {codeable_rules.length > 0 && (
         <div>
           <h2 className="text-stone-300 font-bold text-sm uppercase tracking-wider border-b border-stone-800 pb-2 mb-3">
-            ✅ Regole già codificabili ({codeable_rules.length})
+            Already codifiable rules ({codeable_rules.length})
           </h2>
           <div className="space-y-2">
             {codeable_rules.map((rule) => (
@@ -157,16 +156,16 @@ export default function StepAmbiguities({ sessionId, parseResult, onComplete, on
       {required_inputs.length > 0 && (
         <div>
           <h2 className="text-stone-300 font-bold text-sm uppercase tracking-wider border-b border-stone-800 pb-2 mb-4">
-            ⛔ Informazioni obbligatorie mancanti ({required_inputs.length})
+            Missing required inputs ({required_inputs.length})
           </h2>
           <div className="space-y-3">
             {required_inputs.map((item) => (
               <div key={item.id} className="px-4 py-4 bg-red-950/20 border border-red-800/40 rounded space-y-2">
                 <div className="text-red-300 text-sm font-bold">{item.label}</div>
                 <div className="text-stone-400 text-xs">{item.why}</div>
-                <div className="text-stone-500 text-xs font-mono">Esempio valido: {item.example}</div>
+                <div className="text-stone-500 text-xs font-mono">Valid example: {item.example}</div>
                 {item.source_text && (
-                  <div className="text-stone-600 text-xs">Testo rilevato: &quot;{item.source_text}&quot;</div>
+                  <div className="text-stone-600 text-xs">Detected text: &quot;{item.source_text}&quot;</div>
                 )}
               </div>
             ))}
@@ -178,7 +177,7 @@ export default function StepAmbiguities({ sessionId, parseResult, onComplete, on
       {ambiguities.length > 0 && (
         <div>
           <h2 className="text-stone-300 font-bold text-sm uppercase tracking-wider border-b border-stone-800 pb-2 mb-4">
-            ⚡ Parti che richiedono la tua scelta ({ambiguities.length})
+            Items that require your decision ({ambiguities.length})
           </h2>
           <div className="space-y-6">
             {ambiguities.map((amb) => (
@@ -195,7 +194,7 @@ export default function StepAmbiguities({ sessionId, parseResult, onComplete, on
 
       {ambiguities.length === 0 && (
         <div className="px-4 py-3 bg-green-950/20 border border-green-800/40 rounded text-green-300 text-sm">
-          ✅ Nessuna ambiguità critica — la strategia è ben definita.
+          No critical ambiguities detected. The strategy is already well defined.
         </div>
       )}
 
@@ -210,7 +209,7 @@ export default function StepAmbiguities({ sessionId, parseResult, onComplete, on
           onClick={onBack}
           className="px-6 py-3 border border-stone-700 text-stone-400 rounded hover:text-stone-200 transition-colors"
         >
-          ← Indietro
+          Back
         </button>
         <button
           onClick={handleContinue}
@@ -220,14 +219,14 @@ export default function StepAmbiguities({ sessionId, parseResult, onComplete, on
           {loading ? (
             <span className="flex items-center justify-center gap-2">
               <span className="w-4 h-4 border-2 border-stone-700 border-t-stone-950 rounded-full animate-spin" />
-              Formalizzazione in corso...
+              Building formal specification...
             </span>
           ) : (
-            `Conferma e formalizza → ${
+            `Confirm and formalize ${
               missingRequiredInputs > 0
-                ? `(${missingRequiredInputs} input mancanti)`
+                ? `(${missingRequiredInputs} missing inputs)`
                 : unresolvedHigh > 0
-                ? `(${unresolvedHigh} HIGH da risolvere)`
+                ? `(${unresolvedHigh} critical blockers)`
                 : ''
             }`
           )}

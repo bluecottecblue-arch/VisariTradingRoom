@@ -58,7 +58,7 @@ export function Field({
 }
 
 export const inputCls =
-  'w-full border border-slate-800 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 outline-none transition-colors placeholder:text-slate-600 focus:border-slate-500'
+  'w-full border border-slate-800 bg-[linear-gradient(180deg,rgba(15,23,42,0.84),rgba(2,6,23,0.92))] px-3.5 py-3 text-sm text-slate-100 outline-none transition-colors placeholder:text-slate-600 focus:border-cyan-800/70'
 
 export const textareaCls = `${inputCls} resize-none`
 
@@ -74,7 +74,7 @@ export function MetricCard({
   sub?: string
 }) {
   return (
-    <div className="border border-slate-800 bg-slate-950/70 px-4 py-4">
+    <div className="border border-slate-800/90 bg-slate-950/72 px-4 py-4">
       <div className="mb-1 text-[11px] uppercase tracking-[0.14em] text-slate-500">{label}</div>
       <div className={`text-xl font-semibold ${colorClass}`}>
         {value ?? '—'}
@@ -121,7 +121,7 @@ export function ProgressBar({
   label?: string
 }) {
   const pct = Math.min(100, Math.max(0, (value / max) * 100))
-  const color = pct >= 70 ? 'bg-emerald-400' : pct >= 40 ? 'bg-slate-400' : 'bg-rose-300'
+  const color = pct >= 70 ? 'bg-cyan-400' : pct >= 40 ? 'bg-slate-400' : 'bg-amber-300'
   return (
     <div className="space-y-1">
       {label && (
@@ -165,7 +165,7 @@ export function CodeBlock({
           onClick={copy}
           className="hover:text-slate-200 transition-colors"
         >
-          {copied ? 'Copiato' : 'Copia'}
+          {copied ? 'Copied' : 'Copy'}
         </button>
       </div>
       <pre
@@ -218,14 +218,14 @@ export function TabBar<T extends string>({
   onChange: (id: T) => void
 }) {
   return (
-    <div className="flex border-b border-slate-800">
+    <div className="flex border-b border-slate-800/90">
       {tabs.map((tab) => (
         <button
           key={tab.id}
           onClick={() => onChange(tab.id)}
           className={`px-4 py-2 text-sm transition-colors ${
             active === tab.id
-              ? 'border-b border-slate-400 -mb-px text-slate-100'
+              ? 'border-b border-cyan-500/70 -mb-px text-slate-100'
               : 'text-slate-500 hover:text-slate-300'
           }`}
         >
@@ -240,10 +240,10 @@ export function TabBar<T extends string>({
 export function NavButtons({
   onBack,
   onNext,
-  nextLabel = 'Continua →',
+  nextLabel = 'Continue',
   disabled = false,
   loading = false,
-  backLabel = '← Indietro',
+  backLabel = 'Back',
 }: {
   onBack?: () => void
   onNext?: () => void
@@ -258,7 +258,7 @@ export function NavButtons({
         <button
           onClick={onBack}
           disabled={loading}
-          className="border border-slate-800 px-5 py-2.5 text-slate-400 transition-colors hover:border-slate-600 hover:text-slate-200 disabled:opacity-40"
+          className="border border-slate-800 px-5 py-3 text-slate-400 transition-colors hover:border-slate-600 hover:text-slate-200 disabled:opacity-40"
         >
           {backLabel}
         </button>
@@ -267,12 +267,12 @@ export function NavButtons({
         <button
           onClick={onNext}
           disabled={disabled || loading}
-          className="flex-1 border border-slate-200 bg-slate-100 py-2.5 font-semibold text-slate-950 transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex-1 border border-cyan-800/70 bg-cyan-400/90 py-3 font-semibold text-slate-950 transition-colors hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {loading ? (
             <span className="flex items-center justify-center gap-2">
               <span className="h-4 w-4 animate-spin border-2 border-slate-500 border-t-slate-950 rounded-full" />
-              Elaborazione...
+              Processing...
             </span>
           ) : (
             nextLabel

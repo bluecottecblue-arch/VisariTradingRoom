@@ -36,9 +36,13 @@ export function useBacktest() {
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const phaseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const mountedRef = useRef(true)
+  const runTokenRef = useRef(0)
+  const pollStartRef = useRef(0)
+  const errCountRef = useRef(0)
 
   useEffect(() => () => {
     mountedRef.current = false
+    runTokenRef.current += 1
     if (pollRef.current) clearTimeout(pollRef.current)
     if (phaseTimerRef.current) clearInterval(phaseTimerRef.current)
   }, [])
@@ -47,6 +51,11 @@ export function useBacktest() {
     async (sessionId: string, config: object, projectId?: string | null) => {
       if (pollRef.current) clearTimeout(pollRef.current)
       if (phaseTimerRef.current) clearInterval(phaseTimerRef.current)
+      runTokenRef.current += 1
+      const currentToken = runTokenRef.current
+      pollStartRef.current = Date.now()
+      errCountRef.current = 0
+
       setPhase('downloading_data')
       setError(null)
       setResults(null)
@@ -72,7 +81,7 @@ export function useBacktest() {
 
         // Backend può rispondere direttamente con i risultati (sync) o con task_id (async)
         if (response.status === 'complete' && response.results) {
-          if (!mountedRef.current) return
+          if (!mountedRef.current || runTokenRef.current !== currentToken) return
           clearInterval(phaseTimerRef.current!)
           setPhase('complete')
           setResults(response.results)
@@ -82,9 +91,9 @@ export function useBacktest() {
         // Altrimenti polling
         const taskId = response.task_id
         if (!taskId) throw new Error('Nessun task_id nella risposta del server')
-        await pollStatus(taskId)
+        await pollStatus(taskId, currentToken)
       } catch (e: unknown) {
-        if (!mountedRef.current) return
+        if (!mountedRef.current || runTokenRef.current !== currentToken) return
         clearInterval(phaseTimerRef.current!)
         setPhase('error')
         setError(formatError(e))
@@ -93,18 +102,27 @@ export function useBacktest() {
     [],
   )
 
-  const pollStatus = useCallback(async (taskId: string) => {
+  const pollStatus = useCallback(async (taskId: string, token: number) => {
     const check = async () => {
+      if (!mountedRef.current || runTokenRef.current !== token) return
+
+      if (Date.now() - pollStartRef.current > 10 * 60 * 1000) {
+        clearInterval(phaseTimerRef.current!)
+        setPhase('error')
+        setError('Backtest monitoring timed out. The job may still be running on the server. Refresh or retry.')
+        return
+      }
+
       try {
         const data = await backtestApi.status(taskId) as any
+        if (!mountedRef.current || runTokenRef.current !== token) return
+        errCountRef.current = 0 // reset on success
 
         if (data.status === 'complete') {
-          if (!mountedRef.current) return
           clearInterval(phaseTimerRef.current!)
           setPhase('complete')
           setResults(data.results)
         } else if (data.status === 'error') {
-          if (!mountedRef.current) return
           clearInterval(phaseTimerRef.current!)
           setPhase('error')
           setError(data.error || 'Errore durante il backtest')
@@ -112,13 +130,23 @@ export function useBacktest() {
           pollRef.current = setTimeout(check, 3000)
         }
       } catch {
-        pollRef.current = setTimeout(check, 5000)
+        if (!mountedRef.current || runTokenRef.current !== token) return
+        errCountRef.current += 1
+        if (errCountRef.current > 5) {
+          clearInterval(phaseTimerRef.current!)
+          setPhase('error')
+          setError('Too many network errors while checking backtest status.')
+          return
+        }
+        const backoff = Math.min(15000, 3000 * Math.pow(1.5, errCountRef.current))
+        pollRef.current = setTimeout(check, backoff)
       }
     }
     check()
   }, [])
 
   const reset = useCallback(() => {
+    runTokenRef.current += 1
     if (pollRef.current) clearTimeout(pollRef.current)
     if (phaseTimerRef.current) clearInterval(phaseTimerRef.current)
     mountedRef.current = true
