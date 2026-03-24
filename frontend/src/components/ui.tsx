@@ -282,3 +282,47 @@ export function NavButtons({
     </div>
   )
 }
+
+
+// ─── Accordion ────────────────────────────────────────────────────────────────
+export function Accordion({
+  title,
+  children,
+  defaultOpen = false,
+}: {
+  title: string
+  children: ReactNode
+  defaultOpen?: boolean
+}) {
+  const [isOpen, setIsOpen] = useState(defaultOpen)
+  return (
+    <div className="border border-slate-800/90 bg-slate-950/40 mt-4">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-slate-900/40"
+      >
+        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-500">
+          {title}
+        </span>
+        <span className="text-slate-500">
+          {isOpen ? (
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+            </svg>
+          ) : (
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          )}
+        </span>
+      </button>
+      {isOpen && (
+        <div className="border-t border-slate-800/50 p-5 space-y-4">
+          {children}
+        </div>
+      )}
+    </div>
+  )
+}
+

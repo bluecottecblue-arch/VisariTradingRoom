@@ -15,6 +15,7 @@ import {
   Section,
   Spinner,
   TabBar,
+  Accordion,
   inputCls,
   textareaCls,
 } from '@/components/ui'
@@ -505,64 +506,71 @@ export default function BotLabWorkspace() {
             </div>
           </Section>
 
-          <FundamentalFiltersCard
-            value={config.fundamental_filters}
-            onChange={(next) => setConfig((current) => ({ ...current, fundamental_filters: next }))}
-          />
+          <div className="mt-8 border-t border-slate-800/80 pt-6">
+            <Accordion title="2. Advanced Configuration & Backtest (Optional)" defaultOpen={false}>
+              <div className="space-y-8 py-2">
+                <FundamentalFiltersCard
+                  value={config.fundamental_filters}
+                  onChange={(next) => setConfig((current) => ({ ...current, fundamental_filters: next }))}
+                />
 
-          <Section title="2. Configure backtest and validation">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Field label="Data provider">
-                <select
-                  value={config.provider}
-                  onChange={(e) => setConfig((c) => ({ ...c, provider: e.target.value }))}
-                  className={inputCls}
-                >
-                  <option value="demo">demo</option>
-                  <option value="polygon">polygon</option>
-                  <option value="dukascopy">dukascopy</option>
-                </select>
-              </Field>
-              <Field label="Symbol">
-                <input value={config.symbol} onChange={(e) => setConfig((c) => ({ ...c, symbol: e.target.value }))} className={inputCls} />
-              </Field>
-              <Field label="Timeframe">
-                <select value={config.timeframe} onChange={(e) => setConfig((c) => ({ ...c, timeframe: e.target.value }))} className={inputCls}>
-                  {['M15', 'M30', 'H1', 'H4', 'D1'].map((tf) => (
-                    <option key={tf}>{tf}</option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Capital">
-                <input type="number" value={config.initial_capital} onChange={(e) => setConfig((c) => ({ ...c, initial_capital: Number(e.target.value) }))} className={inputCls} />
-              </Field>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Field label="Start date">
-                <input type="date" value={config.date_from} onChange={(e) => setConfig((c) => ({ ...c, date_from: e.target.value }))} className={inputCls} />
-              </Field>
-              <Field label="IS end">
-                <input type="date" value={config.date_in_sample_end} onChange={(e) => setConfig((c) => ({ ...c, date_in_sample_end: e.target.value }))} className={inputCls} />
-              </Field>
-              <Field label="OOS start">
-                <input type="date" value={config.date_oos_start} onChange={(e) => setConfig((c) => ({ ...c, date_oos_start: e.target.value }))} className={inputCls} />
-              </Field>
-              <Field label="End date">
-                <input type="date" value={config.date_to} onChange={(e) => setConfig((c) => ({ ...c, date_to: e.target.value }))} className={inputCls} />
-              </Field>
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <Field label="Spread">
-                <input type="number" step={0.1} value={config.spread_pips} onChange={(e) => setConfig((c) => ({ ...c, spread_pips: Number(e.target.value) }))} className={inputCls} />
-              </Field>
-              <Field label="Slippage">
-                <input type="number" step={0.1} value={config.slippage_pips} onChange={(e) => setConfig((c) => ({ ...c, slippage_pips: Number(e.target.value) }))} className={inputCls} />
-              </Field>
-              <Field label="Risk %">
-                <input type="number" step={0.1} value={config.risk_per_trade_pct} onChange={(e) => setConfig((c) => ({ ...c, risk_per_trade_pct: Number(e.target.value) }))} className={inputCls} />
-              </Field>
-            </div>
-          </Section>
+                <div className="space-y-4 border border-slate-800/40 bg-slate-950/20 p-5">
+                  <div className="text-sm font-semibold text-slate-200 uppercase tracking-widest text-[11px]">Backtest Environment</div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <Field label="Data provider">
+                      <select
+                        value={config.provider}
+                        onChange={(e) => setConfig((c) => ({ ...c, provider: e.target.value }))}
+                        className={inputCls}
+                      >
+                        <option value="demo">demo</option>
+                        <option value="polygon">polygon</option>
+                        <option value="dukascopy">dukascopy</option>
+                      </select>
+                    </Field>
+                    <Field label="Symbol">
+                      <input value={config.symbol} onChange={(e) => setConfig((c) => ({ ...c, symbol: e.target.value }))} className={inputCls} />
+                    </Field>
+                    <Field label="Timeframe">
+                      <select value={config.timeframe} onChange={(e) => setConfig((c) => ({ ...c, timeframe: e.target.value }))} className={inputCls}>
+                        {['M15', 'M30', 'H1', 'H4', 'D1'].map((tf) => (
+                          <option key={tf}>{tf}</option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Capital">
+                      <input type="number" value={config.initial_capital} onChange={(e) => setConfig((c) => ({ ...c, initial_capital: Number(e.target.value) }))} className={inputCls} />
+                    </Field>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <Field label="Start date">
+                      <input type="date" value={config.date_from} onChange={(e) => setConfig((c) => ({ ...c, date_from: e.target.value }))} className={inputCls} />
+                    </Field>
+                    <Field label="IS end">
+                      <input type="date" value={config.date_in_sample_end} onChange={(e) => setConfig((c) => ({ ...c, date_in_sample_end: e.target.value }))} className={inputCls} />
+                    </Field>
+                    <Field label="OOS start">
+                      <input type="date" value={config.date_oos_start} onChange={(e) => setConfig((c) => ({ ...c, date_oos_start: e.target.value }))} className={inputCls} />
+                    </Field>
+                    <Field label="End date">
+                      <input type="date" value={config.date_to} onChange={(e) => setConfig((c) => ({ ...c, date_to: e.target.value }))} className={inputCls} />
+                    </Field>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <Field label="Spread">
+                      <input type="number" step={0.1} value={config.spread_pips} onChange={(e) => setConfig((c) => ({ ...c, spread_pips: Number(e.target.value) }))} className={inputCls} />
+                    </Field>
+                    <Field label="Slippage">
+                      <input type="number" step={0.1} value={config.slippage_pips} onChange={(e) => setConfig((c) => ({ ...c, slippage_pips: Number(e.target.value) }))} className={inputCls} />
+                    </Field>
+                    <Field label="Risk %">
+                      <input type="number" step={0.1} value={config.risk_per_trade_pct} onChange={(e) => setConfig((c) => ({ ...c, risk_per_trade_pct: Number(e.target.value) }))} className={inputCls} />
+                    </Field>
+                  </div>
+                </div>
+              </div>
+            </Accordion>
+          </div>
         </div>
 
         <div className="space-y-6">

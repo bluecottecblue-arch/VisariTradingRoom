@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react'
 import { strategyApi, formatError, authApi } from '@/lib/api'
 import FundamentalFiltersCard from '@/components/FundamentalFiltersCard'
 import { DEFAULT_FUNDAMENTAL_FILTERS, summarizeFundamentalFilters } from '@/lib/fundamentals'
-import { Alert, Field, NavButtons, Section, inputCls, textareaCls } from '@/components/ui'
+import { Alert, Field, NavButtons, Section, Accordion, inputCls, textareaCls } from '@/components/ui'
 import type { ParseResult, PreflightResult, StrategyIntake } from '@/types'
 
 const TIMEFRAMES = ['M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D1', 'W1']
@@ -299,8 +299,8 @@ export default function StepIntake({ projectId, onComplete }: Props) {
               >
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-sm font-medium">{step.label}</span>
-                  <span className={`text-[10px] uppercase tracking-[0.16em] ${completed ? 'text-cyan-300' : 'text-slate-600'}`}>
-                    {completed ? 'done' : `0${step.id}`}
+                  <span className={`text-[10px] uppercase tracking-[0.16em] ${completed ? 'text-cyan-400' : 'text-slate-600'}`}>
+                    {completed ? '✓ done' : `Step ${step.id} of 5`}
                   </span>
                 </div>
                 <div className="mt-1 text-xs text-slate-500">{step.detail}</div>
@@ -391,17 +391,21 @@ export default function StepIntake({ projectId, onComplete }: Props) {
                     <input value={form.market} onChange={(e) => set('market', e.target.value)} className={inputCls} placeholder="EURUSD" />
                   </Field>
                 </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Field label="Analysis timeframe">
-                    <select value={form.analysis_timeframe} onChange={(e) => set('analysis_timeframe', e.target.value)} className={inputCls}>
-                      {TIMEFRAMES.map((tf) => <option key={tf}>{tf}</option>)}
-                    </select>
-                  </Field>
-                  <Field label="Execution timeframe">
-                    <select value={form.execution_timeframe} onChange={(e) => set('execution_timeframe', e.target.value)} className={inputCls}>
-                      {TIMEFRAMES.map((tf) => <option key={tf}>{tf}</option>)}
-                    </select>
-                  </Field>
+                <div className="mt-4">
+                  <Accordion title="Advanced Context & Timeframes" defaultOpen={false}>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <Field label="Analysis timeframe">
+                        <select value={form.analysis_timeframe} onChange={(e) => set('analysis_timeframe', e.target.value)} className={inputCls}>
+                          {TIMEFRAMES.map((tf) => <option key={tf}>{tf}</option>)}
+                        </select>
+                      </Field>
+                      <Field label="Execution timeframe">
+                        <select value={form.execution_timeframe} onChange={(e) => set('execution_timeframe', e.target.value)} className={inputCls}>
+                          {TIMEFRAMES.map((tf) => <option key={tf}>{tf}</option>)}
+                        </select>
+                      </Field>
+                    </div>
+                  </Accordion>
                 </div>
               </Section>
             </>
@@ -457,15 +461,19 @@ export default function StepIntake({ projectId, onComplete }: Props) {
                   placeholder="Example: Fixed 2R target, next structural resistance, or partials plus runner."
                 />
               </Field>
-              <Field label="Trailing stop">
-                <input
-                  value={form.trailing_stop}
-                  onChange={(e) => set('trailing_stop', e.target.value)}
-                  className={inputCls}
-                  placeholder="Breakeven at 1R, then trail by ATR or swing structure"
-                />
-              </Field>
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="mt-4">
+                <Accordion title="Trailing Stop (Optional)" defaultOpen={false}>
+                  <Field label="Trailing stop logic">
+                    <input
+                      value={form.trailing_stop}
+                      onChange={(e) => set('trailing_stop', e.target.value)}
+                      className={inputCls}
+                      placeholder="Breakeven at 1R, then trail by ATR or swing structure"
+                    />
+                  </Field>
+                </Accordion>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2 mt-8">
                 <Field label="Risk per trade (%)">
                   <input
                     type="number"
@@ -492,74 +500,88 @@ export default function StepIntake({ projectId, onComplete }: Props) {
           )}
 
           {formStep === 4 && (
-            <>
+            <div className="space-y-8">
               <Section title="Sessions and filters">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Field label="Session start (UTC)">
-                    <input type="time" value={form.trading_hours_start} onChange={(e) => set('trading_hours_start', e.target.value)} className={inputCls} />
+                <Accordion title="Session & Day Triggers" defaultOpen={false}>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Field label="Session start (UTC)">
+                      <input type="time" value={form.trading_hours_start} onChange={(e) => set('trading_hours_start', e.target.value)} className={inputCls} />
+                    </Field>
+                    <Field label="Session end (UTC)">
+                      <input type="time" value={form.trading_hours_end} onChange={(e) => set('trading_hours_end', e.target.value)} className={inputCls} />
+                    </Field>
+                  </div>
+                  <div className="mt-4">
+                    <Field label="Trading days">
+                      <div className="flex flex-wrap gap-2">
+                        {DAYS.map((day) => (
+                          <button
+                            key={day}
+                            type="button"
+                            onClick={() => toggleDay(day)}
+                            className={`border px-3 py-2 text-xs font-semibold ${
+                              form.trading_days.includes(day)
+                                ? 'border-cyan-900/70 bg-cyan-950/10 text-cyan-300'
+                                : 'border-slate-800 bg-slate-950/50 text-slate-500 hover:border-slate-700'
+                            }`}
+                          >
+                            {DAY_LABELS[day]}
+                          </button>
+                        ))}
+                      </div>
+                    </Field>
+                  </div>
+                </Accordion>
+                
+                <div className="mt-4 space-y-4">
+                  <Field label="Trend filter">
+                    <input
+                      value={form.trend_filter}
+                      onChange={(e) => set('trend_filter', e.target.value)}
+                      className={inputCls}
+                      placeholder="Only trade with higher timeframe trend or structural bias"
+                    />
                   </Field>
-                  <Field label="Session end (UTC)">
-                    <input type="time" value={form.trading_hours_end} onChange={(e) => set('trading_hours_end', e.target.value)} className={inputCls} />
+                  <Field label="Volatility filter">
+                    <input
+                      value={form.volatility_filter}
+                      onChange={(e) => set('volatility_filter', e.target.value)}
+                      className={inputCls}
+                      placeholder="Avoid compressed or extreme volatility conditions"
+                    />
                   </Field>
                 </div>
-                <Field label="Trading days">
-                  <div className="flex flex-wrap gap-2">
-                    {DAYS.map((day) => (
-                      <button
-                        key={day}
-                        type="button"
-                        onClick={() => toggleDay(day)}
-                        className={`border px-3 py-2 text-xs font-semibold ${
-                          form.trading_days.includes(day)
-                            ? 'border-cyan-900/70 bg-cyan-950/10 text-cyan-300'
-                            : 'border-slate-800 bg-slate-950/50 text-slate-500 hover:border-slate-700'
-                        }`}
-                      >
-                        {DAY_LABELS[day]}
-                      </button>
-                    ))}
-                  </div>
-                </Field>
-                <Field label="Trend filter">
-                  <input
-                    value={form.trend_filter}
-                    onChange={(e) => set('trend_filter', e.target.value)}
-                    className={inputCls}
-                    placeholder="Only trade with higher timeframe trend or structural bias"
-                  />
-                </Field>
-                <Field label="Volatility filter">
-                  <input
-                    value={form.volatility_filter}
-                    onChange={(e) => set('volatility_filter', e.target.value)}
-                    className={inputCls}
-                    placeholder="Avoid compressed or extreme volatility conditions"
-                  />
-                </Field>
-                <Field label="Context notes">
-                  <input
-                    value={form.context_filter}
-                    onChange={(e) => set('context_filter', e.target.value)}
-                    className={inputCls}
-                    placeholder="Session, structure, liquidity, correlated market context"
-                  />
-                </Field>
-                <Field label="News handling notes">
-                  <input
-                    value={form.news_management}
-                    onChange={(e) => set('news_management', e.target.value)}
-                    className={inputCls}
-                    placeholder="Example: block trading 30 minutes before and after high-impact USD events"
-                  />
-                </Field>
+
+                <div className="mt-4">
+                  <Accordion title="Advanced Context & News Handling" defaultOpen={false}>
+                    <Field label="Context notes">
+                      <input
+                        value={form.context_filter}
+                        onChange={(e) => set('context_filter', e.target.value)}
+                        className={inputCls}
+                        placeholder="Session, structure, liquidity, correlated market context"
+                      />
+                    </Field>
+                    <Field label="News handling notes">
+                      <input
+                        value={form.news_management}
+                        onChange={(e) => set('news_management', e.target.value)}
+                        className={inputCls}
+                        placeholder="Example: block trading 30 minutes before and after high-impact USD events"
+                      />
+                    </Field>
+                  </Accordion>
+                </div>
               </Section>
 
-              <FundamentalFiltersCard
-                title="Macro / news filters"
-                value={form.macro_news}
-                onChange={(next) => set('macro_news', next)}
-              />
-            </>
+              <div className="mt-8">
+                <FundamentalFiltersCard
+                  title="Macro / news filters"
+                  value={form.macro_news}
+                  onChange={(next) => set('macro_news', next)}
+                />
+              </div>
+            </div>
           )}
 
           {formStep === 5 && (
