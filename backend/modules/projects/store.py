@@ -92,28 +92,31 @@ class ProjectStore:
     @classmethod
     async def list_projects(cls, owner_username: str) -> list[dict[str, Any]]:
         if is_db_available():
-            async with AsyncSessionLocal() as db:  # type: ignore[arg-type]
-                stmt = (
-                    select(Project)
-                    .where(Project.owner_username == owner_username)
-                    .order_by(Project.updated_at.desc(), Project.created_at.desc())
-                )
-                rows = (await db.execute(stmt)).scalars().all()
-                return [
-                    {
-                        "project_id": row.id,
-                        "owner_username": row.owner_username,
-                        "title": row.title,
-                        "mode": row.mode,
-                        "status": row.status,
-                        "active_session_id": row.active_session_id,
-                        "latest_verdict": row.latest_verdict,
-                        "metadata": row.metadata_json or {},
-                        "created_at": row.created_at.isoformat() if row.created_at else None,
-                        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
-                    }
-                    for row in rows
-                ]
+            try:
+                async with AsyncSessionLocal() as db:  # type: ignore[arg-type]
+                    stmt = (
+                        select(Project)
+                        .where(Project.owner_username == owner_username)
+                        .order_by(Project.updated_at.desc(), Project.created_at.desc())
+                    )
+                    rows = (await db.execute(stmt)).scalars().all()
+                    return [
+                        {
+                            "project_id": row.id,
+                            "owner_username": row.owner_username,
+                            "title": row.title,
+                            "mode": row.mode,
+                            "status": row.status,
+                            "active_session_id": row.active_session_id,
+                            "latest_verdict": row.latest_verdict,
+                            "metadata": row.metadata_json or {},
+                            "created_at": row.created_at.isoformat() if row.created_at else None,
+                            "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+                        }
+                        for row in rows
+                    ]
+            except Exception:
+                pass  # fall through to in-memory
 
         state = cls._memory_state()
         projects = [
@@ -125,29 +128,32 @@ class ProjectStore:
     @classmethod
     async def get_project(cls, owner_username: str, project_id: str) -> Optional[dict[str, Any]]:
         if is_db_available():
-            async with AsyncSessionLocal() as db:  # type: ignore[arg-type]
-                stmt = select(Project).where(Project.id == project_id, Project.owner_username == owner_username)
-                row = (await db.execute(stmt)).scalar_one_or_none()
-                if not row:
-                    return None
-                versions = await cls.list_versions(project_id)
-                artifacts = await cls.list_artifacts(project_id)
-                jobs = await cls.list_jobs(project_id)
-                return {
-                    "project_id": row.id,
-                    "owner_username": row.owner_username,
-                    "title": row.title,
-                    "mode": row.mode,
-                    "status": row.status,
-                    "active_session_id": row.active_session_id,
-                    "latest_verdict": row.latest_verdict,
-                    "metadata": row.metadata_json or {},
-                    "created_at": row.created_at.isoformat() if row.created_at else None,
-                    "updated_at": row.updated_at.isoformat() if row.updated_at else None,
-                    "versions": versions,
-                    "artifacts": artifacts,
-                    "jobs": jobs,
-                }
+            try:
+                async with AsyncSessionLocal() as db:  # type: ignore[arg-type]
+                    stmt = select(Project).where(Project.id == project_id, Project.owner_username == owner_username)
+                    row = (await db.execute(stmt)).scalar_one_or_none()
+                    if not row:
+                        return None
+                    versions = await cls.list_versions(project_id)
+                    artifacts = await cls.list_artifacts(project_id)
+                    jobs = await cls.list_jobs(project_id)
+                    return {
+                        "project_id": row.id,
+                        "owner_username": row.owner_username,
+                        "title": row.title,
+                        "mode": row.mode,
+                        "status": row.status,
+                        "active_session_id": row.active_session_id,
+                        "latest_verdict": row.latest_verdict,
+                        "metadata": row.metadata_json or {},
+                        "created_at": row.created_at.isoformat() if row.created_at else None,
+                        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+                        "versions": versions,
+                        "artifacts": artifacts,
+                        "jobs": jobs,
+                    }
+            except Exception:
+                pass  # fall through to in-memory
 
         state = cls._memory_state()
         project = state["projects"].get(project_id)
