@@ -16,8 +16,10 @@ from modules.common.strategy_validation import (
     STATUS_INVALID,
     build_bot_result,
     enrich_intake_with_technical_defaults,
+    resolve_claude_access,
     validate_strategy_intake,
 )
+from modules.auth.user_store import get_user_claude_api_key
 from modules.research.decision_engine import is_promoted_verdict
 from modules.projects.store import ProjectStore
 from modules.auth.security import AuthContext, require_authenticated
@@ -235,9 +237,17 @@ async def _track_project_version(
 
 
 @router.post("/preflight", response_model=PreflightResponse)
-async def strategy_preflight(req: StrategyIntakeRequest):
+async def strategy_preflight(
+    req: StrategyIntakeRequest,
+    context: AuthContext = Depends(require_authenticated),
+):
     """Controllo locale gratuito: codificabilità e budget stimato prima di spendere token."""
-    intake = enrich_intake_with_technical_defaults(req.model_dump())
+    intake = req.model_dump()
+    intake["claude_access"] = resolve_claude_access(
+        intake.get("claude_access"),
+        account_api_key=get_user_claude_api_key(context.username),
+    )
+    intake = enrich_intake_with_technical_defaults(intake)
     result = validate_strategy_intake(intake)
     estimates = _build_preflight_estimates(intake, result)
     total_cost = round(
@@ -273,7 +283,12 @@ async def parse_strategy(
     session_id = str(uuid.uuid4())
     parse_job: Optional[dict[str, Any]] = None
     try:
-        intake = enrich_intake_with_technical_defaults(req.model_dump())
+        intake = req.model_dump()
+        intake["claude_access"] = resolve_claude_access(
+            intake.get("claude_access"),
+            account_api_key=get_user_claude_api_key(context.username),
+        )
+        intake = enrich_intake_with_technical_defaults(intake)
         project = await _resolve_project(
             owner_username=context.username,
             requested_project_id=req.project_id,
@@ -291,8 +306,11 @@ async def parse_strategy(
                 "analysis_timeframe": req.analysis_timeframe,
                 "execution_timeframe": req.execution_timeframe,
                 "claude_access": {
-                    "credential_source": "personal",
+                    "credential_source": (intake.get("claude_access") or {}).get("credential_source", "personal"),
                     "personal_key_supplied": bool((req.claude_access or {}).get("api_key")),
+                    "account_key_available": bool((intake.get("claude_access") or {}).get("api_key"))
+                    if (intake.get("claude_access") or {}).get("credential_source") == "account"
+                    else False,
                 },
                 "macro_news": {
                     "enabled": bool((req.macro_news or {}).get("enabled")),

@@ -20,9 +20,10 @@ from db.database import InMemorySessionStore
 from modules.auth.security import AuthContext, require_authenticated
 from modules.botlab.modifier import BotModifier
 from modules.botlab.parser import analyze_bot_code, summarize_bot_diff
-from modules.common.strategy_validation import empty_usage
+from modules.common.strategy_validation import empty_usage, resolve_claude_access
 from modules.fundamentals.economic_calendar import fetch_calendar_events, list_calendar_providers
 from modules.projects.store import ProjectStore
+from modules.auth.user_store import get_user_claude_api_key
 
 router = APIRouter()
 modifier = BotModifier()
@@ -153,7 +154,10 @@ async def upload_bot(
 
 
 @router.post("/modify")
-async def modify_bot(req: BotModifyRequest):
+async def modify_bot(
+    req: BotModifyRequest,
+    context: AuthContext = Depends(require_authenticated),
+):
     stored = InMemorySessionStore.get(req.session_id, "bot_lab_bundle")
     if not stored:
         raise HTTPException(status_code=404, detail="Sessione Bot Lab non trovata")
@@ -175,7 +179,10 @@ async def modify_bot(req: BotModifyRequest):
         original_code=stored.get("content", ""),
         original_analysis=original_analysis,
         prompt=req.prompt,
-        claude_access=req.claude_access or {},
+        claude_access=resolve_claude_access(
+            req.claude_access or {},
+            account_api_key=get_user_claude_api_key(context.username),
+        ),
         fundamental_filters=fundamental_filters,
     )
     if llm_modified["status"] != "VALID":

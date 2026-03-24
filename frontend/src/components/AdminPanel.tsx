@@ -10,6 +10,7 @@ type UserItem = {
   plan: string
   expires_at: string | null
   notes: string
+  claude_key_configured: boolean
   created_at: string | null
   updated_at: string | null
   last_login_at: string | null
@@ -23,6 +24,7 @@ export default function AdminPanel() {
   const [status, setStatus] = useState<'active' | 'suspended'>('active')
   const [plan, setPlan] = useState('standard')
   const [expiresAt, setExpiresAt] = useState('')
+  const [claudeApiKey, setClaudeApiKey] = useState('')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(true)
@@ -62,6 +64,7 @@ export default function AdminPanel() {
           status,
           plan,
           expires_at: expiresAt || null,
+          claude_api_key: claudeApiKey || null,
         }),
       })
       const body = await response.json().catch(() => ({}))
@@ -71,6 +74,7 @@ export default function AdminPanel() {
       setStatus('active')
       setPlan('standard')
       setExpiresAt('')
+      setClaudeApiKey('')
       setNotice(`Account creato: ${body.user?.username || username}`)
       await loadUsers()
     } catch (err) {
@@ -136,6 +140,27 @@ export default function AdminPanel() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Errore sconosciuto')
     }
+  }
+
+  async function setUserClaudeKey(target: string, existingConfigured: boolean) {
+    const nextKey = window.prompt(
+      existingConfigured
+        ? `Aggiorna la Claude API key assegnata a ${target}`
+        : `Inserisci una Claude API key da assegnare a ${target}`,
+    )
+    if (nextKey === null) return
+    await updateAccount(
+      target,
+      { claude_api_key: nextKey.trim() },
+      nextKey.trim()
+        ? `Claude key aggiornata per ${target}`
+        : `Claude key rimossa per ${target}`,
+    )
+  }
+
+  async function removeUserClaudeKey(target: string) {
+    if (!window.confirm(`Rimuovere la Claude API key assegnata a ${target}?`)) return
+    await updateAccount(target, { claude_api_key: '' }, `Claude key rimossa per ${target}`)
   }
 
   async function logout() {
@@ -224,6 +249,16 @@ export default function AdminPanel() {
                 className="w-full border border-slate-800 bg-slate-950 px-4 py-3 outline-none focus:border-slate-500"
               />
             </label>
+            <label className="block">
+              <span className="mb-2 block text-[11px] uppercase tracking-[0.14em] text-slate-500">Claude API key assegnata (optional)</span>
+              <input
+                type="password"
+                value={claudeApiKey}
+                onChange={(event) => setClaudeApiKey(event.target.value)}
+                className="w-full border border-slate-800 bg-slate-950 px-4 py-3 outline-none focus:border-slate-500"
+                placeholder="sk-ant-..."
+              />
+            </label>
             <button
               type="submit"
               disabled={saving || !username.trim() || password.length < 6}
@@ -232,7 +267,7 @@ export default function AdminPanel() {
               {saving ? 'Creazione...' : 'Crea account'}
             </button>
             <p className="text-xs text-slate-500">
-              Ogni account può essere active, suspended o expired, con piano e scadenza opzionale.
+              Ogni account può essere active, suspended o expired, con piano, scadenza opzionale e Claude key dedicata per-utente.
             </p>
           </form>
 
@@ -276,7 +311,7 @@ export default function AdminPanel() {
                         Status: {user.status} · Plan: {user.plan} · Ultimo login: {user.last_login_at || 'mai'}
                       </div>
                       <div className="mt-1 text-xs text-slate-500">
-                        Creato: {user.created_at || 'n/d'} · Scade: {user.expires_at || 'mai'}
+                        Creato: {user.created_at || 'n/d'} · Scade: {user.expires_at || 'mai'} · Claude key: {user.claude_key_configured ? 'configurata' : 'non configurata'}
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -294,6 +329,20 @@ export default function AdminPanel() {
                       >
                         {user.status === 'suspended' ? 'Riattiva' : 'Sospendi'}
                       </button>
+                      <button
+                        onClick={() => setUserClaudeKey(user.username, user.claude_key_configured)}
+                        className="border border-slate-800 px-3 py-2 text-xs hover:border-slate-600"
+                      >
+                        {user.claude_key_configured ? 'Aggiorna Claude key' : 'Assegna Claude key'}
+                      </button>
+                      {user.claude_key_configured && (
+                        <button
+                          onClick={() => removeUserClaudeKey(user.username)}
+                          className="border border-slate-800 px-3 py-2 text-xs hover:border-slate-600"
+                        >
+                          Rimuovi Claude key
+                        </button>
+                      )}
                       <button
                         onClick={() => resetUserPassword(user.username)}
                         className="border border-slate-800 px-3 py-2 text-xs hover:border-slate-600"

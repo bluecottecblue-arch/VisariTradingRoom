@@ -91,7 +91,7 @@ def get_anthropic_client(api_key_override: Optional[str] = None):
     api_key = get_anthropic_api_key(api_key_override)
     if not api_key:
         raise RuntimeError(
-            "Claude API key mancante. Inserisci una Claude API key personale dalla UI per eseguire il workflow AI."
+            "Claude API key mancante. Usa una Claude API key personale oppure una key assegnata al tuo account."
         )
 
     if api_key_override:

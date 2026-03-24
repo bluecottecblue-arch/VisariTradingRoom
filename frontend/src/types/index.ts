@@ -82,7 +82,7 @@ export interface StrategyIntake {
 }
 
 export interface ClaudeAccessConfig {
-  credential_source: 'personal'
+  credential_source: 'personal' | 'account'
   api_key?: string
 }
 

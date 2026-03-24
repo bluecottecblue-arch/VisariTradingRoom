@@ -119,7 +119,7 @@ class MQL5Generator:
             system_prompt=MQL5_SYSTEM_PROMPT,
             payload=self._build_payload(spec),
             model=self.model,
-            api_key_override=claude_access.get("api_key") if claude_access.get("credential_source") == "personal" else None,
+            api_key_override=claude_access.get("api_key") or None,
         )
         data = self._parse_mixed_response(llm_result["text"])
         code = self._normalize_generated_code((data.get("mql5_code") or "").strip(), spec)

@@ -51,6 +51,7 @@ interface Props {
 
 export default function StepIntake({ projectId, onComplete }: Props) {
   const [form, setForm] = useState<StrategyIntake>(DEFAULT_FORM)
+  const [accountClaudeAvailable, setAccountClaudeAvailable] = useState(false)
   const [loading, setLoading] = useState(false)
   const [preflight, setPreflight] = useState<PreflightResult | null>(null)
   const [preflightLoading, setPreflightLoading] = useState(false)
@@ -60,8 +61,28 @@ export default function StepIntake({ projectId, onComplete }: Props) {
     const saved = sessionStorage.getItem('sf_intake_form')
     if (!saved) return
     try {
-      setForm(JSON.parse(saved))
+      setForm((current) => ({
+        ...current,
+        ...JSON.parse(saved),
+      }))
     } catch {}
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/auth/me', { cache: 'no-store' })
+      .then(async (response) => {
+        const body = await response.json().catch(() => null)
+        if (!cancelled) {
+          setAccountClaudeAvailable(Boolean(body?.claude_key_configured))
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setAccountClaudeAvailable(false)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   useEffect(() => {
@@ -111,7 +132,12 @@ export default function StepIntake({ projectId, onComplete }: Props) {
   const validate = () => {
     if (!form.name.trim()) return 'Inserisci il nome della strategia'
     if (!form.market.trim()) return 'Inserisci il mercato (es. EURUSD)'
-    if (!(form.claude_access?.api_key || '').trim()) return 'Inserisci la tua Claude API key personale'
+    if (form.claude_access?.credential_source === 'account' && !accountClaudeAvailable) {
+      return 'Per questo account non risulta configurata una Claude API key. Usa la tua key personale oppure chiedi all’admin di assegnartene una.'
+    }
+    if (form.claude_access?.credential_source !== 'account' && !(form.claude_access?.api_key || '').trim()) {
+      return 'Inserisci la tua Claude API key personale'
+    }
     if (!form.long_entry.trim()) return 'Descrivi il setup di ingresso long'
     if (!form.stop_loss.trim()) return 'Descrivi il tuo stop loss'
     if (!form.invalidation.trim()) return 'Descrivi le condizioni di invalidazione'
@@ -160,25 +186,77 @@ export default function StepIntake({ projectId, onComplete }: Props) {
       <Section title="Accesso Claude">
         <div className="space-y-4">
           <div className="text-xs text-stone-500">
-            Per eseguire parse, formalizzazione e generazione bot devi usare una tua Claude API key personale.
+            Parse, formalizzazione e generazione bot usano sempre una Claude API key per-utente: puoi usare quella assegnata al tuo account dall’admin oppure inserire la tua key personale solo per questa esecuzione.
           </div>
           <div className="rounded border border-stone-800 bg-stone-900/60 px-4 py-3 text-xs text-stone-500">
-            La piattaforma non usa più una chiave Claude condivisa. Ogni utente opera con la propria key, così costi, limiti e governance restano sotto il suo controllo.
+            Nessuna chiave Claude condivisa globale. Ogni workflow usa solo una key personale inserita dall’utente oppure una key dedicata assegnata a quel singolo account dalla dashboard admin.
           </div>
-          <Field label="Claude API key personale" required>
-            <input
-              type="password"
-              value={form.claude_access?.api_key || ''}
-              onChange={(e) =>
+          <div className="grid gap-3 md:grid-cols-2">
+            <button
+              type="button"
+              onClick={() =>
+                accountClaudeAvailable &&
                 set('claude_access', {
-                  credential_source: 'personal',
-                  api_key: e.target.value,
+                  ...(form.claude_access || { api_key: '' }),
+                  credential_source: 'account',
                 })
               }
-              className={inputCls}
-              placeholder="sk-ant-..."
-            />
-          </Field>
+              disabled={!accountClaudeAvailable}
+              className={`border px-4 py-3 text-left transition-colors ${
+                form.claude_access?.credential_source === 'account'
+                  ? 'border-slate-500 bg-slate-900 text-slate-100'
+                  : 'border-slate-800 bg-transparent text-slate-400 hover:border-slate-700 hover:text-slate-100'
+              } ${!accountClaudeAvailable ? 'cursor-not-allowed opacity-50' : ''}`}
+            >
+              <div className="text-sm font-medium">Usa la Claude key assegnata al mio account</div>
+              <div className="mt-1 text-xs text-slate-500">
+                {accountClaudeAvailable
+                  ? 'Configurata dall’admin per questo utente.'
+                  : 'Nessuna key account configurata.'}
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                set('claude_access', {
+                  ...(form.claude_access || { api_key: '' }),
+                  credential_source: 'personal',
+                })
+              }
+              className={`border px-4 py-3 text-left transition-colors ${
+                form.claude_access?.credential_source === 'personal'
+                  ? 'border-slate-500 bg-slate-900 text-slate-100'
+                  : 'border-slate-800 bg-transparent text-slate-400 hover:border-slate-700 hover:text-slate-100'
+              }`}
+            >
+              <div className="text-sm font-medium">Usa la mia Claude key personale</div>
+              <div className="mt-1 text-xs text-slate-500">
+                La key viene usata solo per questo workflow.
+              </div>
+            </button>
+          </div>
+          {form.claude_access?.credential_source === 'personal' ? (
+            <Field label="Claude API key personale" required>
+              <input
+                type="password"
+                value={form.claude_access?.api_key || ''}
+                onChange={(e) =>
+                  set('claude_access', {
+                    credential_source: 'personal',
+                    api_key: e.target.value,
+                  })
+                }
+                className={inputCls}
+                placeholder="sk-ant-..."
+              />
+            </Field>
+          ) : (
+            <div className="rounded border border-slate-800 bg-slate-950/60 px-4 py-3 text-xs text-slate-500">
+              {accountClaudeAvailable
+                ? 'Questo workflow userà la Claude key già assegnata al tuo account, senza mostrartela in chiaro.'
+                : 'Per usare questa modalità, l’admin deve prima assegnare una Claude key al tuo account.'}
+            </div>
+          )}
         </div>
       </Section>
 

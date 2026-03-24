@@ -288,7 +288,7 @@ export default function WizardPage() {
           </div>
 
           <div className="border-b border-slate-800 px-6 py-4 text-xs text-slate-500 lg:px-8">
-            Public-facing flow. Authenticated users now operate only with their own Claude API key; live macro execution remains tied to the user’s economic-calendar provider key.
+            Public-facing flow. Authenticated users can operate with a personal Claude API key or with a Claude key assigned to their account by admin; live macro execution remains tied to the user’s economic-calendar provider key.
           </div>
 
           <main className="flex-1 px-6 py-8 lg:px-8">

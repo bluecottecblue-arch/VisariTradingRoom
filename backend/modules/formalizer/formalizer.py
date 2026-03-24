@@ -98,7 +98,7 @@ class StrategyFormalizer:
             system_prompt=FORMALIZATION_SYSTEM,
             payload=self._build_payload(session_payload, readiness["selected_resolutions"]),
             model=self.model,
-            api_key_override=claude_access.get("api_key") if claude_access.get("credential_source") == "personal" else None,
+            api_key_override=claude_access.get("api_key") or None,
         )
         data = self._validate_formalization_structure(llm_result["data"], session_payload)
         payload_validation = validate_formal_spec_payload(data)

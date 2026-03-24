@@ -119,7 +119,7 @@ class BotModifier:
         if not normalized_access.get("api_key"):
             return {
                 "status": STATUS_INVALID,
-                "message": "Inserisci una Claude API key personale per usare la modifica assistita del bot.",
+                "message": "Serve una Claude API key valida: usa la tua key personale oppure quella assegnata al tuo account.",
                 "modified_code": "",
                 "change_summary": [],
                 "conceptual_diff": [],
@@ -147,7 +147,7 @@ class BotModifier:
                 "original_code_summary": original_analysis.get("code_summary", {}),
                 "original_code": original_code,
             },
-            api_key_override=normalized_access.get("api_key"),
+            api_key_override=normalized_access.get("api_key") or None,
         )
         data = llm_result["data"]
         modified_code = str(data.get("modified_code") or "").strip()

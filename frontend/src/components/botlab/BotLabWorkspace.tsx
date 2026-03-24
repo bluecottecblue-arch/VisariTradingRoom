@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { botLabApi, exportApi, formatError } from '@/lib/api'
 import FundamentalFiltersCard from '@/components/FundamentalFiltersCard'
 import { DEFAULT_FUNDAMENTAL_FILTERS } from '@/lib/fundamentals'
@@ -65,7 +65,9 @@ const DEFAULT_BACKTEST_CONFIG = {
 export default function BotLabWorkspace() {
   const [filename, setFilename] = useState('uploaded_bot.mq5')
   const [code, setCode] = useState('')
+  const [claudeSource, setClaudeSource] = useState<'account' | 'personal'>('personal')
   const [claudeApiKey, setClaudeApiKey] = useState('')
+  const [accountClaudeAvailable, setAccountClaudeAvailable] = useState(false)
   const [sourceOrigin, setSourceOrigin] = useState<'user' | 'visari'>('user')
   const [actionFocus, setActionFocus] = useState(ACTIONS[0])
   const [analysis, setAnalysis] = useState<BotLabAnalysisResult | null>(null)
@@ -102,6 +104,23 @@ export default function BotLabWorkspace() {
         (originalBacktest.results.out_of_sample.total_return_pct || 0),
     }
   }, [modifiedBacktest.results, originalBacktest.results])
+
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/auth/me', { cache: 'no-store' })
+      .then(async (response) => {
+        const body = await response.json().catch(() => null)
+        if (!cancelled) {
+          setAccountClaudeAvailable(Boolean(body?.claude_key_configured))
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setAccountClaudeAvailable(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const handleFileSelected = async (file?: File | null) => {
     if (!file) return
@@ -152,7 +171,11 @@ export default function BotLabWorkspace() {
       setError('Scrivi una richiesta di modifica prima di generare una nuova versione.')
       return
     }
-    if (!claudeApiKey.trim()) {
+    if (claudeSource === 'account' && !accountClaudeAvailable) {
+      setError('Per questo account non risulta configurata una Claude API key. Usa la tua key personale oppure chiedi all’admin di assegnartene una.')
+      return
+    }
+    if (claudeSource === 'personal' && !claudeApiKey.trim()) {
       setError('Inserisci la tua Claude API key personale per usare la modifica assistita del bot.')
       return
     }
@@ -163,8 +186,8 @@ export default function BotLabWorkspace() {
         session_id: analysis.session_id,
         prompt: modifyPrompt,
         claude_access: {
-          credential_source: 'personal',
-          api_key: claudeApiKey,
+          credential_source: claudeSource,
+          api_key: claudeSource === 'personal' ? claudeApiKey : '',
         },
         fundamental_filters: effectiveFundamentals,
       }) as BotLabModifyResult
@@ -206,18 +229,55 @@ export default function BotLabWorkspace() {
         </p>
       </div>
 
-      <Section title="Claude API key personale">
+      <Section title="Accesso Claude per Bot Lab">
         <div className="space-y-3">
           <div className="text-xs text-slate-500">
-            L’analisi del bot è locale. La tua Claude API key personale serve solo quando chiedi modifiche assistite del codice.
+            L’analisi del bot resta locale. La Claude API key serve solo quando chiedi modifiche assistite del codice: puoi usare la key assegnata al tuo account oppure la tua key personale.
           </div>
-          <input
-            type="password"
-            value={claudeApiKey}
-            onChange={(e) => setClaudeApiKey(e.target.value)}
-            className={inputCls}
-            placeholder="sk-ant-..."
-          />
+          <div className="grid gap-3 md:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => accountClaudeAvailable && setClaudeSource('account')}
+              disabled={!accountClaudeAvailable}
+              className={`border px-4 py-3 text-left transition-colors ${
+                claudeSource === 'account'
+                  ? 'border-slate-500 bg-slate-900 text-slate-100'
+                  : 'border-slate-800 bg-transparent text-slate-400 hover:border-slate-700 hover:text-slate-100'
+              } ${!accountClaudeAvailable ? 'cursor-not-allowed opacity-50' : ''}`}
+            >
+              <div className="text-sm font-medium">Usa la Claude key assegnata al mio account</div>
+              <div className="mt-1 text-xs text-slate-500">
+                {accountClaudeAvailable ? 'Configurata dall’admin per questo utente.' : 'Nessuna key account configurata.'}
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setClaudeSource('personal')}
+              className={`border px-4 py-3 text-left transition-colors ${
+                claudeSource === 'personal'
+                  ? 'border-slate-500 bg-slate-900 text-slate-100'
+                  : 'border-slate-800 bg-transparent text-slate-400 hover:border-slate-700 hover:text-slate-100'
+              }`}
+            >
+              <div className="text-sm font-medium">Usa la mia Claude key personale</div>
+              <div className="mt-1 text-xs text-slate-500">Valida solo per questa revisione del bot.</div>
+            </button>
+          </div>
+          {claudeSource === 'personal' ? (
+            <input
+              type="password"
+              value={claudeApiKey}
+              onChange={(e) => setClaudeApiKey(e.target.value)}
+              className={inputCls}
+              placeholder="sk-ant-..."
+            />
+          ) : (
+            <div className="rounded border border-slate-800 bg-slate-950/60 px-4 py-3 text-xs text-slate-500">
+              {accountClaudeAvailable
+                ? 'Le modifiche assistite useranno la Claude key già assegnata al tuo account.'
+                : 'Per usare questa modalità, l’admin deve assegnare una Claude key al tuo account.'}
+            </div>
+          )}
         </div>
       </Section>
 

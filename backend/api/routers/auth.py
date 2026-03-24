@@ -9,6 +9,7 @@ from modules.auth.user_store import (
     create_user,
     delete_user,
     get_user_count,
+    get_user_profile,
     list_users,
     reset_password,
     update_user,
@@ -31,6 +32,7 @@ class UserCreateRequest(BaseModel):
     plan: str = "standard"
     expires_at: Optional[str] = None
     notes: Optional[str] = None
+    claude_api_key: Optional[str] = None
 
 
 class PasswordResetRequest(BaseModel):
@@ -42,6 +44,7 @@ class UserUpdateRequest(BaseModel):
     plan: Optional[str] = None
     expires_at: Optional[str] = None
     notes: Optional[str] = None
+    claude_api_key: Optional[str] = None
 
 
 def _normalize_admin_username() -> str:
@@ -94,11 +97,16 @@ async def login_admin(payload: LoginRequest):
 
 @router.get("/me")
 async def get_current_user(context: AuthContext = Depends(require_authenticated)):
+    user_profile = get_user_profile(context.username) if context.role == "user" else None
     return {
         "authenticated": True,
         "username": context.username,
         "role": context.role,
         "exp": context.exp,
+        "claude_key_configured": bool((user_profile or {}).get("claude_key_configured")),
+        "plan": (user_profile or {}).get("plan"),
+        "status": (user_profile or {}).get("status"),
+        "expires_at": (user_profile or {}).get("expires_at"),
     }
 
 
@@ -125,6 +133,7 @@ async def admin_create_user(
             plan=payload.plan,
             expires_at=payload.expires_at,
             notes=payload.notes or "",
+            claude_api_key=payload.claude_api_key,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -169,6 +178,7 @@ async def admin_update_user(
             plan=payload.plan,
             expires_at=payload.expires_at,
             notes=payload.notes,
+            claude_api_key=payload.claude_api_key,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

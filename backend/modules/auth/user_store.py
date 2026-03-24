@@ -53,6 +53,7 @@ def _read_data() -> dict:
         user.setdefault("plan", "standard")
         user.setdefault("expires_at", None)
         user.setdefault("notes", "")
+        user.setdefault("claude_api_key", "")
     return payload
 
 
@@ -140,6 +141,7 @@ def list_users() -> list[dict]:
                     "plan": user.get("plan") or "standard",
                     "expires_at": user.get("expires_at"),
                     "notes": user.get("notes") or "",
+                    "claude_key_configured": bool(str(user.get("claude_api_key") or "").strip()),
                     "created_at": user.get("created_at"),
                     "updated_at": user.get("updated_at"),
                     "last_login_at": user.get("last_login_at"),
@@ -156,6 +158,7 @@ def create_user(
     plan: str = "standard",
     expires_at: Optional[str] = None,
     notes: str = "",
+    claude_api_key: Optional[str] = None,
 ) -> dict:
     normalized = _normalize_username(username)
     if len(normalized) < 3:
@@ -176,6 +179,7 @@ def create_user(
             "plan": _normalize_plan(plan),
             "expires_at": _normalize_expires_at(expires_at),
             "notes": str(notes or "").strip(),
+            "claude_api_key": str(claude_api_key or "").strip(),
             "created_at": now,
             "updated_at": now,
             "last_login_at": None,
@@ -188,6 +192,7 @@ def create_user(
             "plan": user["plan"],
             "expires_at": user["expires_at"],
             "notes": user["notes"],
+            "claude_key_configured": bool(user["claude_api_key"]),
             "created_at": now,
             "updated_at": now,
             "last_login_at": None,
@@ -237,6 +242,7 @@ def update_user(
     plan: Optional[str] = None,
     expires_at: Optional[str] = None,
     notes: Optional[str] = None,
+    claude_api_key: Optional[str] = None,
 ) -> dict:
     normalized = _normalize_username(username)
     with _LOCK:
@@ -252,6 +258,8 @@ def update_user(
             user["expires_at"] = _normalize_expires_at(expires_at)
         if notes is not None:
             user["notes"] = str(notes).strip()
+        if claude_api_key is not None:
+            user["claude_api_key"] = str(claude_api_key).strip()
         if _is_expired(user.get("expires_at")):
             user["status"] = "expired"
         user["updated_at"] = _utc_now()
@@ -262,6 +270,7 @@ def update_user(
             "plan": user.get("plan", "standard"),
             "expires_at": user.get("expires_at"),
             "notes": user.get("notes", ""),
+            "claude_key_configured": bool(str(user.get("claude_api_key") or "").strip()),
             "updated_at": user.get("updated_at"),
         }
 
@@ -298,6 +307,7 @@ def verify_user(username: str, password: str) -> Optional[dict]:
             "status": user.get("status", "active"),
             "plan": user.get("plan", "standard"),
             "expires_at": user.get("expires_at"),
+            "claude_key_configured": bool(str(user.get("claude_api_key") or "").strip()),
             "created_at": user.get("created_at"),
             "updated_at": user.get("updated_at"),
             "last_login_at": user.get("last_login_at"),
@@ -308,3 +318,34 @@ def get_user_count() -> int:
     with _LOCK:
         payload = _read_data()
         return len(payload.get("users", []))
+
+
+def get_user_profile(username: str) -> Optional[dict]:
+    normalized = _normalize_username(username)
+    with _LOCK:
+        payload = _read_data()
+        user = _find_user(payload, normalized)
+        if not user:
+            return None
+        effective_status = "expired" if _is_expired(user.get("expires_at")) else _normalize_status(user.get("status"))
+        return {
+            "username": user.get("username"),
+            "status": effective_status,
+            "plan": user.get("plan", "standard"),
+            "expires_at": user.get("expires_at"),
+            "notes": user.get("notes") or "",
+            "claude_key_configured": bool(str(user.get("claude_api_key") or "").strip()),
+            "created_at": user.get("created_at"),
+            "updated_at": user.get("updated_at"),
+            "last_login_at": user.get("last_login_at"),
+        }
+
+
+def get_user_claude_api_key(username: str) -> str:
+    normalized = _normalize_username(username)
+    with _LOCK:
+        payload = _read_data()
+        user = _find_user(payload, normalized)
+        if not user:
+            return ""
+        return str(user.get("claude_api_key") or "").strip()

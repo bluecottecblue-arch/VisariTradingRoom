@@ -26,11 +26,20 @@ _TECHNICAL_DEFAULT_NOTES = (
 
 def normalize_claude_access(raw: Optional[dict]) -> dict:
     raw = raw if isinstance(raw, dict) else {}
-    credential_source = "personal"
+    credential_source = str(raw.get("credential_source") or "personal").strip().lower()
+    if credential_source not in {"personal", "account"}:
+        credential_source = "personal"
     return {
         "credential_source": credential_source,
         "api_key": str(raw.get("api_key") or "").strip(),
     }
+
+
+def resolve_claude_access(raw: Optional[dict], *, account_api_key: Optional[str] = None) -> dict:
+    normalized = normalize_claude_access(raw)
+    if normalized["credential_source"] == "account":
+        normalized["api_key"] = str(account_api_key or "").strip()
+    return normalized
 
 
 def empty_usage(module: str) -> dict:
@@ -327,10 +336,16 @@ def validate_strategy_intake(intake: dict) -> dict:
         )
 
     if not claude_access.get("api_key"):
+        if claude_access.get("credential_source") == "account":
+            label = "Assegna una Claude API key all'account oppure usa una key personale"
+            why = "Hai scelto di usare la Claude key del tuo account, ma per questo utente non risulta ancora configurata."
+        else:
+            label = "Inserisci la tua Claude API key personale"
+            why = "Il workflow AI richiede una Claude key personale oppure una key assegnata al tuo account dall'admin."
         add_required(
             field="claude_access.api_key",
-            label="Inserisci la tua Claude API key personale",
-            why="Il workflow AI ora usa solo chiavi Claude personali fornite dall'utente.",
+            label=label,
+            why=why,
             example="sk-ant-...",
         )
 
