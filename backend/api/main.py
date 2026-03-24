@@ -9,7 +9,7 @@ import traceback
 import logging
 from contextlib import asynccontextmanager
 
-from api.routers import auth, strategy, backtest, export, guide, botlab, projects
+from api.routers import auth, strategy, backtest, export, guide, botlab, projects, dashboard
 from modules.auth.security import require_authenticated
 from db.database import init_db
 
@@ -46,6 +46,7 @@ app.add_middleware(
 
 app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
 app.include_router(projects.router, prefix="/api/projects", tags=["Projects"], dependencies=[Depends(require_authenticated)])
+app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Dashboard"], dependencies=[Depends(require_authenticated)])
 app.include_router(strategy.router, prefix="/api/strategy", tags=["Strategy"], dependencies=[Depends(require_authenticated)])
 app.include_router(backtest.router, prefix="/api/backtest", tags=["Backtest"], dependencies=[Depends(require_authenticated)])
 app.include_router(botlab.router, prefix="/api/bot-lab", tags=["Bot Lab"], dependencies=[Depends(require_authenticated)])

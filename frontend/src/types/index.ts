@@ -613,6 +613,142 @@ export interface ProjectDetail extends ProjectSummary {
   jobs: ProjectJobRecord[]
 }
 
+export type DashboardSourceMode = 'real' | 'mock' | 'hybrid'
+export type DashboardOperatingMode = 'DEMO' | 'PAPER' | 'LIVE_READY' | 'BACKTEST_REVIEW'
+export type DashboardTone = 'neutral' | 'positive' | 'negative' | 'warning'
+
+export interface DashboardHeader {
+  bot_label: string
+  status: string
+  status_tone: DashboardTone
+  current_time: string
+  market_session: string
+  connection_status: string
+  connection_tone: DashboardTone
+  strategy_health_label: string
+  strategy_health_score: number
+  desk_mode: string
+  source_label: string
+}
+
+export interface DashboardKpi {
+  id: string
+  label: string
+  value: string
+  tone: DashboardTone
+  detail?: string
+}
+
+export interface DashboardPoint {
+  timestamp: string
+  label: string
+  value: number
+}
+
+export interface DashboardBar {
+  label: string
+  value: number
+}
+
+export interface DashboardSignal {
+  id: string
+  timestamp: string
+  symbol: string
+  side: string
+  status: string
+  price: number
+  reason: string
+}
+
+export interface DashboardPosition {
+  id: string
+  symbol: string
+  side: string
+  size: number
+  entry: number
+  pnl: number
+  stop: number
+  take_profit: number
+  status: string
+}
+
+export interface DashboardRiskPanel {
+  risk_usage_pct: number
+  var_proxy_pct: number
+  leverage_proxy: number
+  exposure_pct: number
+  daily_loss_used_pct: number
+  kill_switch_status: string
+  warnings: string[]
+  max_drawdown_pct: number
+}
+
+export interface DashboardMarketPanel {
+  regime: string
+  volatility: string
+  session: string
+  news_risk_active: boolean
+  news_provider: string
+  news_events: number
+  macro_filter_status: string
+  directional_bias: string
+  warnings: string[]
+}
+
+export interface DashboardTechPanel {
+  data_provider: string
+  data_feed_status: string
+  last_sync: string
+  parser_status: string
+  engine_status: string
+  provider_status: string
+  export_status: string
+  last_run_label: string
+  artifacts_ready: number
+  jobs_running: number
+  latency_ms: number
+  warnings: string[]
+}
+
+export interface DashboardInsightBox {
+  label: string
+  value: string
+  tone: DashboardTone
+  detail: string
+}
+
+export interface DashboardAlert {
+  tone: DashboardTone
+  title: string
+  detail: string
+}
+
+export interface CommandCenterDashboard {
+  as_of: string
+  source_mode: DashboardSourceMode
+  operating_mode: DashboardOperatingMode
+  selected_project_id?: string | null
+  selected_project_title?: string | null
+  available_projects: ProjectSummary[]
+  timeframe: string
+  header: DashboardHeader
+  kpis: DashboardKpi[]
+  charts: {
+    equity_curve: DashboardPoint[]
+    drawdown_curve: DashboardPoint[]
+    pnl_distribution: DashboardBar[]
+    exposure_map: DashboardBar[]
+  }
+  recent_signals: DashboardSignal[]
+  open_positions: DashboardPosition[]
+  risk_panel: DashboardRiskPanel
+  market_panel: DashboardMarketPanel
+  tech_panel: DashboardTechPanel
+  insight_boxes: DashboardInsightBox[]
+  recent_changes: string[]
+  alerts: DashboardAlert[]
+}
+
 export interface AdminUserRecord {
   username: string
   status: 'active' | 'suspended' | 'expired'

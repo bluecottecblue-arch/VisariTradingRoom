@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import StepIntake from "@/components/wizard/StepIntake";
 import StepAmbiguities from "@/components/wizard/StepAmbiguities";
@@ -152,6 +153,13 @@ export default function WizardPage() {
                 <div className="font-medium">Bot Lab</div>
                 <div className="mt-1 text-xs text-slate-500">Audit, modify, compare and re-test existing bots.</div>
               </button>
+              <Link
+                href="/dashboard"
+                className="block w-full border border-slate-800 px-4 py-3 text-left text-sm text-slate-500 transition-colors hover:border-slate-700 hover:text-slate-200"
+              >
+                <div className="font-medium text-slate-100">Algo Desk</div>
+                <div className="mt-1 text-xs text-slate-500">Command center for performance, risk, signals and bot health.</div>
+              </Link>
             </div>
 
             <div className="space-y-3">
@@ -284,6 +292,12 @@ export default function WizardPage() {
               >
                 Bot Lab
               </button>
+              <Link
+                href="/dashboard"
+                className="border border-slate-800 px-4 py-2 text-sm text-slate-500 transition-colors hover:border-slate-700 hover:text-slate-200"
+              >
+                Algo Desk
+              </Link>
             </div>
           </div>
 

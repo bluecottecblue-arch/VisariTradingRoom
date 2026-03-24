@@ -131,6 +131,17 @@ export const projectApi = {
     }),
 }
 
+export const dashboardApi = {
+  commandCenter: (params?: { projectId?: string | null; timeframe?: string; source?: 'auto' | 'real' | 'demo' }) => {
+    const search = new URLSearchParams()
+    if (params?.projectId) search.set('project_id', params.projectId)
+    if (params?.timeframe) search.set('timeframe', params.timeframe)
+    if (params?.source) search.set('source', params.source)
+    const suffix = search.toString() ? `?${search.toString()}` : ''
+    return request(`/api/dashboard/command-center${suffix}`)
+  },
+}
+
 // ─── Export endpoints ─────────────────────────────────────────────────────────
 
 export const exportApi = {

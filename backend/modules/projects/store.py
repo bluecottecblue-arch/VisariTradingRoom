@@ -269,6 +269,45 @@ class ProjectStore:
         return list(reversed(state["versions"].get(project_id, [])))
 
     @classmethod
+    async def get_latest_version(
+        cls,
+        project_id: str,
+        *,
+        version_kind: Optional[str] = None,
+    ) -> Optional[dict[str, Any]]:
+        if _DB_AVAILABLE:
+            async with AsyncSessionLocal() as db:  # type: ignore[arg-type]
+                stmt = select(ProjectVersion).where(ProjectVersion.project_id == project_id)
+                if version_kind:
+                    stmt = stmt.where(ProjectVersion.version_kind == version_kind)
+                row = (
+                    await db.execute(
+                        stmt.order_by(ProjectVersion.created_at.desc())
+                    )
+                ).scalars().first()
+                if not row:
+                    return None
+                return {
+                    "version_id": row.id,
+                    "project_id": row.project_id,
+                    "session_id": row.session_id,
+                    "version_kind": row.version_kind,
+                    "status": row.status,
+                    "summary": row.summary or {},
+                    "payload": row.payload or {},
+                    "fingerprint": row.fingerprint,
+                    "created_at": row.created_at.isoformat() if row.created_at else None,
+                }
+
+        state = cls._memory_state()
+        versions = state["versions"].get(project_id, [])
+        for item in reversed(versions):
+            if version_kind and item.get("version_kind") != version_kind:
+                continue
+            return item
+        return None
+
+    @classmethod
     async def add_artifact(
         cls,
         *,

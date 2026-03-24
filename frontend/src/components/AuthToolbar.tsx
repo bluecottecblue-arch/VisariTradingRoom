@@ -45,6 +45,9 @@ export default function AuthToolbar() {
         {session.username}
         {session.role === 'admin' ? ' · admin' : ''}
       </span>
+      <Link href="/dashboard" className="border border-slate-800 px-3 py-1.5 hover:border-slate-600 hover:text-slate-100">
+        Dashboard
+      </Link>
       {session.role === 'admin' && (
         <Link href="/admin" className="border border-slate-800 px-3 py-1.5 hover:border-slate-600 hover:text-slate-100">
           Admin
