@@ -26,9 +26,7 @@ _TECHNICAL_DEFAULT_NOTES = (
 
 def normalize_claude_access(raw: Optional[dict]) -> dict:
     raw = raw if isinstance(raw, dict) else {}
-    credential_source = str(raw.get("credential_source") or "integrated").strip().lower()
-    if credential_source not in {"integrated", "personal"}:
-        credential_source = "integrated"
+    credential_source = "personal"
     return {
         "credential_source": credential_source,
         "api_key": str(raw.get("api_key") or "").strip(),
@@ -328,11 +326,11 @@ def validate_strategy_intake(intake: dict) -> dict:
             example="1.0",
         )
 
-    if claude_access.get("credential_source") == "personal" and not claude_access.get("api_key"):
+    if not claude_access.get("api_key"):
         add_required(
             field="claude_access.api_key",
-            label="Inserisci la tua Claude API key personale oppure usa quella integrata",
-            why="Hai selezionato l'uso di una chiave Claude personale, ma il campo è vuoto.",
+            label="Inserisci la tua Claude API key personale",
+            why="Il workflow AI ora usa solo chiavi Claude personali fornite dall'utente.",
             example="sk-ant-...",
         )
 

@@ -16,6 +16,7 @@ from modules.common.deployment_bundle import (
 )
 from modules.common.strategy_validation import validate_mql5_code
 from modules.research.decision_engine import is_promoted_verdict
+from modules.projects.store import ProjectStore
 from api.routers.backtest import get_completed_results_for_session
 from db.database import InMemorySessionStore
 
@@ -40,6 +41,31 @@ def _build_manifest_for_session(session_id: str, code: str, file_size_bytes: int
         file_size_bytes=file_size_bytes,
         backtest_results=backtest_results,
         deployment_readiness=deployment_readiness,
+    )
+
+
+def _project_ref_for_session(session_id: str) -> dict:
+    return InMemorySessionStore.get(session_id, "project_ref") or {}
+
+
+async def _register_artifact(
+    *,
+    session_id: str,
+    artifact_type: str,
+    label: str,
+    storage_path: Path,
+    metadata: dict,
+) -> None:
+    project_id = _project_ref_for_session(session_id).get("project_id")
+    if not project_id:
+        return
+    await ProjectStore.add_artifact(
+        project_id=project_id,
+        session_id=session_id,
+        artifact_type=artifact_type,
+        label=label,
+        storage_path=str(storage_path),
+        metadata=metadata,
     )
 
 
@@ -98,7 +124,51 @@ async def save_mql5(session_id: str, payload: dict):
             status_code=400,
             detail="Codice MQL5 invalido: %s" % ", ".join(validation["errors"]),
         )
-    (STORAGE / f"{session_id}.mq5").write_text(code, encoding="utf-8")
+    file_path = STORAGE / f"{session_id}.mq5"
+    file_path.write_text(code, encoding="utf-8")
+    manifest = _build_manifest_for_session(
+        session_id=session_id,
+        code=code,
+        file_size_bytes=file_path.stat().st_size,
+    )
+    manifest_path = STORAGE / f"{session_id}_manifest.json"
+    setup_path = STORAGE / f"{session_id}_setup.txt"
+    manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+    setup_path.write_text(build_setup_text(manifest), encoding="utf-8")
+    await _register_artifact(
+        session_id=session_id,
+        artifact_type="mql5_source",
+        label=f"VisariTradingRoom_{session_id[:8]}.mq5",
+        storage_path=file_path,
+        metadata={"size_bytes": file_path.stat().st_size, "download_ready": True},
+    )
+    await _register_artifact(
+        session_id=session_id,
+        artifact_type="bundle_manifest",
+        label=f"VisariTradingRoom_{session_id[:8]}_manifest.json",
+        storage_path=manifest_path,
+        metadata={"artifact_count": len(manifest.get("artifact_inventory", []))},
+    )
+    await _register_artifact(
+        session_id=session_id,
+        artifact_type="setup_guide",
+        label=f"VisariTradingRoom_{session_id[:8]}_setup.txt",
+        storage_path=setup_path,
+        metadata={"lines": len(build_setup_text(manifest).splitlines())},
+    )
+    project_id = _project_ref_for_session(session_id).get("project_id")
+    if project_id:
+        await ProjectStore.add_version(
+            project_id=project_id,
+            session_id=session_id,
+            version_kind="export_package",
+            status="ready",
+            payload=manifest,
+            summary={
+                "deployment_status": manifest.get("deployment_readiness", {}).get("status"),
+                "artifact_count": len(manifest.get("artifact_inventory", [])),
+            },
+        )
     return {"saved": True, "download_url": f"/api/export/mql5/{session_id}",
             "filename": f"VisariTradingRoom_{session_id[:8]}.mq5", "size_bytes": len(code),
             "warning": "Codice generato da AI. Testa in demo prima di qualsiasi uso live."}
@@ -108,6 +178,22 @@ async def save_mql5(session_id: str, payload: dict):
 async def generate_report(session_id: str, payload: dict):
     try:
         paths = report_gen.generate(session_id, payload)
+        html_path = STORAGE / f"{session_id}_report.html"
+        json_path = STORAGE / f"{session_id}_report.json"
+        await _register_artifact(
+            session_id=session_id,
+            artifact_type="report_html",
+            label=f"VisariTradingRoom_{session_id[:8]}_report.html",
+            storage_path=html_path,
+            metadata={"size_bytes": html_path.stat().st_size if html_path.exists() else 0},
+        )
+        await _register_artifact(
+            session_id=session_id,
+            artifact_type="report_json",
+            label=f"VisariTradingRoom_{session_id[:8]}_report.json",
+            storage_path=json_path,
+            metadata={"size_bytes": json_path.stat().st_size if json_path.exists() else 0},
+        )
         return {"generated": True, "html_url": paths["html_url"]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Errore report: {e}")
@@ -166,6 +252,9 @@ async def get_bundle_info(session_id: str):
 
 @router.get("/bundle/{session_id}/manifest.json")
 async def get_bundle_manifest(session_id: str):
+    manifest_path = STORAGE / f"{session_id}_manifest.json"
+    if manifest_path.exists():
+        return JSONResponse(content=json.loads(manifest_path.read_text(encoding="utf-8")))
     file_path = STORAGE / f"{session_id}.mq5"
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Bundle non disponibile: file .mq5 non trovato.")
@@ -180,6 +269,12 @@ async def get_bundle_manifest(session_id: str):
 
 @router.get("/bundle/{session_id}/setup.txt", response_class=PlainTextResponse)
 async def get_bundle_setup_text(session_id: str):
+    setup_path = STORAGE / f"{session_id}_setup.txt"
+    if setup_path.exists():
+        return PlainTextResponse(
+            content=setup_path.read_text(encoding="utf-8"),
+            headers={"Content-Disposition": f'attachment; filename="VisariTradingRoom_{session_id[:8]}_setup.txt"'},
+        )
     file_path = STORAGE / f"{session_id}.mq5"
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Guida setup non disponibile: file .mq5 non trovato.")

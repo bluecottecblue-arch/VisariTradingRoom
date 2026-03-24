@@ -10,7 +10,13 @@ from __future__ import annotations
 from typing import Any, Dict, Optional
 
 from modules.common.anthropic_client import get_anthropic_model, invoke_json
-from modules.common.strategy_validation import STATUS_INVALID, STATUS_VALID, empty_usage, validate_mql5_code
+from modules.common.strategy_validation import (
+    STATUS_INVALID,
+    STATUS_VALID,
+    empty_usage,
+    normalize_claude_access,
+    validate_mql5_code,
+)
 
 
 MODIFIER_SYSTEM_PROMPT = """You modify existing trading bots with minimal, precise edits.
@@ -106,8 +112,26 @@ class BotModifier:
         original_code: str,
         original_analysis: dict[str, Any],
         prompt: str,
+        claude_access: Optional[Dict[str, Any]] = None,
         fundamental_filters: Optional[Dict[str, Any]] = None,
     ) -> dict[str, Any]:
+        normalized_access = normalize_claude_access(claude_access)
+        if not normalized_access.get("api_key"):
+            return {
+                "status": STATUS_INVALID,
+                "message": "Inserisci una Claude API key personale per usare la modifica assistita del bot.",
+                "modified_code": "",
+                "change_summary": [],
+                "conceptual_diff": [],
+                "implementation_notes": [],
+                "assumptions": [],
+                "limitations": [],
+                "code_validation": validate_uploaded_code(
+                    language=((original_analysis.get("file_info") or {}).get("language") or "mql5"),
+                    code="",
+                ),
+                "usage": empty_usage("botlab_modify"),
+            }
         llm_result = await invoke_json(
             module="botlab_modify",
             system_prompt=MODIFIER_SYSTEM_PROMPT,
@@ -123,6 +147,7 @@ class BotModifier:
                 "original_code_summary": original_analysis.get("code_summary", {}),
                 "original_code": original_code,
             },
+            api_key_override=normalized_access.get("api_key"),
         )
         data = llm_result["data"]
         modified_code = str(data.get("modified_code") or "").strip()

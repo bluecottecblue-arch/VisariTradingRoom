@@ -65,6 +65,7 @@ const DEFAULT_BACKTEST_CONFIG = {
 export default function BotLabWorkspace() {
   const [filename, setFilename] = useState('uploaded_bot.mq5')
   const [code, setCode] = useState('')
+  const [claudeApiKey, setClaudeApiKey] = useState('')
   const [sourceOrigin, setSourceOrigin] = useState<'user' | 'visari'>('user')
   const [actionFocus, setActionFocus] = useState(ACTIONS[0])
   const [analysis, setAnalysis] = useState<BotLabAnalysisResult | null>(null)
@@ -151,12 +152,20 @@ export default function BotLabWorkspace() {
       setError('Scrivi una richiesta di modifica prima di generare una nuova versione.')
       return
     }
+    if (!claudeApiKey.trim()) {
+      setError('Inserisci la tua Claude API key personale per usare la modifica assistita del bot.')
+      return
+    }
     setLoadingModify(true)
     setError(null)
     try {
       const result = await botLabApi.modify({
         session_id: analysis.session_id,
         prompt: modifyPrompt,
+        claude_access: {
+          credential_source: 'personal',
+          api_key: claudeApiKey,
+        },
         fundamental_filters: effectiveFundamentals,
       }) as BotLabModifyResult
       setModifyResult(result)
@@ -196,6 +205,21 @@ export default function BotLabWorkspace() {
           attiva filtri fondamentali/news e confronta originale vs nuova versione prima dell’export.
         </p>
       </div>
+
+      <Section title="Claude API key personale">
+        <div className="space-y-3">
+          <div className="text-xs text-slate-500">
+            L’analisi del bot è locale. La tua Claude API key personale serve solo quando chiedi modifiche assistite del codice.
+          </div>
+          <input
+            type="password"
+            value={claudeApiKey}
+            onChange={(e) => setClaudeApiKey(e.target.value)}
+            className={inputCls}
+            placeholder="sk-ant-..."
+          />
+        </div>
+      </Section>
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.9fr]">
         <div className="space-y-6">

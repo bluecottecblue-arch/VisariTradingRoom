@@ -13,14 +13,16 @@ from __future__ import annotations
 from typing import Any, Optional
 import uuid
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from db.database import InMemorySessionStore
+from modules.auth.security import AuthContext, require_authenticated
 from modules.botlab.modifier import BotModifier
 from modules.botlab.parser import analyze_bot_code, summarize_bot_diff
 from modules.common.strategy_validation import empty_usage
 from modules.fundamentals.economic_calendar import fetch_calendar_events, list_calendar_providers
+from modules.projects.store import ProjectStore
 
 router = APIRouter()
 modifier = BotModifier()
@@ -42,6 +44,7 @@ class FundamentalFiltersRequest(BaseModel):
 
 
 class BotUploadRequest(BaseModel):
+    project_id: Optional[str] = None
     filename: str
     content: str
     source_origin: str = "user"
@@ -53,6 +56,7 @@ class BotUploadRequest(BaseModel):
 class BotModifyRequest(BaseModel):
     session_id: str
     prompt: str
+    claude_access: Optional[dict[str, Any]] = None
     fundamental_filters: Optional[FundamentalFiltersRequest] = None
 
 
@@ -79,12 +83,25 @@ async def calendar_preview(filters: FundamentalFiltersRequest):
         "warnings": result["warnings"],
     }
 
-
 @router.post("/upload")
-async def upload_bot(req: BotUploadRequest):
+async def upload_bot(
+    req: BotUploadRequest,
+    context: AuthContext = Depends(require_authenticated),
+):
     try:
         session_id = str(uuid.uuid4())
         fundamental_filters = req.fundamental_filters.model_dump() if req.fundamental_filters else None
+        if req.project_id:
+            project = await ProjectStore.get_project(context.username, req.project_id)
+            if not project:
+                raise HTTPException(status_code=404, detail="Progetto Bot Lab non trovato")
+        else:
+            project = await ProjectStore.create_project(
+                owner_username=context.username,
+                title=req.filename or "Uploaded Bot",
+                mode="botlab",
+            )
+        project_id = project["project_id"]
         analysis = analyze_bot_code(
             filename=req.filename,
             content=req.content,
@@ -93,6 +110,7 @@ async def upload_bot(req: BotUploadRequest):
             fundamental_filters=fundamental_filters,
         )
         analysis["session_id"] = session_id
+        analysis["project_id"] = project_id
         analysis["usage"] = empty_usage("botlab_upload")
         analysis["action_focus"] = req.action_focus or "analyze"
         bundle = {
@@ -103,10 +121,33 @@ async def upload_bot(req: BotUploadRequest):
             "fundamental_filters": fundamental_filters or {},
             "modified_from_session_id": None,
         }
+        InMemorySessionStore.save(session_id, "project_ref", {"project_id": project_id, "owner_username": context.username})
         InMemorySessionStore.save(session_id, "bot_lab_bundle", bundle)
         if analysis.get("formal_spec_bundle", {}).get("status") == "VALID":
             InMemorySessionStore.save(session_id, "formal_spec_bundle", analysis["formal_spec_bundle"])
+        await ProjectStore.update_project(
+            project_id,
+            active_session_id=session_id,
+            metadata={
+                "filename": req.filename,
+                "platform": ((analysis.get("file_info") or {}).get("platform")),
+                "source_origin": req.source_origin,
+            },
+        )
+        await ProjectStore.add_version(
+            project_id=project_id,
+            session_id=session_id,
+            version_kind="bot_upload_analysis",
+            status=analysis.get("status", "INVALID"),
+            payload=analysis,
+            summary={
+                "backtest_ready": bool(analysis.get("backtest_ready")),
+                "health_score": ((analysis.get("health_check") or {}).get("score")),
+            },
+        )
         return analysis
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Errore upload/analyze bot: {exc}")
 
@@ -134,6 +175,7 @@ async def modify_bot(req: BotModifyRequest):
         original_code=stored.get("content", ""),
         original_analysis=original_analysis,
         prompt=req.prompt,
+        claude_access=req.claude_access or {},
         fundamental_filters=fundamental_filters,
     )
     if llm_modified["status"] != "VALID":
@@ -143,6 +185,8 @@ async def modify_bot(req: BotModifyRequest):
         }
 
     new_session_id = str(uuid.uuid4())
+    project_ref = InMemorySessionStore.get(req.session_id, "project_ref") or {}
+    project_id = project_ref.get("project_id")
     modified_analysis = analyze_bot_code(
         filename=stored.get("filename", "modified_bot.mq5"),
         content=llm_modified["modified_code"],
@@ -151,6 +195,7 @@ async def modify_bot(req: BotModifyRequest):
         fundamental_filters=fundamental_filters,
     )
     modified_analysis["session_id"] = new_session_id
+    modified_analysis["project_id"] = project_id
     modified_analysis["usage"] = llm_modified["usage"]
     compare = summarize_bot_diff(original_analysis, modified_analysis)
 
@@ -168,15 +213,35 @@ async def modify_bot(req: BotModifyRequest):
         "limitations": llm_modified["limitations"],
         "compare": compare,
     }
+    if project_id:
+        InMemorySessionStore.save(new_session_id, "project_ref", {"project_id": project_id})
     InMemorySessionStore.save(new_session_id, "bot_lab_bundle", modified_bundle)
     if modified_analysis.get("formal_spec_bundle", {}).get("status") == "VALID":
         InMemorySessionStore.save(new_session_id, "formal_spec_bundle", modified_analysis["formal_spec_bundle"])
+    if project_id:
+        await ProjectStore.update_project(project_id, active_session_id=new_session_id)
+        await ProjectStore.add_version(
+            project_id=project_id,
+            session_id=new_session_id,
+            version_kind="bot_modified",
+            status="VALID",
+            payload={
+                "prompt": req.prompt,
+                "change_summary": llm_modified["change_summary"],
+                "compare": compare,
+            },
+            summary={
+                "change_count": len(llm_modified["change_summary"]),
+                "fundamental_filter_added": bool((compare or {}).get("fundamental_filter_added")),
+            },
+        )
 
     return {
         "status": "VALID",
         "message": "Versione modificata pronta per confronto, backtest e export.",
         "original_session_id": req.session_id,
         "session_id": new_session_id,
+        "project_id": project_id,
         "change_summary": llm_modified["change_summary"],
         "conceptual_diff": llm_modified["conceptual_diff"],
         "implementation_notes": llm_modified["implementation_notes"],
@@ -195,7 +260,9 @@ async def bot_lab_session(session_id: str):
     stored = InMemorySessionStore.get(session_id, "bot_lab_bundle")
     if not stored:
         raise HTTPException(status_code=404, detail="Sessione Bot Lab non trovata")
+    project_ref = InMemorySessionStore.get(session_id, "project_ref") or {}
     return {
         "session_id": session_id,
+        "project_id": project_ref.get("project_id"),
         **stored,
     }

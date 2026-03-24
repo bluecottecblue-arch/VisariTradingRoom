@@ -1,10 +1,19 @@
 import os
+from typing import Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel
 
 from modules.auth.security import AuthContext, create_session_token, require_admin, require_authenticated
-from modules.auth.user_store import create_user, delete_user, get_user_count, list_users, reset_password, verify_user
+from modules.auth.user_store import (
+    create_user,
+    delete_user,
+    get_user_count,
+    list_users,
+    reset_password,
+    update_user,
+    verify_user,
+)
 
 
 router = APIRouter()
@@ -18,10 +27,21 @@ class LoginRequest(BaseModel):
 class UserCreateRequest(BaseModel):
     username: str
     password: str
+    status: str = "active"
+    plan: str = "standard"
+    expires_at: Optional[str] = None
+    notes: Optional[str] = None
 
 
 class PasswordResetRequest(BaseModel):
     password: str
+
+
+class UserUpdateRequest(BaseModel):
+    status: Optional[str] = None
+    plan: Optional[str] = None
+    expires_at: Optional[str] = None
+    notes: Optional[str] = None
 
 
 def _normalize_admin_username() -> str:
@@ -98,7 +118,14 @@ async def admin_create_user(
     context: AuthContext = Depends(require_admin),
 ):
     try:
-        user = create_user(payload.username, payload.password)
+        user = create_user(
+            payload.username,
+            payload.password,
+            status=payload.status,
+            plan=payload.plan,
+            expires_at=payload.expires_at,
+            notes=payload.notes or "",
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -120,6 +147,31 @@ async def admin_reset_password(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    return {
+        "ok": True,
+        "admin": context.username,
+        "user": updated,
+    }
+
+
+@router.patch("/admin/users/{username}")
+async def admin_update_user(
+    username: str,
+    payload: UserUpdateRequest = Body(...),
+    context: AuthContext = Depends(require_admin),
+):
+    if username.strip().lower() == _normalize_admin_username():
+        raise HTTPException(status_code=400, detail="L'account admin env non è gestibile da qui")
+    try:
+        updated = update_user(
+            username,
+            status=payload.status,
+            plan=payload.plan,
+            expires_at=payload.expires_at,
+            notes=payload.notes,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {
         "ok": True,
         "admin": context.username,

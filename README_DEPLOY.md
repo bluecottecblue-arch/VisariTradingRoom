@@ -11,11 +11,15 @@ Deploy gratuito e personale:
 - Crea un nuovo `Web Service` dal repository.
 - Render leggerà `render.yaml`.
 - Variabili da impostare:
-  - `ANTHROPIC_API_KEY`
+  - `ANTHROPIC_API_KEY` opzionale
+    - utile per manutenzione interna, test admin o fallback operativo
+    - la UI pubblica usa solo Claude key personale inserita dall'utente
   - `POLYGON_API_KEY` opzionale
   - `SESSION_SECRET`
   - `ADMIN_USERNAME`
   - `ADMIN_PASSWORD`
+  - `DATABASE_URL` consigliata
+    - senza DB il backend degrada in memoria e perde persistenza professionale su progetti/versioni/job
   - `USERS_STORAGE_PATH`
     - valore consigliato: `./storage/users.json`
   - `CORS_ALLOW_ORIGINS`
@@ -47,7 +51,24 @@ Comportamento atteso:
 - Gli account cliente sono salvati dal backend in `users.json`.
 - La soluzione è intenzionalmente semplice: adatta a pochi clienti, non enterprise.
 
-## 4. Fallback locale
+## 4. Claude key personale
+
+- La piattaforma pubblica non propone più una Claude key condivisa/integrata.
+- Ogni utente deve inserire la propria Claude API key nel workflow di creazione strategia o Bot Lab.
+- La Claude key del backend, se configurata, resta solo un'opzione operativa per manutenzione interna e non viene esposta in UI.
+
+## 5. Persistenza professionale
+
+- Per uso demo il sistema continua a funzionare anche senza database.
+- Per uso professionale vero è fortemente consigliato configurare `DATABASE_URL`.
+- Con DB attivo vengono persistiti:
+  - utenti e stato account
+  - progetti
+  - versioni
+  - artifact export
+  - job status
+
+## 6. Fallback locale
 
 Backend:
 

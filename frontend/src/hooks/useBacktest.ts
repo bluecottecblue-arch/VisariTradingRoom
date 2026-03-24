@@ -44,7 +44,7 @@ export function useBacktest() {
   }, [])
 
   const run = useCallback(
-    async (sessionId: string, config: object) => {
+    async (sessionId: string, config: object, projectId?: string | null) => {
       if (pollRef.current) clearTimeout(pollRef.current)
       if (phaseTimerRef.current) clearInterval(phaseTimerRef.current)
       setPhase('downloading_data')
@@ -68,7 +68,7 @@ export function useBacktest() {
       }, 4500)
 
       try {
-        const response = await backtestApi.run(sessionId, config) as any
+        const response = await backtestApi.run(sessionId, config, projectId) as any
 
         // Backend può rispondere direttamente con i risultati (sync) o con task_id (async)
         if (response.status === 'complete' && response.results) {

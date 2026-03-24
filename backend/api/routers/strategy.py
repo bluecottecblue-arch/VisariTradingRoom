@@ -3,7 +3,7 @@ Router: Strategy
 Parse → Resolve Ambiguities → Formalize → Generate Bot
 Session state held in module-level singletons (in-memory for local dev).
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from typing import Any, Optional
 import uuid
@@ -19,6 +19,8 @@ from modules.common.strategy_validation import (
     validate_strategy_intake,
 )
 from modules.research.decision_engine import is_promoted_verdict
+from modules.projects.store import ProjectStore
+from modules.auth.security import AuthContext, require_authenticated
 from db.database import InMemorySessionStore
 from api.routers.backtest import get_task_for_session, get_completed_results_for_session
 
@@ -33,6 +35,7 @@ bot_gen   = MQL5Generator()
 # ─── Request / Response models ────────────────────────────────────────────────
 
 class StrategyIntakeRequest(BaseModel):
+    project_id: Optional[str] = None
     name: str
     market: str
     analysis_timeframe: str = "H4"
@@ -63,6 +66,7 @@ class StrategyIntakeRequest(BaseModel):
 
 class ParseResponse(BaseModel):
     session_id: str
+    project_id: Optional[str] = None
     status: str
     validation_status: str
     message: str
@@ -108,6 +112,7 @@ class AmbiguityResolution(BaseModel):
 
 class FormalSpecResponse(BaseModel):
     session_id: str
+    project_id: Optional[str] = None
     status: str
     validation_status: str
     message: str
@@ -125,6 +130,7 @@ class FormalSpecResponse(BaseModel):
 
 class BotGenerationResponse(BaseModel):
     session_id: str
+    project_id: Optional[str] = None
     status: str
     validation_status: str
     message: str
@@ -184,6 +190,50 @@ def _build_preflight_estimates(intake: dict, validation_result: dict) -> dict[st
     }
 
 
+async def _resolve_project(
+    *,
+    owner_username: str,
+    requested_project_id: Optional[str],
+    title: str,
+    mode: str = "strategy",
+) -> dict[str, Any]:
+    if requested_project_id:
+        project = await ProjectStore.get_project(owner_username, requested_project_id)
+        if not project:
+            raise HTTPException(status_code=404, detail="Progetto non trovato o non accessibile")
+        return project
+    return await ProjectStore.create_project(
+        owner_username=owner_username,
+        title=title or "Untitled Strategy",
+        mode=mode,
+    )
+
+
+def _project_ref_for_session(session_id: str) -> dict[str, Any]:
+    return InMemorySessionStore.get(session_id, "project_ref") or {}
+
+
+async def _track_project_version(
+    *,
+    project_id: Optional[str],
+    session_id: str,
+    version_kind: str,
+    status: str,
+    payload: Any,
+    summary: Optional[dict[str, Any]] = None,
+) -> None:
+    if not project_id:
+        return
+    await ProjectStore.add_version(
+        project_id=project_id,
+        session_id=session_id,
+        version_kind=version_kind,
+        status=status,
+        payload=payload,
+        summary=summary or {},
+    )
+
+
 @router.post("/preflight", response_model=PreflightResponse)
 async def strategy_preflight(req: StrategyIntakeRequest):
     """Controllo locale gratuito: codificabilità e budget stimato prima di spendere token."""
@@ -215,24 +265,106 @@ async def strategy_preflight(req: StrategyIntakeRequest):
 
 
 @router.post("/parse", response_model=ParseResponse)
-async def parse_strategy(req: StrategyIntakeRequest):
+async def parse_strategy(
+    req: StrategyIntakeRequest,
+    context: AuthContext = Depends(require_authenticated),
+):
     """Step 1: parse the strategy with Claude, detect ambiguities."""
     session_id = str(uuid.uuid4())
+    parse_job: Optional[dict[str, Any]] = None
     try:
         intake = enrich_intake_with_technical_defaults(req.model_dump())
+        project = await _resolve_project(
+            owner_username=context.username,
+            requested_project_id=req.project_id,
+            title=req.name,
+            mode="strategy",
+        )
+        project_id = project["project_id"]
+        InMemorySessionStore.save(session_id, "project_ref", {"project_id": project_id, "owner_username": context.username})
+        await ProjectStore.update_project(
+            project_id,
+            title=req.name.strip() or project["title"],
+            active_session_id=session_id,
+            metadata={
+                "market": req.market,
+                "analysis_timeframe": req.analysis_timeframe,
+                "execution_timeframe": req.execution_timeframe,
+                "claude_access": {
+                    "credential_source": "personal",
+                    "personal_key_supplied": bool((req.claude_access or {}).get("api_key")),
+                },
+                "macro_news": {
+                    "enabled": bool((req.macro_news or {}).get("enabled")),
+                    "provider": (req.macro_news or {}).get("provider", "none"),
+                },
+            },
+        )
+        parse_job = await ProjectStore.create_job(
+            project_id=project_id,
+            session_id=session_id,
+            job_type="strategy_parse",
+            payload={"stage": "parse", "strategy_name": req.name, "market": req.market},
+            status="running",
+        )
+        await _track_project_version(
+            project_id=project_id,
+            session_id=session_id,
+            version_kind="intake",
+            status="submitted",
+            payload=intake,
+            summary={"name": req.name, "market": req.market},
+        )
         result = await parser.parse(session_id=session_id, intake=intake)
         # Store parsed result so formalizer can read it by session_id
         formalizer.store_parsed(session_id, result, intake)
         InMemorySessionStore.save(session_id, "parsed_bundle", {"parsed": result, "intake": intake})
-        return ParseResponse(session_id=session_id, **result)
+        await _track_project_version(
+            project_id=project_id,
+            session_id=session_id,
+            version_kind="parse_result",
+            status=result.get("status", "INVALID"),
+            payload=result,
+            summary={
+                "validation_status": result.get("validation_status"),
+                "completeness_score": result.get("completeness_score"),
+                "required_inputs": len(result.get("required_inputs", [])),
+                "ambiguities": len(result.get("ambiguities", [])),
+            },
+        )
+        await ProjectStore.update_job(
+            parse_job["job_id"],
+            status="complete",
+            result_summary={
+                "status": result.get("status"),
+                "validation_status": result.get("validation_status"),
+                "required_inputs": len(result.get("required_inputs", [])),
+            },
+        )
+        return ParseResponse(session_id=session_id, project_id=project_id, **result)
     except Exception as e:
+        if parse_job:
+            await ProjectStore.update_job(parse_job["job_id"], status="error", error=str(e))
         raise HTTPException(status_code=500, detail=f"Errore parsing: {str(e)}")
 
 
 @router.post("/resolve-ambiguities", response_model=FormalSpecResponse)
-async def resolve_ambiguities(req: AmbiguityResolution):
+async def resolve_ambiguities(
+    req: AmbiguityResolution,
+    context: AuthContext = Depends(require_authenticated),
+):
     """Step 2: user chose how to resolve ambiguities → produce formal spec."""
+    formalize_job: Optional[dict[str, Any]] = None
     try:
+        project_ref = _project_ref_for_session(req.session_id)
+        project_id = project_ref.get("project_id")
+        formalize_job = await ProjectStore.create_job(
+            project_id=project_id,
+            session_id=req.session_id,
+            job_type="strategy_formalize",
+            payload={"stage": "formalize", "resolution_count": len(req.resolutions)},
+            status="running",
+        )
         result = await formalizer.formalize(
             session_id=req.session_id,
             resolutions=req.resolutions,
@@ -243,21 +375,52 @@ async def resolve_ambiguities(req: AmbiguityResolution):
             intake = parsed_bundle.get("intake") or {}
             bot_gen.store_formal_spec(req.session_id, result, intake.get("claude_access"))
             InMemorySessionStore.save(req.session_id, "formal_spec_bundle", result)
-        return FormalSpecResponse(session_id=req.session_id, **result)
+        await _track_project_version(
+            project_id=project_id,
+            session_id=req.session_id,
+            version_kind="formal_spec",
+            status=result.get("status", "INVALID"),
+            payload=result,
+            summary={
+                "validation_status": result.get("validation_status"),
+                "parameter_count": len(result.get("parameters", [])),
+                "can_generate_code": bool(result.get("can_generate_code")),
+            },
+        )
+        if project_id:
+            await ProjectStore.update_project(project_id, active_session_id=req.session_id)
+        await ProjectStore.update_job(
+            formalize_job["job_id"],
+            status="complete",
+            result_summary={
+                "status": result.get("status"),
+                "parameter_count": len(result.get("parameters", [])),
+            },
+        )
+        return FormalSpecResponse(session_id=req.session_id, project_id=project_id, **result)
     except Exception as e:
+        if formalize_job:
+            await ProjectStore.update_job(formalize_job["job_id"], status="error", error=str(e))
         raise HTTPException(status_code=500, detail=f"Errore formalizzazione: {str(e)}")
 
 
 @router.post("/generate-bot", response_model=BotGenerationResponse)
-async def generate_bot(session_id: str):
+async def generate_bot(
+    session_id: str,
+    context: AuthContext = Depends(require_authenticated),
+):
     """Step 3: generate MQL5 Expert Advisor from the formal spec."""
+    bot_job: Optional[dict[str, Any]] = None
     try:
+        project_ref = _project_ref_for_session(session_id)
+        project_id = project_ref.get("project_id")
         backtest_results = get_completed_results_for_session(session_id)
         final_decision = (backtest_results or {}).get("final_decision") or {}
         verdict = final_decision.get("verdict")
         if verdict and not is_promoted_verdict(verdict):
             return BotGenerationResponse(
                 session_id=session_id,
+                project_id=project_id,
                 **build_bot_result(
                     status=STATUS_INVALID,
                     message=(
@@ -280,9 +443,43 @@ async def generate_bot(session_id: str):
                     ],
                 ),
             )
+        bot_job = await ProjectStore.create_job(
+            project_id=project_id,
+            session_id=session_id,
+            job_type="bot_generation",
+            payload={"stage": "bot_generation"},
+            status="running",
+        )
         result = await bot_gen.generate(session_id=session_id)
-        return BotGenerationResponse(session_id=session_id, **result)
+        await _track_project_version(
+            project_id=project_id,
+            session_id=session_id,
+            version_kind="bot_code",
+            status=result.get("status", "INVALID"),
+            payload={
+                "validation_status": result.get("validation_status"),
+                "documentation": result.get("documentation"),
+                "deployment_readiness": result.get("deployment_readiness"),
+                "code_validation": result.get("code_validation"),
+            },
+            summary={
+                "download_ready": bool(result.get("download_ready")),
+                "code_valid": bool((result.get("code_validation") or {}).get("is_valid")),
+                "deployment_status": (result.get("deployment_readiness") or {}).get("status"),
+            },
+        )
+        await ProjectStore.update_job(
+            bot_job["job_id"],
+            status="complete",
+            result_summary={
+                "status": result.get("status"),
+                "download_ready": bool(result.get("download_ready")),
+            },
+        )
+        return BotGenerationResponse(session_id=session_id, project_id=project_id, **result)
     except Exception as e:
+        if bot_job:
+            await ProjectStore.update_job(bot_job["job_id"], status="error", error=str(e))
         raise HTTPException(status_code=500, detail=f"Errore generazione bot: {str(e)}")
 
 
@@ -293,8 +490,10 @@ async def get_session(session_id: str):
     parsed = parsed_bundle.get("parsed")
     spec_bundle = bot_gen._sessions.get(session_id) or {}
     spec = spec_bundle.get("spec")
+    project_ref = _project_ref_for_session(session_id)
     return {
         "session_id": session_id,
+        "project_id": project_ref.get("project_id"),
         "has_parsed": parsed is not None,
         "has_formal_spec": spec is not None,
         "parse_status": (parsed or {}).get("status"),

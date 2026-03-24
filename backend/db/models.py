@@ -37,7 +37,76 @@ try:
         report_path = Column(String)
         mql5_file_path = Column(String)
 
+
+    class Project(Base):
+        __tablename__ = "projects"
+
+        id = Column(String, primary_key=True)
+        owner_username = Column(String, index=True, nullable=False)
+        title = Column(String, nullable=False)
+        mode = Column(String, default="strategy")
+        status = Column(String, default="active")
+        active_session_id = Column(String)
+        latest_verdict = Column(String)
+        metadata_json = Column(JSON, default={})
+        created_at = Column(DateTime(timezone=True), server_default=func.now())
+        updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+    class ProjectVersion(Base):
+        __tablename__ = "project_versions"
+
+        id = Column(String, primary_key=True)
+        project_id = Column(String, index=True, nullable=False)
+        session_id = Column(String, index=True)
+        version_kind = Column(String, nullable=False)
+        status = Column(String, default="draft")
+        summary = Column(JSON, default={})
+        payload = Column(JSON, default={})
+        fingerprint = Column(String, index=True)
+        created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+    class ProjectArtifact(Base):
+        __tablename__ = "project_artifacts"
+
+        id = Column(String, primary_key=True)
+        project_id = Column(String, index=True, nullable=False)
+        session_id = Column(String, index=True)
+        artifact_type = Column(String, nullable=False)
+        label = Column(String, nullable=False)
+        storage_path = Column(String)
+        metadata_json = Column(JSON, default={})
+        created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+    class JobRun(Base):
+        __tablename__ = "job_runs"
+
+        id = Column(String, primary_key=True)
+        project_id = Column(String, index=True)
+        session_id = Column(String, index=True)
+        job_type = Column(String, nullable=False)
+        status = Column(String, default="queued")
+        error = Column(Text)
+        payload = Column(JSON, default={})
+        result_summary = Column(JSON, default={})
+        created_at = Column(DateTime(timezone=True), server_default=func.now())
+        updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
 except ImportError:
     # SQLAlchemy not installed — models not available, using InMemorySessionStore
     class StrategySession:  # type: ignore
+        pass
+
+    class Project:  # type: ignore
+        pass
+
+    class ProjectVersion:  # type: ignore
+        pass
+
+    class ProjectArtifact:  # type: ignore
+        pass
+
+    class JobRun:  # type: ignore
         pass

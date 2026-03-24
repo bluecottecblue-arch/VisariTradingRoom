@@ -81,10 +81,10 @@ export const strategyApi = {
 // ─── Backtest endpoints ───────────────────────────────────────────────────────
 
 export const backtestApi = {
-  run: (sessionId: string, config: object) =>
+  run: (sessionId: string, config: object, projectId?: string | null) =>
     request('/api/backtest/run', {
       method: 'POST',
-      body: JSON.stringify({ session_id: sessionId, config }),
+      body: JSON.stringify({ session_id: sessionId, project_id: projectId || undefined, config }),
     }),
 
   status: (taskId: string) =>
@@ -109,6 +109,26 @@ export const botLabApi = {
 
   previewCalendar: (payload: object) =>
     request('/api/bot-lab/calendar/preview', { method: 'POST', body: JSON.stringify(payload) }),
+}
+
+export const projectApi = {
+  list: () =>
+    request('/api/projects'),
+
+  create: (title: string, mode: 'strategy' | 'botlab' = 'strategy') =>
+    request('/api/projects', {
+      method: 'POST',
+      body: JSON.stringify({ title, mode }),
+    }),
+
+  detail: (projectId: string) =>
+    request(`/api/projects/${projectId}`),
+
+  update: (projectId: string, payload: object) =>
+    request(`/api/projects/${projectId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
 }
 
 // ─── Export endpoints ─────────────────────────────────────────────────────────

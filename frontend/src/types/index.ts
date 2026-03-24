@@ -82,7 +82,7 @@ export interface StrategyIntake {
 }
 
 export interface ClaudeAccessConfig {
-  credential_source: 'integrated' | 'personal'
+  credential_source: 'personal'
   api_key?: string
 }
 
@@ -138,6 +138,7 @@ export interface CodeableRule {
 
 export interface ParseResult {
   session_id: string
+  project_id?: string | null
   status: WorkflowStatus
   validation_status: 'VALID' | 'INVALID'
   message: string
@@ -169,6 +170,7 @@ export interface PreflightResult {
 
 export interface FormalSpec {
   session_id: string
+  project_id?: string | null
   status: WorkflowStatus
   validation_status: 'VALID' | 'INVALID'
   message: string
@@ -426,6 +428,7 @@ export interface BacktestResult {
 
 export interface BotResult {
   session_id: string
+  project_id?: string | null
   status: WorkflowStatus
   validation_status: 'VALID' | 'INVALID'
   message: string
@@ -464,6 +467,7 @@ export interface BotResult {
 
 export interface BotLabAnalysisResult {
   session_id: string
+  project_id?: string | null
   status: WorkflowStatus
   message: string
   file_info: {
@@ -528,6 +532,7 @@ export interface BotLabModifyResult {
   message: string
   original_session_id: string
   session_id?: string
+  project_id?: string | null
   ambiguities?: string[]
   change_summary?: string[]
   conceptual_diff?: string[]
@@ -552,4 +557,69 @@ export interface BotLabModifyResult {
     fundamental_filter_added: boolean
   }
   usage: UsageInfo
+}
+
+export interface ProjectSummary {
+  project_id: string
+  owner_username: string
+  title: string
+  mode: string
+  status: string
+  active_session_id?: string | null
+  latest_verdict?: string | null
+  metadata: Record<string, unknown>
+  created_at?: string | null
+  updated_at?: string | null
+}
+
+export interface ProjectVersionRecord {
+  version_id: string
+  project_id: string
+  session_id?: string | null
+  version_kind: string
+  status: string
+  summary: Record<string, unknown>
+  fingerprint: string
+  created_at?: string | null
+}
+
+export interface ProjectArtifactRecord {
+  artifact_id: string
+  project_id: string
+  session_id?: string | null
+  artifact_type: string
+  label: string
+  storage_path?: string | null
+  metadata: Record<string, unknown>
+  created_at?: string | null
+}
+
+export interface ProjectJobRecord {
+  job_id: string
+  project_id?: string | null
+  session_id?: string | null
+  job_type: string
+  status: string
+  error?: string | null
+  payload: Record<string, unknown>
+  result_summary: Record<string, unknown>
+  created_at?: string | null
+  updated_at?: string | null
+}
+
+export interface ProjectDetail extends ProjectSummary {
+  versions: ProjectVersionRecord[]
+  artifacts: ProjectArtifactRecord[]
+  jobs: ProjectJobRecord[]
+}
+
+export interface AdminUserRecord {
+  username: string
+  status: 'active' | 'suspended' | 'expired'
+  plan: string
+  expires_at: string | null
+  notes: string
+  created_at: string | null
+  updated_at: string | null
+  last_login_at: string | null
 }

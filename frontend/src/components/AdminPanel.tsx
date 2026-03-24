@@ -6,6 +6,10 @@ import { useRouter } from 'next/navigation'
 
 type UserItem = {
   username: string
+  status: 'active' | 'suspended' | 'expired'
+  plan: string
+  expires_at: string | null
+  notes: string
   created_at: string | null
   updated_at: string | null
   last_login_at: string | null
@@ -16,6 +20,9 @@ export default function AdminPanel() {
   const [users, setUsers] = useState<UserItem[]>([])
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [status, setStatus] = useState<'active' | 'suspended'>('active')
+  const [plan, setPlan] = useState('standard')
+  const [expiresAt, setExpiresAt] = useState('')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(true)
@@ -49,12 +56,21 @@ export default function AdminPanel() {
       const response = await fetch('/api/backend/api/auth/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({
+          username,
+          password,
+          status,
+          plan,
+          expires_at: expiresAt || null,
+        }),
       })
       const body = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(body.detail || 'Creazione account fallita')
       setUsername('')
       setPassword('')
+      setStatus('active')
+      setPlan('standard')
+      setExpiresAt('')
       setNotice(`Account creato: ${body.user?.username || username}`)
       await loadUsers()
     } catch (err) {
@@ -98,6 +114,24 @@ export default function AdminPanel() {
       const body = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(body.detail || 'Reset password fallito')
       setNotice(`Password aggiornata per ${target}`)
+      await loadUsers()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Errore sconosciuto')
+    }
+  }
+
+  async function updateAccount(target: string, payload: Record<string, unknown>, successMessage: string) {
+    setError('')
+    setNotice('')
+    try {
+      const response = await fetch(`/api/backend/api/auth/admin/users/${encodeURIComponent(target)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const body = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(body.detail || 'Aggiornamento account fallito')
+      setNotice(successMessage)
       await loadUsers()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Errore sconosciuto')
@@ -159,6 +193,37 @@ export default function AdminPanel() {
                 placeholder="minimo 6 caratteri"
               />
             </label>
+            <div className="grid grid-cols-2 gap-4">
+              <label className="block">
+                <span className="mb-2 block text-[11px] uppercase tracking-[0.14em] text-slate-500">Status</span>
+                <select
+                  value={status}
+                  onChange={(event) => setStatus(event.target.value as 'active' | 'suspended')}
+                  className="w-full border border-slate-800 bg-slate-950 px-4 py-3 outline-none focus:border-slate-500"
+                >
+                  <option value="active">active</option>
+                  <option value="suspended">suspended</option>
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-[11px] uppercase tracking-[0.14em] text-slate-500">Plan</span>
+                <input
+                  value={plan}
+                  onChange={(event) => setPlan(event.target.value)}
+                  className="w-full border border-slate-800 bg-slate-950 px-4 py-3 outline-none focus:border-slate-500"
+                  placeholder="standard"
+                />
+              </label>
+            </div>
+            <label className="block">
+              <span className="mb-2 block text-[11px] uppercase tracking-[0.14em] text-slate-500">Expires at (optional)</span>
+              <input
+                type="datetime-local"
+                value={expiresAt}
+                onChange={(event) => setExpiresAt(event.target.value)}
+                className="w-full border border-slate-800 bg-slate-950 px-4 py-3 outline-none focus:border-slate-500"
+              />
+            </label>
             <button
               type="submit"
               disabled={saving || !username.trim() || password.length < 6}
@@ -167,7 +232,7 @@ export default function AdminPanel() {
               {saving ? 'Creazione...' : 'Crea account'}
             </button>
             <p className="text-xs text-slate-500">
-              Gli account sono salvati nel backend come JSON semplice.
+              Ogni account può essere active, suspended o expired, con piano e scadenza opzionale.
             </p>
           </form>
 
@@ -208,10 +273,27 @@ export default function AdminPanel() {
                     <div>
                       <div className="font-semibold text-slate-100">{user.username}</div>
                       <div className="mt-1 text-xs text-slate-500">
-                        Creato: {user.created_at || 'n/d'} · Ultimo login: {user.last_login_at || 'mai'}
+                        Status: {user.status} · Plan: {user.plan} · Ultimo login: {user.last_login_at || 'mai'}
+                      </div>
+                      <div className="mt-1 text-xs text-slate-500">
+                        Creato: {user.created_at || 'n/d'} · Scade: {user.expires_at || 'mai'}
                       </div>
                     </div>
                     <div className="flex gap-2">
+                      <button
+                        onClick={() =>
+                          updateAccount(
+                            user.username,
+                            { status: user.status === 'suspended' ? 'active' : 'suspended' },
+                            user.status === 'suspended'
+                              ? `Account riattivato: ${user.username}`
+                              : `Account sospeso: ${user.username}`,
+                          )
+                        }
+                        className="border border-slate-800 px-3 py-2 text-xs hover:border-slate-600"
+                      >
+                        {user.status === 'suspended' ? 'Riattiva' : 'Sospendi'}
+                      </button>
                       <button
                         onClick={() => resetUserPassword(user.username)}
                         className="border border-slate-800 px-3 py-2 text-xs hover:border-slate-600"

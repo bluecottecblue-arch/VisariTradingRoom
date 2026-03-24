@@ -28,6 +28,7 @@ from modules.fundamentals.economic_calendar import (
     fetch_calendar_events,
     normalize_macro_news_config,
 )
+from modules.projects.store import ProjectStore
 from db.database import InMemorySessionStore
 
 router = APIRouter()
@@ -46,6 +47,7 @@ _session_task_map: dict[str, str] = {}
 
 class BacktestRequest(BaseModel):
     session_id: str
+    project_id: Optional[str] = None
     config: dict
 
 
@@ -63,11 +65,24 @@ async def run_backtest(req: BacktestRequest):
     8. Compila report finale
     """
     task_id = str(uuid.uuid4())
-    _task_store[task_id] = {"status": "running"}
+    project_ref = InMemorySessionStore.get(req.session_id, "project_ref") or {}
+    project_id = req.project_id or project_ref.get("project_id")
+    job = await ProjectStore.create_job(
+        project_id=project_id,
+        session_id=req.session_id,
+        job_type="backtest",
+        payload={
+            "symbol": req.config.get("symbol"),
+            "provider": req.config.get("provider"),
+            "timeframe": req.config.get("timeframe"),
+        },
+        status="running",
+    )
+    _task_store[task_id] = {"status": "running", "project_id": project_id, "job_id": job["job_id"]}
     _session_task_map[req.session_id] = task_id
     InMemorySessionStore.save(req.session_id, "backtest_task_ref", {"task_id": task_id})
-    asyncio.create_task(_execute_backtest(task_id, req.model_dump()))
-    return {"task_id": task_id, "status": "running"}
+    asyncio.create_task(_execute_backtest(task_id, {**req.model_dump(), "project_id": project_id, "job_id": job["job_id"]}))
+    return {"task_id": task_id, "job_id": job["job_id"], "project_id": project_id, "status": "running"}
 
 
 def _get_formal_spec_from_session(session_id: str) -> dict:
@@ -330,14 +345,56 @@ async def _execute_backtest(task_id: str, payload: dict) -> None:
     loop = asyncio.get_running_loop()
     try:
         result = await loop.run_in_executor(_executor, _run_backtest_sync, payload)
-        _task_store[task_id] = {"status": "complete", "results": result}
+        project_id = payload.get("project_id")
+        job_id = payload.get("job_id")
+        _task_store[task_id] = {"status": "complete", "results": result, "project_id": project_id, "job_id": job_id}
+        if job_id:
+            await ProjectStore.update_job(
+                job_id,
+                status="complete",
+                result_summary={
+                    "verdict": ((result.get("final_decision") or {}).get("verdict")),
+                    "total_trades": ((result.get("out_of_sample") or {}).get("total_trades")),
+                    "return_pct": ((result.get("out_of_sample") or {}).get("total_return_pct")),
+                },
+            )
+        if project_id:
+            session_id = payload.get("session_id")
+            await ProjectStore.update_project(
+                project_id,
+                active_session_id=session_id,
+                latest_verdict=(result.get("final_decision") or {}).get("verdict"),
+                metadata={
+                    "latest_symbol": ((result.get("data_info") or {}).get("symbol")),
+                    "latest_provider": ((result.get("data_info") or {}).get("provider")),
+                    "latest_timeframe": ((result.get("data_info") or {}).get("timeframe")),
+                },
+            )
+            await ProjectStore.add_version(
+                project_id=project_id,
+                session_id=session_id,
+                version_kind="backtest",
+                status="complete",
+                payload=result,
+                summary={
+                    "verdict": ((result.get("final_decision") or {}).get("verdict")),
+                    "oos_total_trades": ((result.get("out_of_sample") or {}).get("total_trades")),
+                    "oos_return_pct": ((result.get("out_of_sample") or {}).get("total_return_pct")),
+                    "oos_max_drawdown_pct": ((result.get("out_of_sample") or {}).get("max_drawdown_pct")),
+                },
+            )
     except Exception as exc:
-        _task_store[task_id] = {"status": "error", "error": str(exc)}
+        project_id = payload.get("project_id")
+        job_id = payload.get("job_id")
+        _task_store[task_id] = {"status": "error", "error": str(exc), "project_id": project_id, "job_id": job_id}
+        if job_id:
+            await ProjectStore.update_job(job_id, status="error", error=str(exc))
 
 
 def _run_backtest_sync(payload: dict) -> dict:
     cfg = payload["config"]
     session_id = payload["session_id"]
+    project_id = payload.get("project_id")
     fetcher = DataFetcher()
 
     formal_spec_bundle = _get_formal_spec_from_session(session_id)
@@ -546,6 +603,8 @@ def _run_backtest_sync(payload: dict) -> dict:
     }
     safe_result = _make_json_safe(result)
     InMemorySessionStore.save(session_id, "backtest_results_bundle", safe_result)
+    if project_id:
+        InMemorySessionStore.save(session_id, "project_ref", {"project_id": project_id})
     return safe_result
 
 

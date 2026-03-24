@@ -21,6 +21,7 @@ const TF_DEFAULT_YEARS: Record<string, number> = {
 
 interface Props {
   sessionId: string
+  projectId?: string | null
   onComplete: (result: BacktestResult) => void
   onBack: () => void
 }
@@ -44,7 +45,7 @@ const DEFAULT_CONFIG = {
   fundamental_filters: DEFAULT_FUNDAMENTAL_FILTERS,
 }
 
-export default function StepBacktest({ sessionId, onComplete, onBack }: Props) {
+export default function StepBacktest({ sessionId, projectId, onComplete, onBack }: Props) {
   const [config, setConfig] = useState(DEFAULT_CONFIG)
   const { phase, phaseLabel, isRunning, results, error, run, reset } = useBacktest()
 
@@ -67,7 +68,7 @@ export default function StepBacktest({ sessionId, onComplete, onBack }: Props) {
     }))
   }
 
-  const handleRun = () => run(sessionId, config)
+  const handleRun = () => run(sessionId, config, projectId)
 
   if (results) {
     return (

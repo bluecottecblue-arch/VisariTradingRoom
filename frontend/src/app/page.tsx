@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import StepIntake from "@/components/wizard/StepIntake";
 import StepAmbiguities from "@/components/wizard/StepAmbiguities";
 import StepFormalSpec from "@/components/wizard/StepFormalSpec";
@@ -10,6 +10,8 @@ import StepGuide from "@/components/wizard/StepGuide";
 import MonetizationSlot from "@/components/MonetizationSlot";
 import AuthToolbar from "@/components/AuthToolbar";
 import BotLabWorkspace from "@/components/botlab/BotLabWorkspace";
+import { projectApi } from "@/lib/api";
+import type { ProjectDetail, ProjectSummary } from "@/types";
 
 const STEPS = [
   { id: 1, label: "La tua strategia",   description: "Descrivi come operi" },
@@ -22,12 +24,77 @@ const STEPS = [
 
 export default function WizardPage() {
   const [workspaceMode, setWorkspaceMode] = useState<"strategy" | "botlab">("strategy");
+  const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
+  const [currentProject, setCurrentProject] = useState<ProjectDetail | null>(null);
   const [currentStep, setCurrentStep] = useState(1);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [parseResult, setParseResult] = useState<any>(null);
   const [formalSpec, setFormalSpec] = useState<any>(null);
   const [backtestResult, setBacktestResult] = useState<any>(null);
   const [botResult, setBotResult] = useState<any>(null);
+
+  async function loadProjects(preferredProjectId?: string | null) {
+    try {
+      const response = await projectApi.list() as { projects?: ProjectSummary[] }
+      const nextProjects = response.projects || []
+      setProjects(nextProjects)
+      const selectedId =
+        preferredProjectId ||
+        currentProjectId ||
+        nextProjects.find((project) => project.mode === workspaceMode)?.project_id ||
+        nextProjects[0]?.project_id ||
+        null
+      setCurrentProjectId(selectedId)
+    } catch {
+      setProjects([])
+    }
+  }
+
+  async function loadProjectDetail(projectId: string) {
+    try {
+      const response = await projectApi.detail(projectId) as { project?: ProjectDetail }
+      setCurrentProject(response.project || null)
+    } catch {
+      setCurrentProject(null)
+    }
+  }
+
+  async function createProject(mode: "strategy" | "botlab") {
+    const label = mode === "strategy" ? "New Strategy Project" : "New Bot Lab Project"
+    try {
+      const response = await projectApi.create(label, mode) as { project?: ProjectSummary }
+      const projectId = response.project?.project_id || null
+      if (projectId) {
+        setCurrentProjectId(projectId)
+        await loadProjects(projectId)
+      }
+    } catch {
+      // ignore: the workspace can still operate session-based as fallback
+    }
+  }
+
+  useEffect(() => {
+    loadProjects()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    if (!currentProjectId) {
+      setCurrentProject(null)
+      return
+    }
+    loadProjectDetail(currentProjectId)
+  }, [currentProjectId])
+
+  useEffect(() => {
+    if (!projects.length) return
+    const filtered = projects.filter((project) => project.mode === workspaceMode)
+    if (currentProjectId && filtered.some((project) => project.project_id === currentProjectId)) {
+      return
+    }
+    setCurrentProjectId(filtered[0]?.project_id || projects[0]?.project_id || null)
+  }, [workspaceMode, projects, currentProjectId]);
 
   const goNext = () => setCurrentStep((s) => Math.min(s + 1, STEPS.length));
   const goPrev = () => setCurrentStep((s) => Math.max(s - 1, 1));
@@ -87,6 +154,44 @@ export default function WizardPage() {
               </button>
             </div>
 
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Projects</div>
+                <button
+                  onClick={() => createProject(workspaceMode)}
+                  className="border border-slate-800 px-2 py-1 text-[11px] uppercase tracking-[0.12em] text-slate-400 hover:border-slate-600 hover:text-slate-200"
+                >
+                  New
+                </button>
+              </div>
+              <div className="space-y-2">
+                {projects.filter((project) => project.mode === workspaceMode).slice(0, 6).map((project) => (
+                  <button
+                    key={project.project_id}
+                    onClick={() => setCurrentProjectId(project.project_id)}
+                    className={`w-full border px-4 py-3 text-left transition-colors ${
+                      currentProjectId === project.project_id
+                        ? "border-slate-500 bg-slate-900 text-slate-100"
+                        : "border-slate-900 bg-transparent text-slate-500 hover:border-slate-700 hover:text-slate-200"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="truncate text-sm font-medium">{project.title}</span>
+                      <span className="text-[11px] text-slate-500">{project.latest_verdict || project.status}</span>
+                    </div>
+                    <div className="mt-1 text-xs text-slate-500">
+                      {(project.metadata?.["market"] as string | undefined) || project.mode} · {project.project_id.slice(0, 8)}
+                    </div>
+                  </button>
+                ))}
+                {projects.filter((project) => project.mode === workspaceMode).length === 0 && (
+                  <div className="border border-dashed border-slate-800 px-4 py-4 text-xs text-slate-500">
+                    Nessun progetto ancora salvato per questo workspace.
+                  </div>
+                )}
+              </div>
+            </div>
+
             {workspaceMode === "strategy" && (
               <div className="space-y-2">
                 <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Pipeline</div>
@@ -139,6 +244,12 @@ export default function WizardPage() {
                     ? "Design, validate and export a macro-aware trading bot."
                     : "Upload an existing bot, inspect its logic and produce a controlled revision."}
                 </div>
+                <div className="mt-3 flex flex-wrap gap-4 text-xs text-slate-500">
+                  <span>Project: {currentProject?.title || "No project selected"}</span>
+                  <span>Versions: {currentProject?.versions?.length ?? 0}</span>
+                  <span>Artifacts: {currentProject?.artifacts?.length ?? 0}</span>
+                  <span>Jobs: {currentProject?.jobs?.length ?? 0}</span>
+                </div>
               </div>
               <div className="flex items-center gap-4">
                 <div className="text-right text-xs text-slate-500">
@@ -177,7 +288,7 @@ export default function WizardPage() {
           </div>
 
           <div className="border-b border-slate-800 px-6 py-4 text-xs text-slate-500 lg:px-8">
-            Public-facing flow. Authenticated users can choose integrated Claude usage or bring their own Claude key; live macro execution remains tied to the user’s economic-calendar provider key.
+            Public-facing flow. Authenticated users now operate only with their own Claude API key; live macro execution remains tied to the user’s economic-calendar provider key.
           </div>
 
           <main className="flex-1 px-6 py-8 lg:px-8">
@@ -193,12 +304,15 @@ export default function WizardPage() {
         {workspaceMode === "botlab" && <BotLabWorkspace />}
         {workspaceMode === "strategy" && currentStep === 1 && (
           <StepIntake
+            projectId={currentProjectId}
             onComplete={(id, result) => {
               setSessionId(id);
+              setCurrentProjectId(result.project_id || currentProjectId);
               setParseResult(result);
               setFormalSpec(null);
               setBacktestResult(null);
               setBotResult(null);
+              loadProjects(result.project_id || currentProjectId);
               goNext();
             }}
           />
@@ -226,9 +340,11 @@ export default function WizardPage() {
         {workspaceMode === "strategy" && currentStep === 4 && stepReady && (
           <StepBacktest
             sessionId={sessionId!}
+            projectId={currentProjectId}
             onComplete={(result) => {
               setBacktestResult(result);
               setBotResult(null);
+              loadProjects(currentProjectId);
               goNext();
             }}
             onBack={goPrev}
@@ -241,6 +357,7 @@ export default function WizardPage() {
             backtestResult={backtestResult}
             onComplete={(result) => {
               setBotResult(result);
+              loadProjects(currentProjectId);
               goNext();
             }}
             onBack={goPrev}

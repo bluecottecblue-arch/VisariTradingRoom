@@ -50,6 +50,7 @@ async def init_db():
         return
 
     try:
+        import db.models  # noqa: F401 - registra i modelli su Base.metadata
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         print("✅ Database connesso")

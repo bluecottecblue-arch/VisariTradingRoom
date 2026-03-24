@@ -38,17 +38,18 @@ const DEFAULT_FORM: StrategyIntake = {
   invalid_trade_examples: '',
   additional_notes: '',
   claude_access: {
-    credential_source: 'integrated',
+    credential_source: 'personal',
     api_key: '',
   },
   macro_news: DEFAULT_FUNDAMENTAL_FILTERS,
 }
 
 interface Props {
+  projectId?: string | null
   onComplete: (sessionId: string, result: ParseResult) => void
 }
 
-export default function StepIntake({ onComplete }: Props) {
+export default function StepIntake({ projectId, onComplete }: Props) {
   const [form, setForm] = useState<StrategyIntake>(DEFAULT_FORM)
   const [loading, setLoading] = useState(false)
   const [preflight, setPreflight] = useState<PreflightResult | null>(null)
@@ -110,6 +111,7 @@ export default function StepIntake({ onComplete }: Props) {
   const validate = () => {
     if (!form.name.trim()) return 'Inserisci il nome della strategia'
     if (!form.market.trim()) return 'Inserisci il mercato (es. EURUSD)'
+    if (!(form.claude_access?.api_key || '').trim()) return 'Inserisci la tua Claude API key personale'
     if (!form.long_entry.trim()) return 'Descrivi il setup di ingresso long'
     if (!form.stop_loss.trim()) return 'Descrivi il tuo stop loss'
     if (!form.invalidation.trim()) return 'Descrivi le condizioni di invalidazione'
@@ -119,6 +121,7 @@ export default function StepIntake({ onComplete }: Props) {
 
   const buildPayload = (value: StrategyIntake) => ({
     ...value,
+    project_id: projectId || undefined,
     macro_news: value.macro_news,
     news_management: summarizeFundamentalFilters(value.macro_news, value.news_management),
   })
@@ -157,52 +160,25 @@ export default function StepIntake({ onComplete }: Props) {
       <Section title="Accesso Claude">
         <div className="space-y-4">
           <div className="text-xs text-stone-500">
-            Scegli se usare la Claude API key integrata nella piattaforma oppure una tua chiave personale.
+            Per eseguire parse, formalizzazione e generazione bot devi usare una tua Claude API key personale.
           </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            {[
-              {
-                id: 'integrated' as const,
-                label: 'Usa la Claude key integrata',
-                description: 'Le chiamate AI usano la chiave Anthropic già configurata sul backend.',
-              },
-              {
-                id: 'personal' as const,
-                label: 'Usa la mia Claude key',
-                description: 'Le chiamate AI di questa sessione usano la tua API key personale.',
-              },
-            ].map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                onClick={() => set('claude_access', { ...form.claude_access, credential_source: option.id })}
-                className={`rounded border px-4 py-3 text-left transition-colors ${
-                  form.claude_access?.credential_source === option.id
-                    ? 'border-amber-500 bg-amber-950/30'
-                    : 'border-stone-800 bg-stone-900/60 hover:border-stone-700'
-                }`}
-              >
-                <div className="text-sm font-bold text-stone-200">{option.label}</div>
-                <div className="mt-1 text-xs text-stone-500">{option.description}</div>
-              </button>
-            ))}
+          <div className="rounded border border-stone-800 bg-stone-900/60 px-4 py-3 text-xs text-stone-500">
+            La piattaforma non usa più una chiave Claude condivisa. Ogni utente opera con la propria key, così costi, limiti e governance restano sotto il suo controllo.
           </div>
-          {form.claude_access?.credential_source === 'personal' && (
-            <Field label="Claude API key personale">
-              <input
-                type="password"
-                value={form.claude_access?.api_key || ''}
-                onChange={(e) =>
-                  set('claude_access', {
-                    credential_source: form.claude_access?.credential_source || 'personal',
-                    api_key: e.target.value,
-                  })
-                }
-                className={inputCls}
-                placeholder="sk-ant-..."
-              />
-            </Field>
-          )}
+          <Field label="Claude API key personale" required>
+            <input
+              type="password"
+              value={form.claude_access?.api_key || ''}
+              onChange={(e) =>
+                set('claude_access', {
+                  credential_source: 'personal',
+                  api_key: e.target.value,
+                })
+              }
+              className={inputCls}
+              placeholder="sk-ant-..."
+            />
+          </Field>
         </div>
       </Section>
 
