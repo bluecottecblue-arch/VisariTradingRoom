@@ -42,8 +42,19 @@ except ImportError:
         metadata = type("M", (), {"create_all": lambda self, bind: None})()
 
 
+# Runtime connectivity flag – stays False until init_db() confirms the DB connects.
+_db_connected: bool = False
+
+
+def is_db_available() -> bool:
+    """Return True only when SQLAlchemy is installed AND a live DB connection was established."""
+    return _db_connected
+
+
 async def init_db():
     """Inizializza il DB se disponibile, altrimenti usa modalità stateless."""
+    global _db_connected
+
     if not _sqlalchemy_available:
         print("⚠️  SQLAlchemy non installato — modalità stateless (in-memory). "
               "Installa le dipendenze per persistenza completa.")
@@ -53,17 +64,20 @@ async def init_db():
         import db.models  # noqa: F401 - registra i modelli su Base.metadata
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+        _db_connected = True
         print("✅ Database connesso")
     except Exception as e:
+        _db_connected = False
         print(f"⚠️  Database non disponibile: {e}. Funziona in modalità stateless.")
 
 
 async def get_db():
-    if not _sqlalchemy_available or AsyncSessionLocal is None:
+    if not is_db_available() or AsyncSessionLocal is None:
         yield None
         return
     async with AsyncSessionLocal() as session:
         yield session
+
 
 
 class InMemorySessionStore:

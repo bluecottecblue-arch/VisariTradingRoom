@@ -6,16 +6,14 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from db.database import AsyncSessionLocal, InMemorySessionStore
+from db.database import AsyncSessionLocal, InMemorySessionStore, is_db_available
 
 try:
     import greenlet  # noqa: F401
     from sqlalchemy import select
     from db.models import JobRun, Project, ProjectArtifact, ProjectVersion
-    _DB_AVAILABLE = AsyncSessionLocal is not None
 except Exception:  # pragma: no cover
     JobRun = Project = ProjectArtifact = ProjectVersion = None  # type: ignore
-    _DB_AVAILABLE = False
 
 
 def _utc_now() -> str:
@@ -72,7 +70,7 @@ class ProjectStore:
             "created_at": now,
             "updated_at": now,
         }
-        if _DB_AVAILABLE:
+        if is_db_available():
             async with AsyncSessionLocal() as db:  # type: ignore[arg-type]
                 row = Project(
                     id=project_id,
@@ -93,7 +91,7 @@ class ProjectStore:
 
     @classmethod
     async def list_projects(cls, owner_username: str) -> list[dict[str, Any]]:
-        if _DB_AVAILABLE:
+        if is_db_available():
             async with AsyncSessionLocal() as db:  # type: ignore[arg-type]
                 stmt = (
                     select(Project)
@@ -126,7 +124,7 @@ class ProjectStore:
 
     @classmethod
     async def get_project(cls, owner_username: str, project_id: str) -> Optional[dict[str, Any]]:
-        if _DB_AVAILABLE:
+        if is_db_available():
             async with AsyncSessionLocal() as db:  # type: ignore[arg-type]
                 stmt = select(Project).where(Project.id == project_id, Project.owner_username == owner_username)
                 row = (await db.execute(stmt)).scalar_one_or_none()
@@ -168,7 +166,7 @@ class ProjectStore:
         filtered = {key: value for key, value in changes.items() if key in allowed}
         if not filtered:
             return
-        if _DB_AVAILABLE:
+        if is_db_available():
             async with AsyncSessionLocal() as db:  # type: ignore[arg-type]
                 row = (await db.execute(select(Project).where(Project.id == project_id))).scalar_one_or_none()
                 if not row:
@@ -218,7 +216,7 @@ class ProjectStore:
             "fingerprint": _fingerprint(payload),
             "created_at": _utc_now(),
         }
-        if _DB_AVAILABLE:
+        if is_db_available():
             async with AsyncSessionLocal() as db:  # type: ignore[arg-type]
                 db.add(
                     ProjectVersion(
@@ -242,7 +240,7 @@ class ProjectStore:
 
     @classmethod
     async def list_versions(cls, project_id: str) -> list[dict[str, Any]]:
-        if _DB_AVAILABLE:
+        if is_db_available():
             async with AsyncSessionLocal() as db:  # type: ignore[arg-type]
                 rows = (
                     await db.execute(
@@ -275,7 +273,7 @@ class ProjectStore:
         *,
         version_kind: Optional[str] = None,
     ) -> Optional[dict[str, Any]]:
-        if _DB_AVAILABLE:
+        if is_db_available():
             async with AsyncSessionLocal() as db:  # type: ignore[arg-type]
                 stmt = select(ProjectVersion).where(ProjectVersion.project_id == project_id)
                 if version_kind:
@@ -329,7 +327,7 @@ class ProjectStore:
             "metadata": metadata or {},
             "created_at": _utc_now(),
         }
-        if _DB_AVAILABLE:
+        if is_db_available():
             async with AsyncSessionLocal() as db:  # type: ignore[arg-type]
                 db.add(
                     ProjectArtifact(
@@ -352,7 +350,7 @@ class ProjectStore:
 
     @classmethod
     async def list_artifacts(cls, project_id: str) -> list[dict[str, Any]]:
-        if _DB_AVAILABLE:
+        if is_db_available():
             async with AsyncSessionLocal() as db:  # type: ignore[arg-type]
                 rows = (
                     await db.execute(
@@ -401,7 +399,7 @@ class ProjectStore:
             "created_at": _utc_now(),
             "updated_at": _utc_now(),
         }
-        if _DB_AVAILABLE:
+        if is_db_available():
             async with AsyncSessionLocal() as db:  # type: ignore[arg-type]
                 db.add(
                     JobRun(
@@ -431,7 +429,7 @@ class ProjectStore:
         error: Optional[str] = None,
         result_summary: Optional[dict[str, Any]] = None,
     ) -> None:
-        if _DB_AVAILABLE:
+        if is_db_available():
             async with AsyncSessionLocal() as db:  # type: ignore[arg-type]
                 row = (await db.execute(select(JobRun).where(JobRun.id == job_id))).scalar_one_or_none()
                 if not row:
@@ -457,7 +455,7 @@ class ProjectStore:
 
     @classmethod
     async def list_jobs(cls, project_id: str) -> list[dict[str, Any]]:
-        if _DB_AVAILABLE:
+        if is_db_available():
             async with AsyncSessionLocal() as db:  # type: ignore[arg-type]
                 rows = (
                     await db.execute(
