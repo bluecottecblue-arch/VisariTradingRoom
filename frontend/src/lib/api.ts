@@ -77,7 +77,10 @@ export const authApi = {
       authenticated: boolean
       username: string | null
       role: string | null
+      ai_provider?: string
       claude_key_configured?: boolean
+      openai_key_configured?: boolean
+      google_key_configured?: boolean
     }>('/api/auth/me', {}, 10_000),
   logout: () =>
     request('/api/auth/logout', { method: 'POST' }),

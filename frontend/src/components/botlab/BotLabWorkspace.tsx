@@ -67,6 +67,7 @@ export default function BotLabWorkspace() {
   const [code, setCode] = useState('')
   const [dragActive, setDragActive] = useState(false)
   const [claudeSource, setClaudeSource] = useState<'account' | 'personal'>('personal')
+  const [aiProvider, setAiProvider] = useState('anthropic')
   const [claudeApiKey, setClaudeApiKey] = useState('')
   const [accountClaudeAvailable, setAccountClaudeAvailable] = useState(false)
   const [sourceOrigin, setSourceOrigin] = useState<'user' | 'visari'>('user')
@@ -118,7 +119,12 @@ export default function BotLabWorkspace() {
     authApi.me()
       .then((body) => {
         if (!cancelled) {
-          setAccountClaudeAvailable(Boolean(body?.claude_key_configured))
+          const hasKey = Boolean(
+             (body.ai_provider === 'openai' && body.openai_key_configured) ||
+             (body.ai_provider === 'google' && body.google_key_configured) ||
+             ((!body.ai_provider || body.ai_provider === 'anthropic') && body.claude_key_configured)
+          )
+          setAccountClaudeAvailable(hasKey)
         }
       })
       .catch(() => {
@@ -219,11 +225,11 @@ export default function BotLabWorkspace() {
       return
     }
     if (claudeSource === 'account' && !accountClaudeAvailable) {
-      setError('Per questo account non risulta configurata una Claude API key. Usa la tua key personale oppure chiedi all’admin di assegnartene una.')
+      setError('Per questo account non risulta configurata una API key. Usa la tua key personale oppure chiedi all’admin di assegnartene una.')
       return
     }
     if (claudeSource === 'personal' && !claudeApiKey.trim()) {
-      setError('Inserisci la tua Claude API key personale per usare la modifica assistita del bot.')
+      setError('Inserisci la tua API key personale per usare la modifica assistita del bot.')
       return
     }
     modifyTokenRef.current += 1
@@ -238,6 +244,7 @@ export default function BotLabWorkspace() {
         claude_access: {
           credential_source: claudeSource,
           api_key: claudeSource === 'personal' ? claudeApiKey : '',
+          provider: claudeSource === 'personal' ? aiProvider : 'anthropic',
         },
         fundamental_filters: effectiveFundamentals,
       }) as BotLabModifyResult
@@ -323,13 +330,13 @@ export default function BotLabWorkspace() {
 
           <div className="space-y-4 border border-slate-800/90 bg-slate-950/70 px-5 py-5">
             <div className="flex items-center justify-between gap-3">
-              <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Claude access for revisions</div>
+              <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">AI Engine access for revisions</div>
               <span className="border border-slate-800 px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] text-slate-500">
                 {claudeSource === 'account' ? 'account key' : 'personal key'}
               </span>
             </div>
             <div className="text-sm leading-relaxed text-slate-400">
-              Use the Claude key assigned to your account, or provide your own personal key only for this revision session.
+              Use the AI Service key assigned to your account, or provide your own personal key only for this revision session.
             </div>
             <div className="grid gap-3 md:grid-cols-2">
               <button
@@ -342,7 +349,7 @@ export default function BotLabWorkspace() {
                     : 'border-slate-800 bg-transparent text-slate-400 hover:border-slate-700 hover:text-slate-100'
                 } ${!accountClaudeAvailable ? 'cursor-not-allowed opacity-50' : ''}`}
               >
-                <div className="text-sm font-medium">Use my assigned Claude key</div>
+                <div className="text-sm font-medium">Use my assigned AI key</div>
                 <div className="mt-1 text-xs text-slate-500">
                   {accountClaudeAvailable ? 'Available on this account.' : 'No account key assigned yet.'}
                 </div>
@@ -356,23 +363,34 @@ export default function BotLabWorkspace() {
                     : 'border-slate-800 bg-transparent text-slate-400 hover:border-slate-700 hover:text-slate-100'
                 }`}
               >
-                <div className="text-sm font-medium">Use my personal Claude key</div>
+                <div className="text-sm font-medium">Use my personal AI key</div>
                 <div className="mt-1 text-xs text-slate-500">Scoped to the current revision request.</div>
               </button>
             </div>
             {claudeSource === 'personal' ? (
-              <input
-                type="password"
-                value={claudeApiKey}
-                onChange={(e) => setClaudeApiKey(e.target.value)}
-                className={inputCls}
-                placeholder="sk-ant-..."
-              />
+              <div className="grid gap-4 md:grid-cols-2">
+                <select
+                  value={aiProvider}
+                  onChange={(e) => setAiProvider(e.target.value)}
+                  className={inputCls}
+                >
+                  <option value="anthropic">Anthropic (Claude)</option>
+                  <option value="openai">OpenAI (GPT-4o)</option>
+                  <option value="google">Google (Gemini)</option>
+                </select>
+                <input
+                  type="password"
+                  value={claudeApiKey}
+                  onChange={(e) => setClaudeApiKey(e.target.value)}
+                  className={inputCls}
+                  placeholder={aiProvider === 'openai' ? 'sk-proj-...' : aiProvider === 'google' ? 'AIza...' : 'sk-ant-...'}
+                />
+              </div>
             ) : (
               <div className="border border-slate-800 bg-slate-950/70 px-4 py-3 text-xs text-slate-500">
                 {accountClaudeAvailable
-                  ? 'Guided revisions will use the Claude key assigned to this user.'
-                  : 'Ask the admin to assign a Claude key to this account, or switch to your own personal key.'}
+                  ? 'Guided revisions will use the AI provider and key assigned to this user.'
+                  : 'Ask the admin to assign an AI API key to this account, or switch to your own personal key.'}
               </div>
             )}
           </div>

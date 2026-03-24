@@ -10,7 +10,10 @@ type UserItem = {
   plan: string
   expires_at: string | null
   notes: string
+  ai_provider: string
   claude_key_configured: boolean
+  openai_key_configured: boolean
+  google_key_configured: boolean
   created_at: string | null
   updated_at: string | null
   last_login_at: string | null
@@ -24,7 +27,10 @@ export default function AdminPanel() {
   const [status, setStatus] = useState<'active' | 'suspended'>('active')
   const [plan, setPlan] = useState('standard')
   const [expiresAt, setExpiresAt] = useState('')
+  const [aiProvider, setAiProvider] = useState('anthropic')
   const [claudeApiKey, setClaudeApiKey] = useState('')
+  const [openaiApiKey, setOpenaiApiKey] = useState('')
+  const [googleApiKey, setGoogleApiKey] = useState('')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(true)
@@ -64,7 +70,10 @@ export default function AdminPanel() {
           status,
           plan,
           expires_at: expiresAt || null,
+          ai_provider: aiProvider,
           claude_api_key: claudeApiKey || null,
+          openai_api_key: openaiApiKey || null,
+          google_api_key: googleApiKey || null,
         }),
       })
       const body = await response.json().catch(() => ({}))
@@ -74,7 +83,10 @@ export default function AdminPanel() {
       setStatus('active')
       setPlan('standard')
       setExpiresAt('')
+      setAiProvider('anthropic')
       setClaudeApiKey('')
+      setOpenaiApiKey('')
+      setGoogleApiKey('')
       setNotice(`Account creato: ${body.user?.username || username}`)
       await loadUsers()
     } catch (err) {
@@ -142,25 +154,39 @@ export default function AdminPanel() {
     }
   }
 
-  async function setUserClaudeKey(target: string, existingConfigured: boolean) {
+  async function setUserKey(target: string, provider: 'anthropic' | 'openai' | 'google', isConfigured: boolean) {
+    const keyMap = { anthropic: 'Claude', openai: 'OpenAI', google: 'Google Gemini' }
+    const fieldMap = { anthropic: 'claude_api_key', openai: 'openai_api_key', google: 'google_api_key' }
+    const name = keyMap[provider]
+    const keyField = fieldMap[provider]
+    
     const nextKey = window.prompt(
-      existingConfigured
-        ? `Aggiorna la Claude API key assegnata a ${target}`
-        : `Inserisci una Claude API key da assegnare a ${target}`,
+      isConfigured
+        ? `Aggiorna la ${name} API key assegnata a ${target}`
+        : `Inserisci una ${name} API key da assegnare a ${target}`,
     )
     if (nextKey === null) return
     await updateAccount(
       target,
-      { claude_api_key: nextKey.trim() },
+      { [keyField]: nextKey.trim() },
       nextKey.trim()
-        ? `Claude key aggiornata per ${target}`
-        : `Claude key rimossa per ${target}`,
+        ? `${name} key aggiornata per ${target}`
+        : `${name} key rimossa per ${target}`,
     )
   }
 
-  async function removeUserClaudeKey(target: string) {
-    if (!window.confirm(`Rimuovere la Claude API key assegnata a ${target}?`)) return
-    await updateAccount(target, { claude_api_key: '' }, `Claude key rimossa per ${target}`)
+  async function removeUserKey(target: string, provider: 'anthropic' | 'openai' | 'google') {
+    const keyMap = { anthropic: 'Claude', openai: 'OpenAI', google: 'Google Gemini' }
+    const fieldMap = { anthropic: 'claude_api_key', openai: 'openai_api_key', google: 'google_api_key' }
+    const name = keyMap[provider]
+    if (!window.confirm(`Rimuovere la ${name} API key assegnata a ${target}?`)) return
+    await updateAccount(target, { [fieldMap[provider]]: '' }, `${name} key rimossa per ${target}`)
+  }
+
+  async function changeUserProvider(target: string, current: string) {
+    const nextProvider = window.prompt(`Nuovo provider AI per ${target} (anthropic, openai, google) (Attuale: ${current})`, current)
+    if (!nextProvider || !['anthropic', 'openai', 'google'].includes(nextProvider.trim().toLowerCase())) return
+    await updateAccount(target, { ai_provider: nextProvider.trim().toLowerCase() }, `Provider AI aggiornato a ${nextProvider.trim().toLowerCase()}`)
   }
 
   async function logout() {
@@ -249,14 +275,48 @@ export default function AdminPanel() {
                 className="w-full border border-slate-800 bg-slate-950 px-4 py-3 outline-none focus:border-slate-500"
               />
             </label>
+            <div className="grid grid-cols-2 gap-4">
+              <label className="block">
+                <span className="mb-2 block text-[11px] uppercase tracking-[0.14em] text-slate-500">AI Provider</span>
+                <select
+                  value={aiProvider}
+                  onChange={(event) => setAiProvider(event.target.value)}
+                  className="w-full border border-slate-800 bg-slate-950 px-4 py-3 outline-none focus:border-slate-500"
+                >
+                  <option value="anthropic">Anthropic</option>
+                  <option value="openai">OpenAI</option>
+                  <option value="google">Google Gemini</option>
+                </select>
+              </label>
+            </div>
             <label className="block">
-              <span className="mb-2 block text-[11px] uppercase tracking-[0.14em] text-slate-500">Claude API key assegnata (optional)</span>
+              <span className="mb-2 block text-[11px] uppercase tracking-[0.14em] text-slate-500">Claude API key (optional)</span>
               <input
                 type="password"
                 value={claudeApiKey}
                 onChange={(event) => setClaudeApiKey(event.target.value)}
                 className="w-full border border-slate-800 bg-slate-950 px-4 py-3 outline-none focus:border-slate-500"
                 placeholder="sk-ant-..."
+              />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-[11px] uppercase tracking-[0.14em] text-slate-500">OpenAI API key (optional)</span>
+              <input
+                type="password"
+                value={openaiApiKey}
+                onChange={(event) => setOpenaiApiKey(event.target.value)}
+                className="w-full border border-slate-800 bg-slate-950 px-4 py-3 outline-none focus:border-slate-500"
+                placeholder="sk-proj-..."
+              />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-[11px] uppercase tracking-[0.14em] text-slate-500">Google API key (optional)</span>
+              <input
+                type="password"
+                value={googleApiKey}
+                onChange={(event) => setGoogleApiKey(event.target.value)}
+                className="w-full border border-slate-800 bg-slate-950 px-4 py-3 outline-none focus:border-slate-500"
+                placeholder="AIza..."
               />
             </label>
             <button
@@ -311,10 +371,21 @@ export default function AdminPanel() {
                         Status: {user.status} · Plan: {user.plan} · Ultimo login: {user.last_login_at || 'mai'}
                       </div>
                       <div className="mt-1 text-xs text-slate-500">
-                        Creato: {user.created_at || 'n/d'} · Scade: {user.expires_at || 'mai'} · Claude key: {user.claude_key_configured ? 'configurata' : 'non configurata'}
+                        Creato: {user.created_at || 'n/d'} · Scade: {user.expires_at || 'mai'} · Provider: <span className="text-cyan-400">{user.ai_provider}</span>
+                      </div>
+                      <div className="mt-1 flex gap-2 text-xs text-slate-500">
+                        <span>Claude: {user.claude_key_configured ? <span className="text-emerald-400">Si</span> : 'No'}</span>
+                        <span>OpenAI: {user.openai_key_configured ? <span className="text-emerald-400">Si</span> : 'No'}</span>
+                        <span>Google: {user.google_key_configured ? <span className="text-emerald-400">Si</span> : 'No'}</span>
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2 md:justify-end">
+                      <button
+                        onClick={() => changeUserProvider(user.username, user.ai_provider)}
+                        className="border border-slate-800 bg-slate-900 px-3 py-2 text-xs hover:border-slate-600"
+                      >
+                        Cambia Provider
+                      </button>
                       <button
                         onClick={() =>
                           updateAccount(
@@ -329,20 +400,37 @@ export default function AdminPanel() {
                       >
                         {user.status === 'suspended' ? 'Riattiva' : 'Sospendi'}
                       </button>
-                      <button
-                        onClick={() => setUserClaudeKey(user.username, user.claude_key_configured)}
-                        className="border border-slate-800 px-3 py-2 text-xs hover:border-slate-600"
-                      >
-                        {user.claude_key_configured ? 'Aggiorna Claude key' : 'Assegna Claude key'}
-                      </button>
-                      {user.claude_key_configured && (
+                      
+                      <div className="flex gap-1">
                         <button
-                          onClick={() => removeUserClaudeKey(user.username)}
-                          className="border border-slate-800 px-3 py-2 text-xs hover:border-slate-600"
+                          onClick={() => setUserKey(user.username, 'anthropic', user.claude_key_configured)}
+                          className={`border px-2 py-2 text-[10px] uppercase ${user.claude_key_configured ? 'border-emerald-900/50 text-emerald-500' : 'border-slate-800 text-slate-500'}`}
                         >
-                          Rimuovi Claude key
+                          Claude
                         </button>
-                      )}
+                        {user.claude_key_configured && (
+                          <button onClick={() => removeUserKey(user.username, 'anthropic')} className="border border-slate-800 px-2 py-2 text-[10px] text-rose-500">✕</button>
+                        )}
+                        <button
+                          onClick={() => setUserKey(user.username, 'openai', user.openai_key_configured)}
+                          className={`border px-2 py-2 text-[10px] uppercase ${user.openai_key_configured ? 'border-emerald-900/50 text-emerald-500' : 'border-slate-800 text-slate-500'}`}
+                        >
+                          OpenAI
+                        </button>
+                        {user.openai_key_configured && (
+                          <button onClick={() => removeUserKey(user.username, 'openai')} className="border border-slate-800 px-2 py-2 text-[10px] text-rose-500">✕</button>
+                        )}
+                        <button
+                          onClick={() => setUserKey(user.username, 'google', user.google_key_configured)}
+                          className={`border px-2 py-2 text-[10px] uppercase ${user.google_key_configured ? 'border-emerald-900/50 text-emerald-500' : 'border-slate-800 text-slate-500'}`}
+                        >
+                          Google
+                        </button>
+                        {user.google_key_configured && (
+                          <button onClick={() => removeUserKey(user.username, 'google')} className="border border-slate-800 px-2 py-2 text-[10px] text-rose-500">✕</button>
+                        )}
+                      </div>
+
                       <button
                         onClick={() => resetUserPassword(user.username)}
                         className="border border-slate-800 px-3 py-2 text-xs hover:border-slate-600"

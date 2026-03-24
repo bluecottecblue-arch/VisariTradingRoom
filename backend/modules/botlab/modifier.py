@@ -9,7 +9,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
-from modules.common.anthropic_client import get_anthropic_model, invoke_json
+from modules.common.anthropic_client import get_anthropic_model
+from modules.common.llm_client import invoke_json
 from modules.common.strategy_validation import (
     STATUS_INVALID,
     STATUS_VALID,
@@ -147,7 +148,7 @@ class BotModifier:
                 "original_code_summary": original_analysis.get("code_summary", {}),
                 "original_code": original_code,
             },
-            api_key_override=normalized_access.get("api_key") or None,
+            ai_credentials=normalized_access,
         )
         data = llm_result["data"]
         modified_code = str(data.get("modified_code") or "").strip()

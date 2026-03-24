@@ -32,13 +32,15 @@ def normalize_claude_access(raw: Optional[dict]) -> dict:
     return {
         "credential_source": credential_source,
         "api_key": str(raw.get("api_key") or "").strip(),
+        "provider": str(raw.get("provider") or "anthropic").strip().lower(),
     }
 
 
-def resolve_claude_access(raw: Optional[dict], *, account_api_key: Optional[str] = None) -> dict:
+def resolve_claude_access(raw: Optional[dict], *, account_api_key: Optional[str] = None, account_provider: str = "anthropic") -> dict:
     normalized = normalize_claude_access(raw)
     if normalized["credential_source"] == "account":
         normalized["api_key"] = str(account_api_key or "").strip()
+        normalized["provider"] = account_provider
     return normalized
 
 

@@ -47,6 +47,7 @@ const DEFAULT_FORM: StrategyIntake = {
   claude_access: {
     credential_source: 'personal',
     api_key: '',
+    provider: 'anthropic',
   },
   macro_news: DEFAULT_FUNDAMENTAL_FILTERS,
 }
@@ -92,7 +93,14 @@ export default function StepIntake({ projectId, onComplete }: Props) {
     let cancelled = false
     authApi.me()
       .then((body) => {
-        if (!cancelled) setAccountClaudeAvailable(Boolean(body?.claude_key_configured))
+        if (!cancelled) {
+          const hasKey = Boolean(
+             (body.ai_provider === 'openai' && body.openai_key_configured) ||
+             (body.ai_provider === 'google' && body.google_key_configured) ||
+             ((!body.ai_provider || body.ai_provider === 'anthropic') && body.claude_key_configured)
+          )
+          setAccountClaudeAvailable(hasKey)
+        }
       })
       .catch(() => {
         if (!cancelled) setAccountClaudeAvailable(false)
@@ -184,10 +192,10 @@ export default function StepIntake({ projectId, onComplete }: Props) {
     if (!form.name.trim()) return 'Give the strategy a name.'
     if (!form.market.trim()) return 'Select the market or instrument.'
     if (form.claude_access?.credential_source === 'account' && !accountClaudeAvailable) {
-      return 'This account has no Claude key assigned yet. Switch to your personal key or ask admin to assign one.'
+      return 'This account has no AI API key assigned yet. Switch to your personal key or ask admin to assign one.'
     }
     if (form.claude_access?.credential_source !== 'account' && !(form.claude_access?.api_key || '').trim()) {
-      return 'Insert your Claude API key to continue.'
+      return 'Insert your personal AI API key to continue.'
     }
     if (!form.long_entry.trim()) return 'Describe the long setup.'
     if (!form.invalidation.trim()) return 'Describe the invalidation logic.'
@@ -304,10 +312,10 @@ export default function StepIntake({ projectId, onComplete }: Props) {
         <div className="space-y-8">
           {formStep === 1 && (
             <>
-              <Section title="Claude access">
+              <Section title="AI Engine access">
                 <div className="space-y-4">
                   <div className="text-xs text-stone-500">
-                    Strategy analysis, formalization and bot generation require a Claude key. You can use the key assigned to your account by admin or provide your own personal key for this run.
+                    Strategy analysis, formalization and bot generation require an AI API key. You can use the key assigned to your account by admin or provide your own personal key for this run.
                   </div>
                   <div className="rounded border border-stone-800 bg-stone-900/60 px-4 py-3 text-xs text-stone-500">
                     No global shared key is exposed to users. Every workflow uses either your personal key or the key assigned to your account.
@@ -315,7 +323,7 @@ export default function StepIntake({ projectId, onComplete }: Props) {
                   <div className="grid gap-3 md:grid-cols-2">
                     <button
                       type="button"
-                      onClick={() => accountClaudeAvailable && set('claude_access', { ...(form.claude_access || { api_key: '' }), credential_source: 'account' })}
+                      onClick={() => accountClaudeAvailable && set('claude_access', { ...(form.claude_access || { api_key: '', provider: 'anthropic' }), credential_source: 'account' })}
                       disabled={!accountClaudeAvailable}
                       className={`border px-4 py-3 text-left transition-colors ${
                         form.claude_access?.credential_source === 'account'
@@ -323,39 +331,52 @@ export default function StepIntake({ projectId, onComplete }: Props) {
                           : 'border-slate-800 bg-transparent text-slate-400 hover:border-slate-700 hover:text-slate-100'
                       } ${!accountClaudeAvailable ? 'cursor-not-allowed opacity-50' : ''}`}
                     >
-                      <div className="text-sm font-medium">Use account Claude key</div>
+                      <div className="text-sm font-medium">Use my assigned AI key</div>
                       <div className="mt-1 text-xs text-slate-500">
-                        {accountClaudeAvailable ? 'Assigned by admin to this user.' : 'No account key configured.'}
+                        {accountClaudeAvailable ? 'Available on this account.' : 'No account key configured.'}
                       </div>
                     </button>
                     <button
                       type="button"
-                      onClick={() => set('claude_access', { ...(form.claude_access || { api_key: '' }), credential_source: 'personal' })}
+                      onClick={() => set('claude_access', { ...(form.claude_access || { api_key: '', provider: 'anthropic' }), credential_source: 'personal' })}
                       className={`border px-4 py-3 text-left transition-colors ${
                         form.claude_access?.credential_source === 'personal'
                           ? 'border-slate-500 bg-slate-900 text-slate-100'
                           : 'border-slate-800 bg-transparent text-slate-400 hover:border-slate-700 hover:text-slate-100'
                       }`}
                     >
-                      <div className="text-sm font-medium">Use my personal Claude key</div>
+                      <div className="text-sm font-medium">Use my personal AI key</div>
                       <div className="mt-1 text-xs text-slate-500">Used only for this strategy workflow.</div>
                     </button>
                   </div>
                   {form.claude_access?.credential_source === 'personal' ? (
-                    <Field label="Claude API key" required>
-                      <input
-                        type="password"
-                        value={form.claude_access?.api_key || ''}
-                        onChange={(e) => set('claude_access', { credential_source: 'personal', api_key: e.target.value })}
-                        className={inputCls}
-                        placeholder="sk-ant-..."
-                      />
-                    </Field>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <Field label="AI Provider">
+                        <select
+                          value={form.claude_access.provider || 'anthropic'}
+                          onChange={(e) => set('claude_access', { ...form.claude_access!, provider: e.target.value })}
+                          className={inputCls}
+                        >
+                          <option value="anthropic">Anthropic (Claude)</option>
+                          <option value="openai">OpenAI (o1/GPT-4o)</option>
+                          <option value="google">Google (Gemini)</option>
+                        </select>
+                      </Field>
+                      <Field label={`${form.claude_access.provider === 'openai' ? 'OpenAI' : form.claude_access.provider === 'google' ? 'Google Gemini' : 'Claude'} API key`} required>
+                        <input
+                          type="password"
+                          value={form.claude_access?.api_key || ''}
+                          onChange={(e) => set('claude_access', { ...form.claude_access!, api_key: e.target.value })}
+                          className={inputCls}
+                          placeholder={form.claude_access.provider === 'openai' ? 'sk-proj-...' : form.claude_access.provider === 'google' ? 'AIza...' : 'sk-ant-...'}
+                        />
+                      </Field>
+                    </div>
                   ) : (
                     <div className="rounded border border-slate-800 bg-slate-950/60 px-4 py-3 text-xs text-slate-500">
                       {accountClaudeAvailable
-                        ? 'This run will use the Claude key already assigned to your account.'
-                        : 'Switch to personal key or ask admin to assign a Claude key to your account.'}
+                        ? 'This run will use the AI provider and key already assigned to your account.'
+                        : 'Switch to personal key or ask admin to assign a key to your account.'}
                     </div>
                   )}
                 </div>

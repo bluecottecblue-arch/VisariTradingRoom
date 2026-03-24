@@ -19,7 +19,7 @@ from modules.common.strategy_validation import (
     resolve_claude_access,
     validate_strategy_intake,
 )
-from modules.auth.user_store import get_user_claude_api_key
+from modules.auth.user_store import get_user_ai_credentials
 from modules.research.decision_engine import is_promoted_verdict
 from modules.projects.store import ProjectStore
 from modules.auth.security import AuthContext, require_authenticated
@@ -243,9 +243,11 @@ async def strategy_preflight(
 ):
     """Controllo locale gratuito: codificabilità e budget stimato prima di spendere token."""
     intake = req.model_dump()
+    user_creds = get_user_ai_credentials(context.username)
     intake["claude_access"] = resolve_claude_access(
         intake.get("claude_access"),
-        account_api_key=get_user_claude_api_key(context.username),
+        account_api_key=user_creds["api_key"],
+        account_provider=user_creds["provider"],
     )
     intake = enrich_intake_with_technical_defaults(intake)
     result = validate_strategy_intake(intake)
@@ -284,9 +286,11 @@ async def parse_strategy(
     parse_job: Optional[dict[str, Any]] = None
     try:
         intake = req.model_dump()
+        user_creds = get_user_ai_credentials(context.username)
         intake["claude_access"] = resolve_claude_access(
             intake.get("claude_access"),
-            account_api_key=get_user_claude_api_key(context.username),
+            account_api_key=user_creds["api_key"],
+            account_provider=user_creds["provider"],
         )
         intake = enrich_intake_with_technical_defaults(intake)
         project = await _resolve_project(

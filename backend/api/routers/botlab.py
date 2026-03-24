@@ -23,7 +23,7 @@ from modules.botlab.parser import analyze_bot_code, summarize_bot_diff
 from modules.common.strategy_validation import empty_usage, resolve_claude_access
 from modules.fundamentals.economic_calendar import fetch_calendar_events, list_calendar_providers
 from modules.projects.store import ProjectStore
-from modules.auth.user_store import get_user_claude_api_key
+from modules.auth.user_store import get_user_ai_credentials
 
 router = APIRouter()
 modifier = BotModifier()
@@ -181,7 +181,8 @@ async def modify_bot(
         prompt=req.prompt,
         claude_access=resolve_claude_access(
             req.claude_access or {},
-            account_api_key=get_user_claude_api_key(context.username),
+            account_api_key=get_user_ai_credentials(context.username)["api_key"],
+            account_provider=get_user_ai_credentials(context.username)["provider"],
         ),
         fundamental_filters=fundamental_filters,
     )

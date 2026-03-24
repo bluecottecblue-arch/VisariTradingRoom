@@ -8,7 +8,8 @@ Principio fondamentale: essere onesti sulle limitazioni.
 Se una parte della strategia non è oggettivamente codificabile, lo diciamo.
 """
 
-from modules.common.anthropic_client import get_anthropic_model, invoke_json
+from modules.common.anthropic_client import get_anthropic_model
+from modules.common.llm_client import invoke_json
 from modules.common.strategy_validation import (
     STATUS_VALID,
     build_ambiguity,
@@ -52,7 +53,7 @@ class StrategyParser:
             system_prompt=SYSTEM_PROMPT,
             payload=self._build_payload(intake),
             model=self.model,
-            api_key_override=claude_access.get("api_key") or None,
+            ai_credentials=claude_access,
         )
         parsed = self._validate_parsed_structure(llm_result["data"])
         parsed["required_inputs"] = self._filter_satisfied_required_inputs(

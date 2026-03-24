@@ -84,6 +84,7 @@ export interface StrategyIntake {
 export interface ClaudeAccessConfig {
   credential_source: 'personal' | 'account'
   api_key?: string
+  provider?: string
 }
 
 export interface MacroNewsConfig {

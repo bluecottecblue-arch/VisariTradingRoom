@@ -11,7 +11,8 @@ import json
 import re
 from typing import Optional
 
-from modules.common.anthropic_client import get_anthropic_model, invoke_text, parse_json_response
+from modules.common.anthropic_client import get_anthropic_model, parse_json_response
+from modules.common.llm_client import invoke_text
 from modules.common.deployment_bundle import build_deployment_readiness
 from modules.common.strategy_validation import (
     STATUS_GENERATION_FAILED,
@@ -119,7 +120,7 @@ class MQL5Generator:
             system_prompt=MQL5_SYSTEM_PROMPT,
             payload=self._build_payload(spec),
             model=self.model,
-            api_key_override=claude_access.get("api_key") or None,
+            ai_credentials=claude_access,
         )
         data = self._parse_mixed_response(llm_result["text"])
         code = self._normalize_generated_code((data.get("mql5_code") or "").strip(), spec)

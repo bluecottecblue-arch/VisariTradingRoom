@@ -8,7 +8,8 @@ E produce una specifica algoritmica completa con macchina a stati.
 """
 import re
 
-from modules.common.anthropic_client import get_anthropic_model, invoke_json
+from modules.common.anthropic_client import get_anthropic_model
+from modules.common.llm_client import invoke_json
 from modules.common.strategy_validation import (
     STATUS_INVALID,
     STATUS_VALID,
@@ -98,7 +99,7 @@ class StrategyFormalizer:
             system_prompt=FORMALIZATION_SYSTEM,
             payload=self._build_payload(session_payload, readiness["selected_resolutions"]),
             model=self.model,
-            api_key_override=claude_access.get("api_key") or None,
+            ai_credentials=claude_access,
         )
         data = self._validate_formalization_structure(llm_result["data"], session_payload)
         payload_validation = validate_formal_spec_payload(data)

@@ -32,7 +32,10 @@ class UserCreateRequest(BaseModel):
     plan: str = "standard"
     expires_at: Optional[str] = None
     notes: Optional[str] = None
+    ai_provider: str = "anthropic"
     claude_api_key: Optional[str] = None
+    openai_api_key: Optional[str] = None
+    google_api_key: Optional[str] = None
 
 
 class PasswordResetRequest(BaseModel):
@@ -44,7 +47,10 @@ class UserUpdateRequest(BaseModel):
     plan: Optional[str] = None
     expires_at: Optional[str] = None
     notes: Optional[str] = None
+    ai_provider: Optional[str] = None
     claude_api_key: Optional[str] = None
+    openai_api_key: Optional[str] = None
+    google_api_key: Optional[str] = None
 
 
 def _normalize_admin_username() -> str:
@@ -103,7 +109,10 @@ async def get_current_user(context: AuthContext = Depends(require_authenticated)
         "username": context.username,
         "role": context.role,
         "exp": context.exp,
+        "ai_provider": (user_profile or {}).get("ai_provider", "anthropic"),
         "claude_key_configured": bool((user_profile or {}).get("claude_key_configured")),
+        "openai_key_configured": bool((user_profile or {}).get("openai_key_configured")),
+        "google_key_configured": bool((user_profile or {}).get("google_key_configured")),
         "plan": (user_profile or {}).get("plan"),
         "status": (user_profile or {}).get("status"),
         "expires_at": (user_profile or {}).get("expires_at"),
@@ -133,7 +142,10 @@ async def admin_create_user(
             plan=payload.plan,
             expires_at=payload.expires_at,
             notes=payload.notes or "",
+            ai_provider=payload.ai_provider,
             claude_api_key=payload.claude_api_key,
+            openai_api_key=payload.openai_api_key,
+            google_api_key=payload.google_api_key,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -178,7 +190,10 @@ async def admin_update_user(
             plan=payload.plan,
             expires_at=payload.expires_at,
             notes=payload.notes,
+            ai_provider=payload.ai_provider,
             claude_api_key=payload.claude_api_key,
+            openai_api_key=payload.openai_api_key,
+            google_api_key=payload.google_api_key,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

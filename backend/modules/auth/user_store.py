@@ -53,7 +53,10 @@ def _read_data() -> dict:
         user.setdefault("plan", "standard")
         user.setdefault("expires_at", None)
         user.setdefault("notes", "")
+        user.setdefault("ai_provider", "anthropic")
         user.setdefault("claude_api_key", "")
+        user.setdefault("openai_api_key", "")
+        user.setdefault("google_api_key", "")
     return payload
 
 
@@ -141,7 +144,10 @@ def list_users() -> list[dict]:
                     "plan": user.get("plan") or "standard",
                     "expires_at": user.get("expires_at"),
                     "notes": user.get("notes") or "",
+                    "ai_provider": user.get("ai_provider") or "anthropic",
                     "claude_key_configured": bool(str(user.get("claude_api_key") or "").strip()),
+                    "openai_key_configured": bool(str(user.get("openai_api_key") or "").strip()),
+                    "google_key_configured": bool(str(user.get("google_api_key") or "").strip()),
                     "created_at": user.get("created_at"),
                     "updated_at": user.get("updated_at"),
                     "last_login_at": user.get("last_login_at"),
@@ -158,7 +164,10 @@ def create_user(
     plan: str = "standard",
     expires_at: Optional[str] = None,
     notes: str = "",
+    ai_provider: str = "anthropic",
     claude_api_key: Optional[str] = None,
+    openai_api_key: Optional[str] = None,
+    google_api_key: Optional[str] = None,
 ) -> dict:
     normalized = _normalize_username(username)
     if len(normalized) < 3:
@@ -179,7 +188,10 @@ def create_user(
             "plan": _normalize_plan(plan),
             "expires_at": _normalize_expires_at(expires_at),
             "notes": str(notes or "").strip(),
+            "ai_provider": str(ai_provider or "anthropic").strip(),
             "claude_api_key": str(claude_api_key or "").strip(),
+            "openai_api_key": str(openai_api_key or "").strip(),
+            "google_api_key": str(google_api_key or "").strip(),
             "created_at": now,
             "updated_at": now,
             "last_login_at": None,
@@ -192,7 +204,10 @@ def create_user(
             "plan": user["plan"],
             "expires_at": user["expires_at"],
             "notes": user["notes"],
+            "ai_provider": user["ai_provider"],
             "claude_key_configured": bool(user["claude_api_key"]),
+            "openai_key_configured": bool(user.get("openai_api_key")),
+            "google_key_configured": bool(user.get("google_api_key")),
             "created_at": now,
             "updated_at": now,
             "last_login_at": None,
@@ -242,7 +257,10 @@ def update_user(
     plan: Optional[str] = None,
     expires_at: Optional[str] = None,
     notes: Optional[str] = None,
+    ai_provider: Optional[str] = None,
     claude_api_key: Optional[str] = None,
+    openai_api_key: Optional[str] = None,
+    google_api_key: Optional[str] = None,
 ) -> dict:
     normalized = _normalize_username(username)
     with _LOCK:
@@ -258,8 +276,14 @@ def update_user(
             user["expires_at"] = _normalize_expires_at(expires_at)
         if notes is not None:
             user["notes"] = str(notes).strip()
+        if ai_provider is not None:
+            user["ai_provider"] = str(ai_provider).strip()
         if claude_api_key is not None:
             user["claude_api_key"] = str(claude_api_key).strip()
+        if openai_api_key is not None:
+            user["openai_api_key"] = str(openai_api_key).strip()
+        if google_api_key is not None:
+            user["google_api_key"] = str(google_api_key).strip()
         if _is_expired(user.get("expires_at")):
             user["status"] = "expired"
         user["updated_at"] = _utc_now()
@@ -270,7 +294,10 @@ def update_user(
             "plan": user.get("plan", "standard"),
             "expires_at": user.get("expires_at"),
             "notes": user.get("notes", ""),
+            "ai_provider": user.get("ai_provider", "anthropic"),
             "claude_key_configured": bool(str(user.get("claude_api_key") or "").strip()),
+            "openai_key_configured": bool(str(user.get("openai_api_key") or "").strip()),
+            "google_key_configured": bool(str(user.get("google_api_key") or "").strip()),
             "updated_at": user.get("updated_at"),
         }
 
@@ -307,7 +334,10 @@ def verify_user(username: str, password: str) -> Optional[dict]:
             "status": user.get("status", "active"),
             "plan": user.get("plan", "standard"),
             "expires_at": user.get("expires_at"),
+            "ai_provider": user.get("ai_provider", "anthropic"),
             "claude_key_configured": bool(str(user.get("claude_api_key") or "").strip()),
+            "openai_key_configured": bool(str(user.get("openai_api_key") or "").strip()),
+            "google_key_configured": bool(str(user.get("google_api_key") or "").strip()),
             "created_at": user.get("created_at"),
             "updated_at": user.get("updated_at"),
             "last_login_at": user.get("last_login_at"),
@@ -334,12 +364,34 @@ def get_user_profile(username: str) -> Optional[dict]:
             "plan": user.get("plan", "standard"),
             "expires_at": user.get("expires_at"),
             "notes": user.get("notes") or "",
+            "ai_provider": user.get("ai_provider", "anthropic"),
             "claude_key_configured": bool(str(user.get("claude_api_key") or "").strip()),
+            "openai_key_configured": bool(str(user.get("openai_api_key") or "").strip()),
+            "google_key_configured": bool(str(user.get("google_api_key") or "").strip()),
             "created_at": user.get("created_at"),
             "updated_at": user.get("updated_at"),
             "last_login_at": user.get("last_login_at"),
         }
 
+
+def get_user_ai_credentials(username: str) -> dict:
+    normalized = _normalize_username(username)
+    with _LOCK:
+        payload = _read_data()
+        user = _find_user(payload, normalized)
+        if not user:
+            return {"provider": "anthropic", "api_key": ""}
+            
+        provider = str(user.get("ai_provider") or "anthropic").strip()
+        
+        if provider == "openai":
+            key = str(user.get("openai_api_key") or "").strip()
+        elif provider == "google":
+            key = str(user.get("google_api_key") or "").strip()
+        else:
+            key = str(user.get("claude_api_key") or "").strip()
+            
+        return {"provider": provider, "api_key": key}
 
 def get_user_claude_api_key(username: str) -> str:
     normalized = _normalize_username(username)
