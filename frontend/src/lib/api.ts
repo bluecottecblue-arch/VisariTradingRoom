@@ -47,6 +47,9 @@ async function request<T>(
     if (e instanceof DOMException && e.name === 'AbortError') {
       throw new ApiError(408, 'Richiesta scaduta — il server ha impiegato troppo. Riprova.')
     }
+    if (e instanceof TypeError && e.message.includes('fetch')) {
+      throw new ApiError(503, 'Connessione al server persa o backend non raggiungibile. Controlla la rete e riprova.')
+    }
     throw e
   } finally {
     clearTimeout(timer)

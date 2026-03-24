@@ -11,6 +11,7 @@ import json
 from pathlib import Path
 import os
 import re
+import traceback
 from typing import Any, Dict, Optional
 
 from dotenv import load_dotenv
@@ -195,20 +196,37 @@ async def invoke_text(
                 cached_usage.get("output_tokens", 0),
             )
         )
-        return {"text": cached["raw_text"], "usage": cached_usage}
+        return {"text": cached["raw_text"], "usage": cached_usage, "cache_key": cache_key}
 
     estimated_input_tokens = client.count_tokens(system_prompt) + client.count_tokens(prompt)
     loop = asyncio.get_running_loop()
-    message = await loop.run_in_executor(
-        None,
-        lambda: client.messages.create(
-            model=model,
-            max_tokens=max_tokens,
-            temperature=0,
-            system=system_prompt,
-            messages=[{"role": "user", "content": prompt}],
-        ),
-    )
+    
+    max_retries = 3
+    base_delay = 2.0
+    
+    for attempt in range(max_retries + 1):
+        try:
+            message = await loop.run_in_executor(
+                None,
+                lambda: client.messages.create(
+                    model=model,
+                    max_tokens=max_tokens,
+                    temperature=0,
+                    system=system_prompt,
+                    messages=[{"role": "user", "content": prompt}],
+                ),
+            )
+            break # Success
+        except Exception as e:
+            import anthropic
+            if isinstance(e, (anthropic.RateLimitError, anthropic.InternalServerError, anthropic.APITimeoutError, anthropic.APIConnectionError)):
+                if attempt < max_retries:
+                    delay = base_delay * (2 ** attempt)
+                    print(f"[LLM:{module}] Errore transitorio {type(e).__name__}. Ritento {attempt+1}/{max_retries} tra {delay}s...")
+                    await asyncio.sleep(delay)
+                    continue
+            print(f"[LLM:{module}] Errore fatale o esauriti i tentativi: {e}")
+            raise e
 
     text = extract_text(message)
     usage = {
@@ -246,7 +264,7 @@ async def invoke_text(
             usage["estimated_cost_usd"],
         )
     )
-    return {"text": text, "usage": usage}
+    return {"text": text, "usage": usage, "cache_key": cache_key}
 
 
 async def invoke_json(
@@ -258,17 +276,32 @@ async def invoke_json(
     use_cache: bool = True,
     api_key_override: Optional[str] = None,
 ) -> dict:
-    llm_result = await invoke_text(
-        module=module,
-        system_prompt=system_prompt,
-        payload=payload,
-        max_tokens=max_tokens,
-        model=model,
-        use_cache=use_cache,
-        api_key_override=api_key_override,
-    )
-    parsed = parse_json_response(llm_result["text"])
-    return {"data": parsed, "usage": llm_result["usage"], "raw_text": llm_result["text"]}
+    max_json_retries = 2
+    last_error = None
+    
+    for attempt in range(max_json_retries):
+        llm_result = await invoke_text(
+            module=module,
+            system_prompt=system_prompt,
+            payload=payload,
+            max_tokens=max_tokens,
+            model=model,
+            use_cache=use_cache,
+            api_key_override=api_key_override,
+        )
+        try:
+            parsed = parse_json_response(llm_result["text"])
+            return {"data": parsed, "usage": llm_result["usage"], "raw_text": llm_result["text"]}
+        except ValueError as e:
+            last_error = e
+            print(f"[LLM:{module}] Fallimento parse JSON (tentativo {attempt+1}/{max_json_retries}). Ritento...")
+            use_cache = False 
+            bad_key = llm_result.get("cache_key")
+            if bad_key:
+                _CACHE.pop(bad_key, None)
+            
+    # Se arriva qui, ha fallito i tentativi
+    raise last_error or ValueError("Risposta JSON costantemente malformata.")
 
 
 def parse_json_response(text: str) -> dict:

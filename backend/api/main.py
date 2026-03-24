@@ -2,8 +2,11 @@
 VisariTradingRoom — Backend principale (FastAPI)
 """
 import os
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+import traceback
+import logging
 from contextlib import asynccontextmanager
 
 from api.routers import auth, strategy, backtest, export, guide, botlab
@@ -47,6 +50,14 @@ app.include_router(backtest.router, prefix="/api/backtest", tags=["Backtest"], d
 app.include_router(botlab.router, prefix="/api/bot-lab", tags=["Bot Lab"], dependencies=[Depends(require_authenticated)])
 app.include_router(export.router, prefix="/api/export", tags=["Export"], dependencies=[Depends(require_authenticated)])
 app.include_router(guide.router, prefix="/api/guide", tags=["Guide"], dependencies=[Depends(require_authenticated)])
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logging.error(f"Errore non gestito: {exc}\n{traceback.format_exc()}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Si è verificato un errore interno al server. Riprova tra qualche istante."},
+    )
 
 
 @app.get("/health")
