@@ -134,6 +134,7 @@ class BotGenerationResponse(BaseModel):
     limitations_vs_discretionary: list[str] = Field(default_factory=list)
     required_inputs: list[dict[str, Any]] = Field(default_factory=list)
     code_validation: dict[str, Any] = Field(default_factory=dict)
+    deployment_readiness: dict[str, Any] = Field(default_factory=dict)
     download_ready: bool = False
     can_generate_code: bool = False
     validation: dict[str, Any] = Field(default_factory=dict)

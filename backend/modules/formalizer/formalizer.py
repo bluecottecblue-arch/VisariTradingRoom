@@ -311,8 +311,15 @@ class StrategyFormalizer:
         macro_news = normalize_macro_news_config(intake.get("macro_news") or intake.get("fundamental_filters"))
 
         formal_spec["entry_conditions"] = self._normalize_entry_conditions(formal_spec.get("entry_conditions"))
+        normalized_entry_conditions = formal_spec.get("entry_conditions") or {}
+        has_long_conditions = bool(
+            ((normalized_entry_conditions.get("long") or {}).get("conditions") or [])
+        )
+        has_short_conditions = bool(
+            ((normalized_entry_conditions.get("short") or {}).get("conditions") or [])
+        )
 
-        if not formal_spec.get("entry_conditions"):
+        if not has_long_conditions and not has_short_conditions:
             long_expr = formal_spec.get("entry_long")
             short_expr = formal_spec.get("entry_short")
             formal_spec["entry_conditions"] = {

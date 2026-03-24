@@ -190,8 +190,8 @@ export default function BotLabWorkspace() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-amber-400 mb-2">Bot Lab</h1>
-        <p className="text-stone-400 text-sm leading-relaxed">
+        <h1 className="mb-2 text-3xl font-semibold text-slate-50">Bot Lab</h1>
+        <p className="text-sm leading-relaxed text-slate-400">
           Carica un bot già esistente, analizzalo localmente, chiedi modifiche in linguaggio naturale,
           attiva filtri fondamentali/news e confronta originale vs nuova versione prima dell’export.
         </p>
@@ -258,7 +258,7 @@ export default function BotLabWorkspace() {
               <button
                 onClick={analyze}
                 disabled={loadingAnalyze}
-                className="flex-1 rounded bg-amber-500 px-4 py-3 font-bold text-stone-950 disabled:opacity-50"
+                className="flex-1 border border-slate-200 bg-slate-100 px-4 py-3 font-semibold text-slate-950 disabled:opacity-50"
               >
                 {loadingAnalyze ? 'Analisi locale in corso...' : 'Analizza il bot'}
               </button>
@@ -273,7 +273,7 @@ export default function BotLabWorkspace() {
                   modifiedBacktest.reset()
                   setError(null)
                 }}
-                className="rounded border border-stone-700 px-4 py-3 text-stone-300"
+                className="border border-slate-800 px-4 py-3 text-slate-300"
               >
                 Reset
               </button>
@@ -477,7 +477,7 @@ export default function BotLabWorkspace() {
                 <button
                   onClick={modify}
                   disabled={loadingModify}
-                  className="rounded bg-amber-500 px-4 py-3 font-bold text-stone-950 disabled:opacity-50"
+                  className="border border-slate-200 bg-slate-100 px-4 py-3 font-semibold text-slate-950 disabled:opacity-50"
                 >
                   {loadingModify ? 'Modifica in corso...' : 'Genera versione modificata'}
                 </button>
@@ -523,7 +523,7 @@ export default function BotLabWorkspace() {
                     <button
                       onClick={runModifiedBacktest}
                       disabled={modifiedBacktest.isRunning || !modifyResult.session_id}
-                      className="rounded bg-amber-500 px-4 py-3 font-bold text-stone-950 disabled:opacity-50"
+                      className="border border-slate-200 bg-slate-100 px-4 py-3 font-semibold text-slate-950 disabled:opacity-50"
                     >
                       Backtest versione modificata
                     </button>
@@ -538,9 +538,23 @@ export default function BotLabWorkspace() {
                         document.body.removeChild(anchor)
                       }}
                       disabled={!modifyResult.session_id || !modifyResult.code_validation?.is_valid || modifiedExportBlocked}
-                      className="rounded border border-stone-700 px-4 py-3 text-stone-300 disabled:opacity-40"
+                      className="border border-slate-800 px-4 py-3 text-slate-300 disabled:opacity-40"
                     >
                       Scarica versione modificata
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (!modifyResult.session_id) return
+                        const anchor = document.createElement('a')
+                        anchor.href = exportApi.bundleSetupUrl(modifyResult.session_id)
+                        document.body.appendChild(anchor)
+                        anchor.click()
+                        document.body.removeChild(anchor)
+                      }}
+                      disabled={!modifyResult.session_id || !modifyResult.code_validation?.is_valid || modifiedExportBlocked}
+                      className="border border-slate-800 px-4 py-3 text-slate-300 disabled:opacity-40"
+                    >
+                      Setup guide
                     </button>
                   </div>
 

@@ -60,40 +60,41 @@ export default function LoginForm({
   }
 
   return (
-    <main className="min-h-screen bg-stone-950 text-stone-100 font-mono flex items-center justify-center px-6">
-      <div className="w-full max-w-md border border-stone-800 bg-stone-900/80 rounded-2xl p-8 shadow-2xl">
+    <main className="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-slate-100">
+      <div className="w-full max-w-md border border-slate-800 bg-slate-950/90 p-9 shadow-[0_0_0_1px_rgba(15,23,42,0.4)]">
         <div className="mb-6">
-          <p className="text-xs tracking-[0.3em] text-amber-400 uppercase">VisariTradingRoom</p>
-          <h1 className="mt-3 text-2xl font-bold text-stone-100">{title}</h1>
-          <p className="mt-2 text-sm text-stone-400">{description}</p>
+          <p className="text-[11px] uppercase tracking-[0.28em] text-slate-500">Visari Trading Room</p>
+          <h1 className="mt-3 text-3xl font-semibold text-slate-50">{title}</h1>
+          <p className="mt-2 text-sm leading-relaxed text-slate-500">{description}</p>
+          <div className="mt-3 text-xs uppercase tracking-[0.18em] text-amber-300">Quantitative Strategy Platform</div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <label className="block">
-            <span className="mb-2 block text-sm text-stone-300">Username</span>
+            <span className="mb-2 block text-[11px] uppercase tracking-[0.14em] text-slate-500">Username</span>
             <input
               type="text"
               value={username}
               onChange={(event) => setUsername(event.target.value)}
-              className="w-full rounded-lg border border-stone-700 bg-stone-950 px-4 py-3 text-stone-100 outline-none focus:border-amber-500"
+              className="w-full border border-slate-800 bg-slate-950 px-4 py-3 text-slate-100 outline-none transition-colors focus:border-slate-500"
               placeholder="username"
               autoFocus
             />
           </label>
 
           <label className="block">
-            <span className="mb-2 block text-sm text-stone-300">Password</span>
+            <span className="mb-2 block text-[11px] uppercase tracking-[0.14em] text-slate-500">Password</span>
             <input
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="w-full rounded-lg border border-stone-700 bg-stone-950 px-4 py-3 text-stone-100 outline-none focus:border-amber-500"
+              className="w-full border border-slate-800 bg-slate-950 px-4 py-3 text-slate-100 outline-none transition-colors focus:border-slate-500"
               placeholder="password"
             />
           </label>
 
           {error && (
-            <div className="rounded-lg border border-red-900/60 bg-red-950/30 px-4 py-3 text-sm text-red-300">
+            <div className="border border-rose-950/80 bg-rose-950/10 px-4 py-3 text-sm text-rose-200">
               {error}
             </div>
           )}
@@ -101,15 +102,15 @@ export default function LoginForm({
           <button
             type="submit"
             disabled={loading || !username.trim() || !password}
-            className="w-full rounded-lg bg-amber-400 px-4 py-3 font-bold text-stone-950 disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full border border-slate-200 bg-slate-100 px-4 py-3 font-semibold text-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? 'Accesso in corso...' : submitLabel}
           </button>
         </form>
 
         {secondaryHref && secondaryLabel && (
-          <div className="mt-5 text-center text-sm text-stone-500">
-            <Link href={secondaryHref} className="text-amber-400 hover:text-amber-300">
+          <div className="mt-5 text-center text-sm text-slate-500">
+            <Link href={secondaryHref} className="text-slate-300 hover:text-slate-100">
               {secondaryLabel}
             </Link>
           </div>

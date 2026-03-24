@@ -3,20 +3,44 @@ Router: Export
 Genera e serve i file scaricabili: EA .mq5, report HTML, report JSON
 """
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
 from pathlib import Path
 import os
 import json
 
 from modules.report.generator import ReportGenerator
+from modules.common.deployment_bundle import (
+    build_deployment_readiness,
+    build_export_manifest,
+    build_setup_text,
+)
 from modules.common.strategy_validation import validate_mql5_code
 from modules.research.decision_engine import is_promoted_verdict
 from api.routers.backtest import get_completed_results_for_session
+from db.database import InMemorySessionStore
 
 router = APIRouter()
 STORAGE = Path(os.environ.get("STORAGE_PATH", "./storage"))
 STORAGE.mkdir(exist_ok=True)
 report_gen = ReportGenerator(str(STORAGE))
+
+
+def _build_manifest_for_session(session_id: str, code: str, file_size_bytes: int) -> dict:
+    backtest_results = get_completed_results_for_session(session_id) or {}
+    formal_spec_bundle = InMemorySessionStore.get(session_id, "formal_spec_bundle") or {}
+    code_validation = validate_mql5_code(code)
+    deployment_readiness = build_deployment_readiness(
+        code=code,
+        spec=formal_spec_bundle,
+        code_validation=code_validation,
+    )
+    return build_export_manifest(
+        session_id=session_id,
+        code=code,
+        file_size_bytes=file_size_bytes,
+        backtest_results=backtest_results,
+        deployment_readiness=deployment_readiness,
+    )
 
 
 @router.get("/mql5/{session_id}")
@@ -108,6 +132,7 @@ async def get_report_json(session_id: str):
 
 @router.get("/bundle/{session_id}")
 async def get_bundle_info(session_id: str):
+    file_path = STORAGE / f"{session_id}.mq5"
     files = {}
     for key, pattern in [
         ("mql5", f"{session_id}.mq5"),
@@ -117,4 +142,54 @@ async def get_bundle_info(session_id: str):
         path = STORAGE / pattern
         files[key] = {"available": path.exists(),
                       "size_bytes": path.stat().st_size if path.exists() else 0}
-    return {"session_id": session_id, "files": files}
+    manifest = None
+    if file_path.exists():
+        code = file_path.read_text(encoding="utf-8")
+        manifest = _build_manifest_for_session(
+            session_id=session_id,
+            code=code,
+            file_size_bytes=file_path.stat().st_size,
+        )
+    return {
+        "session_id": session_id,
+        "files": files,
+        "urls": {
+            "mql5": f"/api/export/mql5/{session_id}",
+            "report_html": f"/api/export/report/{session_id}",
+            "report_json": f"/api/export/report/{session_id}/json",
+            "bundle_manifest": f"/api/export/bundle/{session_id}/manifest.json",
+            "bundle_setup": f"/api/export/bundle/{session_id}/setup.txt",
+        },
+        "manifest": manifest,
+    }
+
+
+@router.get("/bundle/{session_id}/manifest.json")
+async def get_bundle_manifest(session_id: str):
+    file_path = STORAGE / f"{session_id}.mq5"
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Bundle non disponibile: file .mq5 non trovato.")
+    code = file_path.read_text(encoding="utf-8")
+    manifest = _build_manifest_for_session(
+        session_id=session_id,
+        code=code,
+        file_size_bytes=file_path.stat().st_size,
+    )
+    return JSONResponse(content=manifest)
+
+
+@router.get("/bundle/{session_id}/setup.txt", response_class=PlainTextResponse)
+async def get_bundle_setup_text(session_id: str):
+    file_path = STORAGE / f"{session_id}.mq5"
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Guida setup non disponibile: file .mq5 non trovato.")
+    code = file_path.read_text(encoding="utf-8")
+    manifest = _build_manifest_for_session(
+        session_id=session_id,
+        code=code,
+        file_size_bytes=file_path.stat().st_size,
+    )
+    return PlainTextResponse(
+        content=build_setup_text(manifest),
+        headers={"Content-Disposition": f'attachment; filename="VisariTradingRoom_{session_id[:8]}_setup.txt"'},
+    )

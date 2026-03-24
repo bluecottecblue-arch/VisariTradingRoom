@@ -55,6 +55,10 @@ class StrategyParser:
             api_key_override=claude_access.get("api_key") if claude_access.get("credential_source") == "personal" else None,
         )
         parsed = self._validate_parsed_structure(llm_result["data"])
+        parsed["required_inputs"] = self._filter_satisfied_required_inputs(
+            parsed.get("required_inputs") or [],
+            intake,
+        )
         issues = extract_llm_parse_issues(parsed)
 
         ambiguities = parsed.get("ambiguities") or []
@@ -178,6 +182,54 @@ class StrategyParser:
                     )
                 )
         return normalized
+
+    def _filter_satisfied_required_inputs(self, items: list, intake: dict) -> list:
+        if not items:
+            return []
+
+        normalized_notes = " ".join(
+            str(intake.get(field) or "").strip().lower()
+            for field in ("additional_notes", "news_management", "long_entry", "short_entry")
+        )
+        macro_news = intake.get("macro_news") or intake.get("fundamental_filters") or {}
+        macro_provider = str(macro_news.get("provider") or "").strip().lower()
+        macro_api_key = str(macro_news.get("api_key") or "").strip()
+
+        filtered = []
+        for item in items:
+            label = str(item.get("label") or "").strip().lower()
+            why = str(item.get("why") or "").strip().lower()
+            combined = f"{label} {why}".strip()
+
+            if any(marker in combined for marker in (
+                "news feed api",
+                "news api",
+                "provider api key",
+                "economic calendar api",
+                "trading economics api",
+                "real-time news feed",
+                "historical news event",
+                "news event timestamp",
+                "event timestamps",
+                "price data feed",
+                "real-time price data",
+                "historical price data",
+            )):
+                if macro_provider == "trading_economics" and macro_api_key:
+                    continue
+                if "price data" in combined:
+                    continue
+
+            if any(marker in combined for marker in (
+                "ema calculation method",
+                "moving average method",
+                "exact_ema_calculation_method",
+            )):
+                if "exponential moving average" in normalized_notes and "close price" in normalized_notes:
+                    continue
+
+            filtered.append(item)
+        return filtered
 
     def _is_relevant_required_input(self, label: str) -> bool:
         text = (label or "").strip().lower()

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { strategyApi, exportApi, formatError } from '@/lib/api'
-import { Alert, Spinner, TabBar, CodeBlock, NavButtons } from '@/components/ui'
+import { Alert, Spinner, TabBar, CodeBlock, NavButtons, MetricCard } from '@/components/ui'
 import type { BacktestResult, BotResult, FormalSpec } from '@/types'
 
 interface Props {
@@ -53,26 +53,33 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
     document.body.removeChild(a)
   }
 
+  const downloadSetupGuide = () => {
+    const a = document.createElement('a')
+    a.href = exportApi.bundleSetupUrl(sessionId)
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+  }
+
   // Stato iniziale: mostra il box "genera"
   if (!result && !loading) {
     return (
       <div className="space-y-8">
         <div>
-          <h1 className="text-2xl font-bold text-amber-400 mb-2">
-            Genera il tuo Expert Advisor MQL5
+          <h1 className="mb-2 text-3xl font-semibold text-slate-50">
+            Operational Bot Package
           </h1>
-          <p className="text-stone-400 text-sm leading-relaxed">
-            Claude genererà il codice MQL5 partendo dalla specifica formale della tua strategia,
-            con documentazione in italiano e commenti su ogni blocco logico.
+          <p className="text-sm leading-relaxed text-slate-400">
+            La piattaforma produrrà un EA MQL5 esportabile, con documentazione, readiness operativa e setup guide per MT5.
           </p>
         </div>
 
-        <Alert type="error" title="Leggere prima di scaricare">
+        <Alert type="info" title="Output atteso">
           <ul className="space-y-1 mt-1">
-            <li>• Il codice MQL5 è un <strong>punto di partenza</strong> generato da AI — non un prodotto finito</li>
-            <li>• Va <strong>sempre testato in demo</strong> prima di qualsiasi uso live</li>
-            <li>• Un developer MQL5 dovrebbe revisionarlo prima del deploy in produzione</li>
-            <li>• Le parti discrezionali non codificabili sono state approssimate — verifica che l&apos;approssimazione sia accettabile per te</li>
+            <li>• Codice `.mq5` validato dal backend</li>
+            <li>• Documentazione operativa in italiano</li>
+            <li>• Setup guide MT5 e manifest di deployment</li>
+            <li>• Checklist esplicita su macro live, WebRequest e runtime inputs</li>
           </ul>
         </Alert>
 
@@ -84,59 +91,59 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
         </Alert>
       )}
 
-      {backtestResult && (
-        <div className="p-4 bg-stone-900 border border-stone-700 rounded space-y-2">
-            <div className="text-stone-400 text-xs font-bold uppercase tracking-wider">
-              Riepilogo backtest — base per il bot
+        {backtestResult && (
+        <div className="space-y-2 border border-slate-800 bg-slate-950/70 p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Research basis for export
             </div>
-            <div className="flex gap-6 text-sm">
+            <div className="flex flex-wrap gap-6 text-sm">
               <div>
-                <span className="text-stone-500 text-xs">Sharpe OOS </span>
+                <span className="text-slate-500 text-xs">Sharpe OOS </span>
                 <span className={`font-bold ${
                   (backtestResult.out_of_sample.sharpe_ratio ?? 0) >= 1
-                    ? 'text-green-400'
-                    : 'text-amber-400'
+                    ? 'text-emerald-300'
+                    : 'text-slate-300'
                 }`}>
                   {backtestResult.out_of_sample.sharpe_ratio?.toFixed(2) ?? '—'}
                 </span>
               </div>
               <div>
-                <span className="text-stone-500 text-xs">Trade OOS </span>
-                <span className="text-stone-200 font-bold">
+                <span className="text-slate-500 text-xs">Trade OOS </span>
+                <span className="text-slate-200 font-bold">
                   {backtestResult.out_of_sample.total_trades ?? '—'}
                 </span>
               </div>
               <div>
-                <span className="text-stone-500 text-xs">Return OOS </span>
+                <span className="text-slate-500 text-xs">Return OOS </span>
                 <span className={`font-bold ${
                   (backtestResult.out_of_sample.total_return_pct ?? 0) > 0
-                    ? 'text-green-400'
-                    : 'text-red-400'
+                    ? 'text-emerald-300'
+                    : 'text-rose-300'
                 }`}>
                   {backtestResult.out_of_sample.total_return_pct?.toFixed(1) ?? '—'}%
                 </span>
               </div>
               <div>
-                <span className="text-stone-500 text-xs">Verdict </span>
+                <span className="text-slate-500 text-xs">Verdict </span>
                 <span className={`font-bold ${
                   verdict?.verdict === 'REJECT' || verdict?.verdict === 'NEEDS_RESEARCH'
-                    ? 'text-red-400'
+                    ? 'text-rose-300'
                     : verdict?.verdict === 'PAPER_TRADE_ONLY'
-                      ? 'text-amber-400'
-                      : 'text-green-400'
+                      ? 'text-amber-300'
+                      : 'text-emerald-300'
                 }`}>
                   {verdict?.verdict ?? '—'}
                 </span>
               </div>
               <div>
-                <span className="text-stone-500 text-xs">Max DD </span>
-                <span className="text-stone-200 font-bold">
+                <span className="text-slate-500 text-xs">Max DD </span>
+                <span className="text-slate-200 font-bold">
                   {backtestResult.out_of_sample.max_drawdown_pct?.toFixed(1) ?? '—'}%
                 </span>
               </div>
             </div>
             {verdict && (
-              <div className="pt-2 text-xs text-stone-400 space-y-1">
+              <div className="space-y-1 pt-2 text-xs text-slate-400">
                 {[...(verdict.blockers || []), ...(verdict.reasons || [])].slice(0, 3).map((item, index) => (
                   <div key={index}>• {item}</div>
                 ))}
@@ -180,38 +187,90 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-amber-400 mb-2">
-          {generationSucceeded ? 'Expert Advisor generato ✓' : 'Generazione non valida'}
-        </h1>
-        <p className="text-stone-400 text-sm">
-          {generationSucceeded
-            ? 'Leggi prima la documentazione, poi scarica il file .mq5 e segui la guida di installazione MT5 nel prossimo step.'
-            : result?.message}
-        </p>
-      </div>
+        <div>
+          <h1 className="mb-2 text-3xl font-semibold text-slate-50">
+            {generationSucceeded ? 'Export Package Ready' : 'Generation Failed Validation'}
+          </h1>
+          <p className="text-sm text-slate-400">
+            {generationSucceeded
+              ? 'Il bot ha superato la validazione minima. Ora puoi scaricare codice, setup guide e manifest operativo.'
+              : result?.message}
+          </p>
+        </div>
 
       {!generationSucceeded && (
         <Alert type="error" title="Download disabilitato">
           {(result?.code_validation?.errors || []).join(' · ') ||
             error ||
-            'Il backend ha bloccato il download perché il codice è vuoto, incompleto o non valido.'}
+          'Il backend ha bloccato il download perché il codice è vuoto, incompleto o non valido.'}
         </Alert>
+      )}
+
+      {result?.deployment_readiness && (
+        <div className="space-y-4 border border-slate-800 bg-slate-950/70 p-5">
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div>
+              <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Deployment readiness</div>
+              <div className="mt-1 text-sm text-slate-400">{result.deployment_readiness.summary}</div>
+            </div>
+            <div className="text-right">
+              <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Status</div>
+              <div className="mt-1 text-lg font-semibold text-slate-100">
+                {result.deployment_readiness.status} · {result.deployment_readiness.score}/100
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-3">
+            <MetricCard label="Export status" value={result.deployment_readiness.status} />
+            <MetricCard label="Readiness score" value={`${result.deployment_readiness.score}/100`} />
+            <MetricCard label="Macro runtime" value={result.code_validation.checks?.has_api_key_input ? 'enabled' : 'not required'} />
+          </div>
+
+          {result.deployment_readiness.live_blockers?.length > 0 && (
+            <Alert type="error" title="Live blockers">
+              {result.deployment_readiness.live_blockers.join(' · ')}
+            </Alert>
+          )}
+
+          {result.deployment_readiness.warnings?.length > 0 && (
+            <Alert type="warning" title="Operator warnings">
+              {result.deployment_readiness.warnings.join(' · ')}
+            </Alert>
+          )}
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="space-y-2 border border-slate-800 bg-slate-950 p-4">
+              <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Setup steps</div>
+              {(result.deployment_readiness.setup_steps || []).map((item, index) => (
+                <div key={index} className="text-sm text-slate-300">• {item}</div>
+              ))}
+            </div>
+            <div className="space-y-2 border border-slate-800 bg-slate-950 p-4">
+              <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Runtime requirements</div>
+              {(result.deployment_readiness.runtime_requirements || []).map((item, index) => (
+                <div key={index} className="text-sm text-slate-300">
+                  <span className="font-medium">{item.label}:</span> {item.value}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
 
       <TabBar
         tabs={[
-          { id: 'doc', label: '📄 Documentazione' },
-          { id: 'code', label: '💻 Codice MQL5' },
-          { id: 'limits', label: '⚠️ Limiti' },
+          { id: 'doc', label: 'Documentation' },
+          { id: 'code', label: 'MQL5 Code' },
+          { id: 'limits', label: 'Assumptions & Limits' },
         ]}
         active={tab}
         onChange={setTab}
       />
 
       {tab === 'doc' && (
-        <div className="p-5 bg-stone-900 border border-stone-800 rounded">
-          <p className="text-stone-300 text-sm whitespace-pre-wrap leading-relaxed">
+        <div className="border border-slate-800 bg-slate-950/70 p-5">
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-300">
             {generationSucceeded
               ? result!.documentation || 'Documentazione non disponibile.'
               : 'Documentazione non disponibile perché la generazione è stata bloccata o ha restituito un output non valido.'}
@@ -227,7 +286,7 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
             maxHeight="32rem"
           />
         ) : (
-          <div className="p-5 bg-stone-900 border border-stone-800 rounded text-stone-400 text-sm">
+          <div className="border border-slate-800 bg-slate-950/70 p-5 text-sm text-slate-400">
             Nessun codice scaricabile: la generazione è stata fermata o ha prodotto un output non valido.
           </div>
         )
@@ -236,28 +295,28 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
       {tab === 'limits' && (
         <div className="space-y-4">
           {result!.implementation_assumptions?.length > 0 && (
-            <div className="p-4 bg-stone-900 border border-stone-800 rounded space-y-2">
-              <h3 className="text-stone-300 font-bold text-sm">
+            <div className="space-y-2 border border-slate-800 bg-slate-950/70 p-4">
+              <h3 className="text-sm font-semibold text-slate-200">
                 Assunzioni implementative
               </h3>
-              <p className="text-stone-500 text-xs">
+              <p className="text-xs text-slate-500">
                 Cose che il codice assume e che non erano esplicitamente specificate:
               </p>
               {result!.implementation_assumptions.map((a, i) => (
-                <div key={i} className="flex gap-2 text-stone-400 text-xs">
-                  <span className="text-stone-600">•</span>
+                <div key={i} className="flex gap-2 text-xs text-slate-400">
+                  <span className="text-slate-600">•</span>
                   <span>{a}</span>
                 </div>
               ))}
             </div>
           )}
           {result!.limitations_vs_discretionary?.length > 0 && (
-            <div className="p-4 bg-amber-950/15 border border-amber-800/40 rounded space-y-2">
-              <h3 className="text-amber-400 font-bold text-sm">
+            <div className="space-y-2 border border-amber-900/50 bg-amber-950/10 p-4">
+              <h3 className="text-sm font-semibold text-amber-200">
                 Cosa il bot NON può replicare della strategia discrezionale
               </h3>
               {result!.limitations_vs_discretionary.map((l, i) => (
-                <div key={i} className="flex gap-2 text-amber-300 text-xs">
+                <div key={i} className="flex gap-2 text-xs text-amber-200">
                   <span className="text-amber-700">•</span>
                   <span>{l}</span>
                 </div>
@@ -267,25 +326,40 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
         </div>
       )}
 
-      <div className="flex gap-3">
+      <div className="grid gap-3 md:grid-cols-4">
         <button
           onClick={downloadBot}
           disabled={!generationSucceeded}
-          className="flex-1 py-3 bg-green-700 hover:bg-green-600 text-white font-bold rounded transition-colors disabled:opacity-40"
+          className="border border-slate-200 bg-slate-100 py-3 font-semibold text-slate-950 transition-colors hover:bg-white disabled:opacity-40"
         >
-          ⬇ Scarica .mq5
+          Scarica .mq5
         </button>
+        <button
+          onClick={downloadSetupGuide}
+          disabled={!generationSucceeded}
+          className="border border-slate-800 py-3 text-slate-200 transition-colors hover:border-slate-600 disabled:opacity-40"
+        >
+          Setup guide
+        </button>
+        <a
+          href={exportApi.reportUrl(sessionId)}
+          target="_blank"
+          rel="noreferrer"
+          className={`border py-3 text-center transition-colors ${generationSucceeded ? 'border-slate-800 text-slate-200 hover:border-slate-600' : 'pointer-events-none border-slate-900 text-slate-700'}`}
+        >
+          Research report
+        </a>
         <button
           onClick={() => onComplete(result!)}
           disabled={!generationSucceeded}
-          className="flex-1 py-3 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold rounded transition-colors disabled:opacity-40"
+          className="border border-slate-800 py-3 text-slate-200 transition-colors hover:border-slate-600 disabled:opacity-40"
         >
-          Guida installazione MT5 →
+          MT5 install guide
         </button>
       </div>
       <button
         onClick={onBack}
-        className="w-full py-2 text-stone-500 hover:text-stone-300 text-sm transition-colors"
+        className="w-full py-2 text-sm text-slate-500 transition-colors hover:text-slate-300"
       >
         ← Torna al backtest
       </button>

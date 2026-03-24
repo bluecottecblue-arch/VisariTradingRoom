@@ -40,19 +40,19 @@ export default function AuthToolbar() {
   }
 
   return (
-    <div className="flex items-center gap-3 text-xs text-stone-400">
+    <div className="flex items-center gap-3 text-xs text-slate-400">
       <span className="hidden sm:inline">
         {session.username}
         {session.role === 'admin' ? ' · admin' : ''}
       </span>
       {session.role === 'admin' && (
-        <Link href="/admin" className="rounded border border-stone-700 px-3 py-1.5 hover:border-amber-500 hover:text-stone-100">
+        <Link href="/admin" className="border border-slate-800 px-3 py-1.5 hover:border-slate-600 hover:text-slate-100">
           Admin
         </Link>
       )}
       <button
         onClick={logout}
-        className="rounded border border-stone-700 px-3 py-1.5 hover:border-amber-500 hover:text-stone-100"
+        className="border border-slate-800 px-3 py-1.5 hover:border-slate-600 hover:text-slate-100"
       >
         Logout
       </button>

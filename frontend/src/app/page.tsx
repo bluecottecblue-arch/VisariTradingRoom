@@ -49,104 +49,143 @@ export default function WizardPage() {
   const stepReady = stepRequirements[currentStep] ?? true;
 
   return (
-    <div className="min-h-screen bg-stone-950 text-stone-100 font-mono">
-      {/* Header */}
-      <header className="border-b border-stone-800 px-8 py-4 flex items-center justify-between">
-        <div>
-          <span className="text-amber-400 font-bold text-lg tracking-tight">VISARI</span>
-          <span className="text-stone-100 font-bold text-lg tracking-tight ml-1">TRADING ROOM</span>
-          <span className="ml-3 text-stone-500 text-xs">discrezionale → algoritmico → MT5</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="text-stone-500 text-xs">
-            {workspaceMode === 'strategy'
-              ? (sessionId ? `Sessione: ${sessionId.slice(0, 8)}...` : "Nuova strategia")
-              : 'Bot Lab attivo'}
+    <div className="min-h-screen bg-slate-950 text-slate-100">
+      <div className="flex min-h-screen">
+        <aside className="hidden w-80 shrink-0 border-r border-slate-800 bg-slate-950 xl:flex xl:flex-col">
+          <div className="border-b border-slate-800 px-6 py-6">
+            <div className="text-[11px] uppercase tracking-[0.28em] text-amber-300">Visari Trading Room</div>
+            <div className="mt-3 text-2xl font-semibold text-slate-50">Quantitative Strategy Platform</div>
+            <div className="mt-2 text-sm leading-relaxed text-slate-500">
+              Strategy design, research validation, macro-aware MQL5 delivery.
+            </div>
           </div>
-          <AuthToolbar />
-        </div>
-      </header>
 
-      {/* Step progress bar */}
-      <div className="px-8 py-6 border-b border-stone-800 space-y-4">
-        <div className="flex flex-wrap gap-3">
-          <button
-            onClick={() => setWorkspaceMode("strategy")}
-            className={`px-4 py-2 rounded border text-sm font-bold transition-colors ${
-              workspaceMode === "strategy"
-                ? "border-amber-500 bg-amber-950/30 text-amber-300"
-                : "border-stone-700 bg-stone-900 text-stone-400 hover:border-stone-500"
-            }`}
-          >
-            Create Strategy
-          </button>
-          <button
-            onClick={() => setWorkspaceMode("botlab")}
-            className={`px-4 py-2 rounded border text-sm font-bold transition-colors ${
-              workspaceMode === "botlab"
-                ? "border-amber-500 bg-amber-950/30 text-amber-300"
-                : "border-stone-700 bg-stone-900 text-stone-400 hover:border-stone-500"
-            }`}
-          >
-            Bot Lab
-          </button>
-        </div>
-        <div className="text-xs text-stone-500">
-          {workspaceMode === "strategy"
-            ? "Crea una strategia da zero, formalizzala, backtestala e genera il bot MQL5."
-            : "Carica un bot già esistente, analizzalo, modificalo via prompt e confronta l’originale con la nuova versione."}
-        </div>
-        {workspaceMode === "strategy" && (
-          <div className="flex items-center gap-0 overflow-x-auto">
-            {STEPS.map((step, idx) => (
-              <div key={step.id} className="flex items-center">
-                <button
-                  onClick={() => sessionId && setCurrentStep(step.id)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded transition-all ${
-                    step.id === currentStep
-                      ? "text-amber-400"
-                      : step.id < currentStep
-                      ? "text-stone-400 cursor-pointer hover:text-stone-200"
-                      : "text-stone-600 cursor-not-allowed"
-                  }`}
-                  disabled={!sessionId && step.id > 1}
-                >
-                  <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border ${
-                    step.id === currentStep
-                      ? "border-amber-400 bg-amber-400 text-stone-950"
-                      : step.id < currentStep
-                      ? "border-stone-500 bg-stone-700 text-stone-300"
-                      : "border-stone-700 text-stone-600"
-                  }`}>
-                    {step.id < currentStep ? "✓" : step.id}
-                  </span>
-                  <div className="hidden md:block text-left">
-                    <div className="text-xs font-bold">{step.label}</div>
-                    <div className="text-[10px] opacity-60">{step.description}</div>
-                  </div>
-                </button>
-                {idx < STEPS.length - 1 && (
-                  <div className={`w-8 h-px mx-1 ${step.id < currentStep ? "bg-stone-500" : "bg-stone-800"}`} />
-                )}
+          <div className="space-y-8 px-6 py-6">
+            <div className="space-y-3">
+              <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Workspace</div>
+              <button
+                onClick={() => setWorkspaceMode("strategy")}
+                className={`w-full border px-4 py-3 text-left text-sm transition-colors ${
+                  workspaceMode === "strategy"
+                    ? "border-slate-500 bg-slate-900 text-slate-100"
+                    : "border-slate-800 bg-transparent text-slate-500 hover:border-slate-700 hover:text-slate-200"
+                }`}
+              >
+                <div className="font-medium">Create Strategy</div>
+                <div className="mt-1 text-xs text-slate-500">From idea to formal spec, research and bot export.</div>
+              </button>
+              <button
+                onClick={() => setWorkspaceMode("botlab")}
+                className={`w-full border px-4 py-3 text-left text-sm transition-colors ${
+                  workspaceMode === "botlab"
+                    ? "border-slate-500 bg-slate-900 text-slate-100"
+                    : "border-slate-800 bg-transparent text-slate-500 hover:border-slate-700 hover:text-slate-200"
+                }`}
+              >
+                <div className="font-medium">Bot Lab</div>
+                <div className="mt-1 text-xs text-slate-500">Audit, modify, compare and re-test existing bots.</div>
+              </button>
+            </div>
+
+            {workspaceMode === "strategy" && (
+              <div className="space-y-2">
+                <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Pipeline</div>
+                {STEPS.map((step) => {
+                  const active = step.id === currentStep
+                  const completed = step.id < currentStep
+                  return (
+                    <button
+                      key={step.id}
+                      onClick={() => sessionId && setCurrentStep(step.id)}
+                      disabled={!sessionId && step.id > 1}
+                      className={`w-full border px-4 py-3 text-left transition-colors ${
+                        active
+                          ? "border-slate-500 bg-slate-900"
+                          : completed
+                          ? "border-slate-800 bg-slate-950/60 text-slate-300 hover:border-slate-700"
+                          : "border-slate-900 bg-transparent text-slate-600"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">{step.label}</span>
+                        <span className="text-[11px] text-slate-500">{completed ? "done" : `0${step.id}`}</span>
+                      </div>
+                      <div className="mt-1 text-xs text-slate-500">{step.description}</div>
+                    </button>
+                  )
+                })}
               </div>
-            ))}
+            )}
+
+            <div className="space-y-3 border border-slate-800 bg-slate-950/70 px-4 py-4">
+              <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Methodology Note</div>
+              <div className="text-sm leading-relaxed text-slate-400">
+                Positive backtests do not imply future profits. The platform enforces fail-fast validation, research governance and explicit blockers before code export.
+              </div>
+            </div>
           </div>
-        )}
-      </div>
+        </aside>
 
-      {/* Warning metodologico — sempre visibile */}
-      <div className="mx-8 mt-4 px-4 py-3 bg-amber-950/30 border border-amber-800/50 rounded text-xs text-amber-300">
-        ⚠️ <strong>Onestà metodologica:</strong> Un backtest positivo NON garantisce profitti futuri.
-        Parti della strategia discrezionale non codificabili verranno segnalate esplicitamente.
-        Il bot generato è un punto di partenza — va rivisto prima del trading live.
-      </div>
+        <div className="flex min-h-screen flex-1 flex-col">
+          <header className="border-b border-slate-800 px-6 py-4 lg:px-8">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <div className="text-[11px] uppercase tracking-[0.24em] text-slate-500">Active Workspace</div>
+                <div className="mt-1 text-2xl font-semibold text-slate-50">
+                  {workspaceMode === "strategy" ? "Strategy Factory" : "Bot Lab"}
+                </div>
+                <div className="mt-2 text-sm text-slate-500">
+                  {workspaceMode === "strategy"
+                    ? "Design, validate and export a macro-aware trading bot."
+                    : "Upload an existing bot, inspect its logic and produce a controlled revision."}
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="text-right text-xs text-slate-500">
+                  {workspaceMode === 'strategy'
+                    ? (sessionId ? `Session ${sessionId.slice(0, 8)}` : "New strategy session")
+                    : 'Bot Lab active'}
+                </div>
+                <AuthToolbar />
+              </div>
+            </div>
+          </header>
 
-      {/* Step content */}
-      <main className="px-8 py-8 max-w-4xl">
+          <div className="border-b border-slate-800 px-6 py-4 lg:px-8 xl:hidden">
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={() => setWorkspaceMode("strategy")}
+                className={`border px-4 py-2 text-sm transition-colors ${
+                  workspaceMode === "strategy"
+                    ? "border-slate-500 bg-slate-900 text-slate-100"
+                    : "border-slate-800 text-slate-500 hover:border-slate-700 hover:text-slate-200"
+                }`}
+              >
+                Create Strategy
+              </button>
+              <button
+                onClick={() => setWorkspaceMode("botlab")}
+                className={`border px-4 py-2 text-sm transition-colors ${
+                  workspaceMode === "botlab"
+                    ? "border-slate-500 bg-slate-900 text-slate-100"
+                    : "border-slate-800 text-slate-500 hover:border-slate-700 hover:text-slate-200"
+                }`}
+              >
+                Bot Lab
+              </button>
+            </div>
+          </div>
+
+          <div className="border-b border-slate-800 px-6 py-4 text-xs text-slate-500 lg:px-8">
+            Public-facing flow. Authenticated users can choose integrated Claude usage or bring their own Claude key; live macro execution remains tied to the user’s economic-calendar provider key.
+          </div>
+
+          <main className="flex-1 px-6 py-8 lg:px-8">
+            <div className="mx-auto max-w-6xl">
         {workspaceMode === "strategy" && !stepReady && (
-          <div className="px-8 py-16 text-center space-y-4 border border-stone-800 rounded-lg bg-stone-900/60">
-            <p className="text-stone-400">Sessione persa dopo il refresh.</p>
-            <button onClick={restart} className="px-6 py-3 bg-amber-500 text-stone-950 font-bold rounded">
+          <div className="border border-slate-800 bg-slate-950/60 px-8 py-16 text-center space-y-4">
+            <p className="text-slate-400">Sessione persa dopo il refresh.</p>
+            <button onClick={restart} className="border border-slate-200 bg-slate-100 px-6 py-3 font-semibold text-slate-950">
               Ricomincia dall&apos;inizio →
             </button>
           </div>
@@ -211,8 +250,11 @@ export default function WizardPage() {
           <StepGuide botResult={botResult} onBack={goPrev} />
         )}
 
-        <MonetizationSlot slotId="research_footer" />
-      </main>
+              <MonetizationSlot slotId="research_footer" />
+            </div>
+          </main>
+        </div>
+      </div>
     </div>
   );
 }

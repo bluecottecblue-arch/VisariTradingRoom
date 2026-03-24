@@ -216,6 +216,7 @@ def build_bot_result(
     limitations_vs_discretionary: Optional[List[str]] = None,
     required_inputs: Optional[List[dict]] = None,
     code_validation: Optional[dict] = None,
+    deployment_readiness: Optional[dict] = None,
     usage: Optional[dict] = None,
     validation: Optional[dict] = None,
 ) -> dict:
@@ -223,6 +224,7 @@ def build_bot_result(
     limitations_vs_discretionary = limitations_vs_discretionary or []
     required_inputs = required_inputs or []
     code_validation = code_validation or validate_mql5_code(mql5_code)
+    deployment_readiness = deployment_readiness or {}
     usage = usage or empty_usage("botgen")
     validation = validation or {}
     validation.setdefault("stage", "botgen")
@@ -238,6 +240,7 @@ def build_bot_result(
         "limitations_vs_discretionary": limitations_vs_discretionary,
         "required_inputs": required_inputs,
         "code_validation": code_validation,
+        "deployment_readiness": deployment_readiness,
         "download_ready": status == STATUS_VALID and code_validation["is_valid"],
         "can_generate_code": status == STATUS_VALID,
         "validation": validation,
@@ -620,7 +623,6 @@ def validate_mql5_code(code: str) -> dict:
                 "todo",
                 "placeholder",
                 "codice non",
-                "non disponibile",
                 "da implementare",
                 "revisiona manualmente",
             )

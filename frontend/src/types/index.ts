@@ -439,6 +439,23 @@ export interface BotResult {
     checks: Record<string, boolean>
     errors: string[]
   }
+  deployment_readiness: {
+    status: 'BLOCKED' | 'REQUIRES_SETUP' | 'READY_FOR_EXPORT'
+    score: number
+    summary: string
+    live_blockers: string[]
+    warnings: string[]
+    setup_steps: string[]
+    runtime_requirements: Array<{
+      id: string
+      label: string
+      value: string
+      required: boolean
+      category: string
+    }>
+    mt5_checklist: string[]
+    recommended_next_action: string
+  }
   download_ready: boolean
   can_generate_code: boolean
   validation: ValidationInfo

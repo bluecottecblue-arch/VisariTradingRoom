@@ -144,10 +144,10 @@ export default function StepIntake({ onComplete }: Props) {
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-amber-400 mb-2">
-          Descrivi la tua strategia
+        <h1 className="mb-2 text-3xl font-semibold text-slate-50">
+          Strategy Intake
         </h1>
-        <p className="text-stone-400 text-sm leading-relaxed">
+        <p className="text-sm leading-relaxed text-slate-400">
           Scrivi come operi davvero. Il sistema verifica prima se la strategia è
           codificabile e blocca subito le parti troppo vaghe, così non sprechi token
           su formalizzazione e codice quando mancano dettagli decisivi.

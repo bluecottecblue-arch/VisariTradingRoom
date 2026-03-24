@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 
-// ─── Section header ────────────────────────────────────────────────────────────
 export function Section({
   title,
   children,
@@ -12,16 +11,15 @@ export function Section({
   children: ReactNode
 }) {
   return (
-    <div className="space-y-4">
-      <h2 className="text-stone-300 font-bold text-sm uppercase tracking-wider border-b border-stone-800 pb-2">
+    <section className="space-y-4">
+      <h2 className="border-b border-slate-800/80 pb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
         {title}
       </h2>
       {children}
-    </div>
+    </section>
   )
 }
 
-// ─── Form field wrapper ────────────────────────────────────────────────────────
 export function Field({
   label,
   children,
@@ -35,19 +33,19 @@ export function Field({
 }) {
   const [showTip, setShowTip] = useState(false)
   return (
-    <div className="space-y-1">
-      <label className="flex items-center gap-2 text-stone-400 text-xs">
+    <div className="space-y-2">
+      <label className="flex items-center gap-2 text-[11px] uppercase tracking-[0.14em] text-slate-500">
         <span>{label}</span>
-        {required && <span className="text-amber-500">*</span>}
+        {required && <span className="text-amber-300">*</span>}
         {tooltip && (
           <span
-            className="relative text-stone-600 hover:text-stone-400 cursor-help"
+            className="relative cursor-help text-slate-700 hover:text-slate-400"
             onMouseEnter={() => setShowTip(true)}
             onMouseLeave={() => setShowTip(false)}
           >
-            ⓘ
+            i
             {showTip && (
-              <span className="absolute left-6 top-0 z-10 w-64 px-3 py-2 bg-stone-800 border border-stone-600 rounded text-stone-300 text-xs font-normal whitespace-normal shadow-xl">
+              <span className="absolute left-5 top-0 z-10 w-64 border border-slate-700 bg-slate-950 px-3 py-2 text-[11px] font-normal normal-case tracking-normal text-slate-300 shadow-2xl">
                 {tooltip}
               </span>
             )}
@@ -59,17 +57,15 @@ export function Field({
   )
 }
 
-// ─── Input styles ──────────────────────────────────────────────────────────────
 export const inputCls =
-  'w-full bg-stone-900 border border-stone-700 focus:border-amber-500 outline-none rounded px-3 py-2 text-stone-100 text-sm placeholder-stone-600'
+  'w-full border border-slate-800 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 outline-none transition-colors placeholder:text-slate-600 focus:border-slate-500'
 
 export const textareaCls = `${inputCls} resize-none`
 
-// ─── Metric card ───────────────────────────────────────────────────────────────
 export function MetricCard({
   label,
   value,
-  colorClass = 'text-stone-200',
+  colorClass = 'text-slate-100',
   sub,
 }: {
   label: string
@@ -78,17 +74,16 @@ export function MetricCard({
   sub?: string
 }) {
   return (
-    <div className="px-3 py-3 bg-stone-900 border border-stone-800 rounded">
-      <div className="text-stone-500 text-xs mb-1">{label}</div>
-      <div className={`text-lg font-bold font-mono ${colorClass}`}>
+    <div className="border border-slate-800 bg-slate-950/70 px-4 py-4">
+      <div className="mb-1 text-[11px] uppercase tracking-[0.14em] text-slate-500">{label}</div>
+      <div className={`text-xl font-semibold ${colorClass}`}>
         {value ?? '—'}
       </div>
-      {sub && <div className="text-stone-600 text-xs mt-0.5">{sub}</div>}
+      {sub && <div className="mt-1 text-xs text-slate-600">{sub}</div>}
     </div>
   )
 }
 
-// ─── Alert banner ─────────────────────────────────────────────────────────────
 export function Alert({
   type = 'warning',
   title,
@@ -99,25 +94,23 @@ export function Alert({
   children: ReactNode
 }) {
   const styles = {
-    warning: 'border-amber-800/50 bg-amber-950/20 text-amber-300',
-    error:   'border-red-800/50 bg-red-950/20 text-red-300',
-    info:    'border-blue-800/50 bg-blue-950/20 text-blue-300',
-    success: 'border-green-800/50 bg-green-950/20 text-green-300',
+    warning: 'border-amber-900/60 bg-amber-950/10 text-amber-200',
+    error:   'border-red-950/80 bg-red-950/10 text-rose-200',
+    info:    'border-slate-700 bg-slate-900 text-slate-200',
+    success: 'border-emerald-950/80 bg-emerald-950/10 text-emerald-200',
   }
-  const icons = { warning: '⚠️', error: '❌', info: 'ℹ️', success: '✅' }
   return (
-    <div className={`px-4 py-3 border rounded space-y-1 ${styles[type]}`}>
+    <div className={`space-y-1 border px-4 py-3 ${styles[type]}`}>
       {title && (
-        <div className="font-bold text-sm">
-          {icons[type]} {title}
+        <div className="text-xs font-semibold uppercase tracking-[0.14em]">
+          {title}
         </div>
       )}
-      <div className="text-sm">{children}</div>
+      <div className="text-sm leading-relaxed">{children}</div>
     </div>
   )
 }
 
-// ─── Progress bar ─────────────────────────────────────────────────────────────
 export function ProgressBar({
   value,
   max = 1,
@@ -128,19 +121,18 @@ export function ProgressBar({
   label?: string
 }) {
   const pct = Math.min(100, Math.max(0, (value / max) * 100))
-  const color =
-    pct >= 70 ? 'bg-green-500' : pct >= 40 ? 'bg-amber-500' : 'bg-red-500'
+  const color = pct >= 70 ? 'bg-emerald-400' : pct >= 40 ? 'bg-slate-400' : 'bg-rose-300'
   return (
     <div className="space-y-1">
       {label && (
-        <div className="flex justify-between text-xs text-stone-400">
+        <div className="flex justify-between text-xs text-slate-500">
           <span>{label}</span>
-          <span className="font-bold">{pct.toFixed(0)}%</span>
+          <span className="font-semibold text-slate-300">{pct.toFixed(0)}%</span>
         </div>
       )}
-      <div className="w-full bg-stone-800 rounded-full h-2">
+      <div className="h-1.5 w-full bg-slate-900">
         <div
-          className={`h-2 rounded-full transition-all ${color}`}
+          className={`h-1.5 transition-all ${color}`}
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -148,7 +140,6 @@ export function ProgressBar({
   )
 }
 
-// ─── Code block ───────────────────────────────────────────────────────────────
 export function CodeBlock({
   code,
   language = 'mql5',
@@ -167,18 +158,18 @@ export function CodeBlock({
   }
 
   return (
-    <div className="relative">
-      <div className="flex items-center justify-between px-3 py-1.5 bg-stone-800 border-b border-stone-700 rounded-t text-xs text-stone-400">
+    <div className="relative border border-slate-800 bg-slate-950">
+      <div className="flex items-center justify-between border-b border-slate-800 px-3 py-2 text-[11px] uppercase tracking-[0.14em] text-slate-500">
         <span>{language}</span>
         <button
           onClick={copy}
-          className="hover:text-stone-200 transition-colors"
+          className="hover:text-slate-200 transition-colors"
         >
-          {copied ? '✓ Copiato' : 'Copia'}
+          {copied ? 'Copiato' : 'Copia'}
         </button>
       </div>
       <pre
-        className="p-4 bg-stone-950 border border-t-0 border-stone-800 rounded-b text-xs text-green-300 font-mono overflow-x-auto overflow-y-auto leading-relaxed"
+        className="overflow-x-auto overflow-y-auto p-4 text-xs leading-relaxed text-slate-200"
         style={{ maxHeight }}
       >
         {code}
@@ -191,13 +182,12 @@ export function CodeBlock({
 export function Spinner({ label }: { label?: string }) {
   return (
     <div className="flex flex-col items-center gap-3 py-8">
-      <div className="w-8 h-8 border-2 border-stone-700 border-t-amber-400 rounded-full animate-spin" />
-      {label && <p className="text-stone-400 text-sm">{label}</p>}
+      <div className="h-8 w-8 animate-spin border-2 border-slate-800 border-t-slate-300 rounded-full" />
+      {label && <p className="text-sm text-slate-400">{label}</p>}
     </div>
   )
 }
 
-// ─── Empty state ──────────────────────────────────────────────────────────────
 export function EmptyState({
   icon,
   title,
@@ -208,17 +198,16 @@ export function EmptyState({
   description?: string
 }) {
   return (
-    <div className="flex flex-col items-center gap-3 py-12 text-center">
-      <div className="text-4xl">{icon}</div>
-      <h3 className="text-stone-300 font-bold">{title}</h3>
+    <div className="flex flex-col items-center gap-3 border border-dashed border-slate-800 py-12 text-center">
+      <div className="text-xs uppercase tracking-[0.2em] text-slate-600">{icon}</div>
+      <h3 className="font-semibold text-slate-200">{title}</h3>
       {description && (
-        <p className="text-stone-500 text-sm max-w-sm">{description}</p>
+        <p className="max-w-sm text-sm text-slate-500">{description}</p>
       )}
     </div>
   )
 }
 
-// ─── Tab bar ──────────────────────────────────────────────────────────────────
 export function TabBar<T extends string>({
   tabs,
   active,
@@ -229,15 +218,15 @@ export function TabBar<T extends string>({
   onChange: (id: T) => void
 }) {
   return (
-    <div className="flex border-b border-stone-800">
+    <div className="flex border-b border-slate-800">
       {tabs.map((tab) => (
         <button
           key={tab.id}
           onClick={() => onChange(tab.id)}
-          className={`px-4 py-2 text-sm font-bold transition-colors ${
+          className={`px-4 py-2 text-sm transition-colors ${
             active === tab.id
-              ? 'text-amber-400 border-b-2 border-amber-400 -mb-px'
-              : 'text-stone-500 hover:text-stone-300'
+              ? 'border-b border-slate-400 -mb-px text-slate-100'
+              : 'text-slate-500 hover:text-slate-300'
           }`}
         >
           {tab.label}
@@ -264,12 +253,12 @@ export function NavButtons({
   backLabel?: string
 }) {
   return (
-    <div className="flex gap-4 pt-4">
+    <div className="flex gap-3 pt-4">
       {onBack && (
         <button
           onClick={onBack}
           disabled={loading}
-          className="px-6 py-3 border border-stone-700 text-stone-400 hover:text-stone-200 rounded transition-colors disabled:opacity-40"
+          className="border border-slate-800 px-5 py-2.5 text-slate-400 transition-colors hover:border-slate-600 hover:text-slate-200 disabled:opacity-40"
         >
           {backLabel}
         </button>
@@ -278,11 +267,11 @@ export function NavButtons({
         <button
           onClick={onNext}
           disabled={disabled || loading}
-          className="flex-1 py-3 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex-1 border border-slate-200 bg-slate-100 py-2.5 font-semibold text-slate-950 transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
         >
           {loading ? (
             <span className="flex items-center justify-center gap-2">
-              <span className="w-4 h-4 border-2 border-stone-700 border-t-stone-950 rounded-full animate-spin" />
+              <span className="h-4 w-4 animate-spin border-2 border-slate-500 border-t-slate-950 rounded-full" />
               Elaborazione...
             </span>
           ) : (

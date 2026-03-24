@@ -39,7 +39,7 @@ _USAGE_SUMMARY: Dict[str, dict] = {
 _DEFAULT_MAX_TOKENS = {
     "parse": 4096,
     "formalize": 4096,
-    "botgen": 7168,
+    "botgen": 10240,
     "botlab_modify": 7168,
 }
 

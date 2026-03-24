@@ -117,11 +117,20 @@ export const exportApi = {
       body: JSON.stringify({ mql5_code: code }),
     }),
 
+  bundleInfo: (sessionId: string) =>
+    request(`/api/export/bundle/${sessionId}`),
+
   downloadMql5Url: (sessionId: string) =>
     `${BASE_URL}/api/export/mql5/${sessionId}`,
 
   reportUrl: (sessionId: string) =>
     `${BASE_URL}/api/export/report/${sessionId}`,
+
+  bundleSetupUrl: (sessionId: string) =>
+    `${BASE_URL}/api/export/bundle/${sessionId}/setup.txt`,
+
+  bundleManifestUrl: (sessionId: string) =>
+    `${BASE_URL}/api/export/bundle/${sessionId}/manifest.json`,
 }
 
 // ─── Health check ─────────────────────────────────────────────────────────────
