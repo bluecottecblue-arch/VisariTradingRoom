@@ -13,7 +13,7 @@ from modules.common.anthropic_client import (
     compact_json, estimate_tokens_from_chars
 )
 
-_DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+_DEFAULT_GEMINI_MODEL = "gemini-1.5-flash"
 
 def get_gemini_api_key(api_key_override: Optional[str] = None) -> Optional[str]:
     api_key = str(api_key_override or "").strip() or os.getenv("GOOGLE_API_KEY", "").strip()

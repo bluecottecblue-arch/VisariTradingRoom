@@ -243,7 +243,7 @@ async def strategy_preflight(
 ):
     """Controllo locale gratuito: codificabilità e budget stimato prima di spendere token."""
     intake = req.model_dump()
-    user_creds = get_user_ai_credentials(context.username)
+    user_creds = await get_user_ai_credentials(context.username)
     intake["claude_access"] = resolve_claude_access(
         intake.get("claude_access"),
         account_api_key=user_creds["api_key"],
@@ -286,7 +286,7 @@ async def parse_strategy(
     parse_job: Optional[dict[str, Any]] = None
     try:
         intake = req.model_dump()
-        user_creds = get_user_ai_credentials(context.username)
+        user_creds = await get_user_ai_credentials(context.username)
         intake["claude_access"] = resolve_claude_access(
             intake.get("claude_access"),
             account_api_key=user_creds["api_key"],

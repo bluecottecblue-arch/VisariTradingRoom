@@ -68,6 +68,7 @@ export default function WizardPage() {
       const response = await projectApi.create(label, mode) as { project?: ProjectSummary }
       const projectId = response.project?.project_id || null
       if (projectId) {
+        restart() // Ensure the wizard is reset for the new project
         setCurrentProjectId(projectId)
         await loadProjects(projectId)
       }
@@ -90,7 +91,10 @@ export default function WizardPage() {
   }, [currentProjectId])
 
   useEffect(() => {
-    if (!projects.length) return
+    if (!projects.length) {
+      if (currentProjectId !== null) setCurrentProjectId(null);
+      return;
+    }
     const filtered = projects.filter((project) => project.mode === workspaceMode)
     if (currentProjectId && filtered.some((project) => project.project_id === currentProjectId)) {
       return
@@ -317,6 +321,7 @@ export default function WizardPage() {
                 createProject={createProject}
                 currentProject={currentProject}
                 currentStep={currentStep}
+                restart={restart}
               />
 
               <div className="mt-8 border-t border-slate-800/90 pt-8">

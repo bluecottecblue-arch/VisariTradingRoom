@@ -94,6 +94,25 @@ try:
         created_at = Column(DateTime(timezone=True), server_default=func.now())
         updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
+
+    class User(Base):
+        __tablename__ = "users"
+
+        username = Column(String, primary_key=True)
+        password_hash = Column(String, nullable=False)
+        password_salt = Column(String, nullable=False)
+        status = Column(String, default="active")
+        plan = Column(String, default="standard")
+        expires_at = Column(DateTime(timezone=True))
+        notes = Column(Text)
+        ai_provider = Column(String, default="anthropic")
+        claude_api_key = Column(String)
+        openai_api_key = Column(String)
+        google_api_key = Column(String)
+        created_at = Column(DateTime(timezone=True), server_default=func.now())
+        updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+        last_login_at = Column(DateTime(timezone=True))
+
 except ImportError:
     # SQLAlchemy not installed — models not available, using InMemorySessionStore
     class StrategySession:  # type: ignore
@@ -109,4 +128,7 @@ except ImportError:
         pass
 
     class JobRun:  # type: ignore
+        pass
+
+    class User:  # type: ignore
         pass

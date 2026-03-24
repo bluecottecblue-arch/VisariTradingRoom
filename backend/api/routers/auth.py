@@ -74,7 +74,7 @@ def _validate_admin_credentials(username: str, password: str) -> bool:
 
 @router.post("/login")
 async def login_user(payload: LoginRequest):
-    user = verify_user(payload.username, payload.password)
+    user = await verify_user(payload.username, payload.password)
     if not user:
         raise HTTPException(status_code=401, detail="Credenziali non valide")
 
@@ -103,7 +103,7 @@ async def login_admin(payload: LoginRequest):
 
 @router.get("/me")
 async def get_current_user(context: AuthContext = Depends(require_authenticated)):
-    user_profile = get_user_profile(context.username) if context.role == "user" else None
+    user_profile = await get_user_profile(context.username) if context.role == "user" else None
     return {
         "authenticated": True,
         "username": context.username,
@@ -124,8 +124,8 @@ async def admin_list_users(context: AuthContext = Depends(require_admin)):
     return {
         "ok": True,
         "admin": context.username,
-        "total": get_user_count(),
-        "users": list_users(),
+        "total": await get_user_count(),
+        "users": await list_users(),
     }
 
 
@@ -135,7 +135,7 @@ async def admin_create_user(
     context: AuthContext = Depends(require_admin),
 ):
     try:
-        user = create_user(
+        user = await create_user(
             payload.username,
             payload.password,
             status=payload.status,
@@ -164,7 +164,7 @@ async def admin_reset_password(
     context: AuthContext = Depends(require_admin),
 ):
     try:
-        updated = reset_password(username, payload.password)
+        updated = await reset_password(username, payload.password)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -184,7 +184,7 @@ async def admin_update_user(
     if username.strip().lower() == _normalize_admin_username():
         raise HTTPException(status_code=400, detail="L'account admin env non è gestibile da qui")
     try:
-        updated = update_user(
+        updated = await update_user(
             username,
             status=payload.status,
             plan=payload.plan,
@@ -209,7 +209,7 @@ async def admin_delete_user(username: str, context: AuthContext = Depends(requir
     if username.strip().lower() == _normalize_admin_username():
         raise HTTPException(status_code=400, detail="L'account admin env non può essere cancellato da qui")
 
-    removed = delete_user(username)
+    removed = await delete_user(username)
     if not removed:
         raise HTTPException(status_code=404, detail="Utente non trovato")
 

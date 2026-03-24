@@ -100,6 +100,22 @@ export default function StepIntake({ projectId, onComplete }: Props) {
              ((!body.ai_provider || body.ai_provider === 'anthropic') && body.claude_key_configured)
           )
           setAccountClaudeAvailable(hasKey)
+          
+          // Auto-select account key if available and no personal key provided yet
+          if (hasKey) {
+            setForm((prev) => {
+              if (prev.claude_access?.credential_source === 'personal' && !prev.claude_access?.api_key) {
+                return {
+                  ...prev,
+                  claude_access: {
+                    ...prev.claude_access!,
+                    credential_source: 'account'
+                  }
+                }
+              }
+              return prev
+            })
+          }
         }
       })
       .catch(() => {

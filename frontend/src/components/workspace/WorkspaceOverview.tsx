@@ -37,6 +37,7 @@ export default function WorkspaceOverview({
   createProject,
   currentProject,
   currentStep,
+  restart,
 }: {
   workspaceMode: WorkspaceMode
   setWorkspaceMode: (mode: WorkspaceMode) => void
@@ -46,9 +47,20 @@ export default function WorkspaceOverview({
   createProject: (mode: WorkspaceMode) => Promise<void>
   currentProject: ProjectDetail | null
   currentStep: number
+  restart: () => void
 }) {
   const filteredProjects = projects.filter((project) => project.mode === workspaceMode)
   const stepActiveIndex = Math.max(0, currentStep - 1)
+
+  const handleStrategyClick = () => {
+    restart()
+    setWorkspaceMode('strategy')
+  }
+
+  const handleBotLabClick = () => {
+    restart()
+    setWorkspaceMode('botlab')
+  }
 
   return (
     <div className="space-y-8">
@@ -68,13 +80,13 @@ export default function WorkspaceOverview({
 
             <div className="flex flex-wrap gap-3">
               <button
-                onClick={() => setWorkspaceMode('strategy')}
+                onClick={handleStrategyClick}
                 className="border border-cyan-800/70 bg-cyan-400/90 px-5 py-3 text-sm font-semibold text-slate-950 hover:bg-cyan-300"
               >
                 Create Strategy
               </button>
               <button
-                onClick={() => setWorkspaceMode('botlab')}
+                onClick={handleBotLabClick}
                 className="border border-slate-700 bg-slate-950/70 px-5 py-3 text-sm font-semibold text-slate-100 hover:border-slate-500"
               >
                 Upload Bot
@@ -161,7 +173,7 @@ export default function WorkspaceOverview({
             Structured wizard for market, entries, exits, risk management and macro/news filters.
           </div>
           <button
-            onClick={() => setWorkspaceMode('strategy')}
+            onClick={handleStrategyClick}
             className="mt-5 border border-cyan-800/70 bg-cyan-400/90 px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-cyan-300"
           >
             Open Strategy Builder
@@ -175,7 +187,7 @@ export default function WorkspaceOverview({
             Drag, inspect, compare and improve existing `.mq5`, `.txt` or `.py` bots with structured validation.
           </div>
           <button
-            onClick={() => setWorkspaceMode('botlab')}
+            onClick={handleBotLabClick}
             className="mt-5 border border-slate-700 bg-slate-950/40 px-4 py-3 text-sm font-semibold text-slate-100 hover:border-slate-500"
           >
             Open Bot Lab
