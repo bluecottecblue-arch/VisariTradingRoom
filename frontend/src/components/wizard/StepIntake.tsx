@@ -95,21 +95,26 @@ export default function StepIntake({ projectId, onComplete }: Props) {
       .then((body) => {
         if (!cancelled) {
           const hasKey = Boolean(
-             (body.ai_provider === 'openai' && body.openai_key_configured) ||
-             (body.ai_provider === 'google' && body.google_key_configured) ||
-             ((!body.ai_provider || body.ai_provider === 'anthropic') && body.claude_key_configured)
+            body.claude_key_configured || 
+            body.openai_key_configured || 
+            body.google_key_configured
           )
           setAccountClaudeAvailable(hasKey)
+          
+          // Store the account's assigned provider so we can show it in the UI
+          const accountProvider = body.ai_provider || 'anthropic'
           
           // Auto-select account key if available and no personal key provided yet
           if (hasKey) {
             setForm((prev) => {
-              if (prev.claude_access?.credential_source === 'personal' && !prev.claude_access?.api_key) {
+              const currentAccess = prev.claude_access || { credential_source: 'personal', api_key: '', provider: 'anthropic' }
+              if (currentAccess.credential_source === 'personal' && !currentAccess.api_key) {
                 return {
                   ...prev,
                   claude_access: {
-                    ...prev.claude_access!,
-                    credential_source: 'account'
+                    ...currentAccess,
+                    credential_source: 'account',
+                    provider: accountProvider as any
                   }
                 }
               }

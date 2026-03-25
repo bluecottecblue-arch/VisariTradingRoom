@@ -512,13 +512,26 @@ async def get_user_ai_credentials(username: str) -> dict:
             if not user:
                 return {"provider": "anthropic", "api_key": ""}
             
-            provider = user.ai_provider or "anthropic"
+            provider = (user.ai_provider or "anthropic").strip().lower()
+            key = ""
             if provider == "openai":
-                key = user.openai_api_key or ""
+                key = (user.openai_api_key or "").strip()
             elif provider == "google":
-                key = user.google_api_key or ""
+                key = (user.google_api_key or "").strip()
             else:
-                key = user.claude_api_key or ""
+                key = (user.claude_api_key or "").strip()
+
+            if not key:
+                if (user.google_api_key or "").strip():
+                    provider = "google"
+                    key = user.google_api_key.strip()
+                elif (user.openai_api_key or "").strip():
+                    provider = "openai"
+                    key = user.openai_api_key.strip()
+                elif (user.claude_api_key or "").strip():
+                    provider = "anthropic"
+                    key = user.claude_api_key.strip()
+
             return {"provider": provider, "api_key": key}
 
     with _LOCK:
@@ -527,8 +540,8 @@ async def get_user_ai_credentials(username: str) -> dict:
         if not user:
             return {"provider": "anthropic", "api_key": ""}
             
-        provider = str(user.get("ai_provider") or "anthropic").strip()
-        
+        provider = str(user.get("ai_provider") or "anthropic").strip().lower()
+        key = ""
         if provider == "openai":
             key = str(user.get("openai_api_key") or "").strip()
         elif provider == "google":
@@ -536,6 +549,17 @@ async def get_user_ai_credentials(username: str) -> dict:
         else:
             key = str(user.get("claude_api_key") or "").strip()
             
+        if not key:
+            if str(user.get("google_api_key") or "").strip():
+                provider = "google"
+                key = str(user.get("google_api_key")).strip()
+            elif str(user.get("openai_api_key") or "").strip():
+                provider = "openai"
+                key = str(user.get("openai_api_key")).strip()
+            elif str(user.get("claude_api_key") or "").strip():
+                provider = "anthropic"
+                key = str(user.get("claude_api_key")).strip()
+
         return {"provider": provider, "api_key": key}
 
 
