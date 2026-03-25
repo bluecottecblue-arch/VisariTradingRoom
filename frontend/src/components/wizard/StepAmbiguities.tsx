@@ -24,6 +24,7 @@ const SEVERITY_LABELS: Record<string, string> = {
 
 export default function StepAmbiguities({ sessionId, parseResult, onComplete, onBack }: Props) {
   const [resolutions, setResolutions] = useState<Record<string, string>>({})
+  const [missingInputs, setMissingInputs] = useState<Record<string, string>>({})
   const [loading, setLoading]         = useState(false)
   const [error, setError]             = useState<string | null>(null)
 
@@ -43,7 +44,9 @@ export default function StepAmbiguities({ sessionId, parseResult, onComplete, on
 
   const unresolvedHigh = ambiguities
     .filter((a) => a.severity === 'HIGH' && !resolutions[a.id]).length
-  const missingRequiredInputs = required_inputs.filter((item) => item.blocking !== false).length
+  const missingRequiredInputs = required_inputs.filter(
+    (item) => item.blocking !== false && !missingInputs[item.id]?.trim()
+  ).length
 
   const handleContinue = async () => {
     if (missingRequiredInputs > 0) {
@@ -57,7 +60,7 @@ export default function StepAmbiguities({ sessionId, parseResult, onComplete, on
     setLoading(true)
     setError(null)
     try {
-      const data = await strategyApi.resolveAmbiguities(sessionId, resolutions) as FormalSpec
+      const data = await strategyApi.resolveAmbiguities(sessionId, resolutions, missingInputs) as FormalSpec
       onComplete(data)
     } catch (e) {
       setError(formatError(e))
@@ -160,13 +163,30 @@ export default function StepAmbiguities({ sessionId, parseResult, onComplete, on
           </h2>
           <div className="space-y-3">
             {required_inputs.map((item) => (
-              <div key={item.id} className="px-4 py-4 bg-red-950/20 border border-red-800/40 rounded space-y-2">
+              <div key={item.id} className="px-5 py-5 bg-red-950/20 border border-red-800/40 rounded-lg space-y-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-red-500">MANDATORY</span>
+                  {missingInputs[item.id]?.trim() && (
+                    <span className="text-[10px] text-green-400 font-bold">● COMPILATO</span>
+                  )}
+                </div>
                 <div className="text-red-300 text-sm font-bold">{item.label}</div>
-                <div className="text-stone-400 text-xs">{item.why}</div>
-                <div className="text-stone-500 text-xs font-mono">Valid example: {item.example}</div>
+                <div className="text-stone-400 text-xs leading-relaxed">{item.why}</div>
+                <div className="text-stone-500 text-xs font-mono bg-stone-950/40 px-3 py-2 border border-stone-800 rounded">
+                  Valid example: {item.example}
+                </div>
                 {item.source_text && (
-                  <div className="text-stone-600 text-xs">Detected text: &quot;{item.source_text}&quot;</div>
+                  <div className="text-stone-600 text-xs mt-1">Detected text: &quot;{item.source_text}&quot;</div>
                 )}
+                <div className="pt-2">
+                  <textarea
+                    rows={2}
+                    value={missingInputs[item.id] || ''}
+                    onChange={(e) => setMissingInputs((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                    placeholder="Scrivi qui la regola mancante..."
+                    className="w-full px-4 py-3 bg-stone-950/60 border border-stone-700 rounded-md text-sm text-stone-200 placeholder-stone-600 focus:outline-none focus:border-cyan-700 focus:ring-1 focus:ring-cyan-700/50 resize-none transition-colors"
+                  />
+                </div>
               </div>
             ))}
           </div>

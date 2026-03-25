@@ -110,6 +110,7 @@ class PreflightResponse(BaseModel):
 class AmbiguityResolution(BaseModel):
     session_id: str
     resolutions: dict[str, str]
+    missing_inputs: dict[str, str] = Field(default_factory=dict)
 
 
 class FormalSpecResponse(BaseModel):
@@ -390,6 +391,7 @@ async def resolve_ambiguities(
         result = await formalizer.formalize(
             session_id=req.session_id,
             resolutions=req.resolutions,
+            missing_inputs=req.missing_inputs,
         )
         # Store formal spec so bot_gen can read it by session_id
         if result.get("status") == "VALID":

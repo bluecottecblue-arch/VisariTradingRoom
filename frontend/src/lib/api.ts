@@ -93,10 +93,10 @@ export const strategyApi = {
   parse: (intake: object) =>
     request('/api/strategy/parse', { method: 'POST', body: JSON.stringify(intake) }),
 
-  resolveAmbiguities: (sessionId: string, resolutions: Record<string, string>) =>
+  resolveAmbiguities: (sessionId: string, resolutions: Record<string, string>, missingInputs?: Record<string, string>) =>
     request('/api/strategy/resolve-ambiguities', {
       method: 'POST',
-      body: JSON.stringify({ session_id: sessionId, resolutions }),
+      body: JSON.stringify({ session_id: sessionId, resolutions, missing_inputs: missingInputs || {} }),
     }),
 
   generateBot: (sessionId: string) =>

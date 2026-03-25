@@ -101,13 +101,12 @@ export default function StepIntake({ projectId, onComplete }: Props) {
           )
           setAccountClaudeAvailable(hasKey)
           
-          // Store the account's assigned provider so we can show it in the UI
           const accountProvider = body.ai_provider || 'anthropic'
           
-          // Auto-select account key if available and no personal key provided yet
           if (hasKey) {
             setForm((prev) => {
               const currentAccess = prev.claude_access || { credential_source: 'personal', api_key: '', provider: 'anthropic' }
+              // ONLY update if it's currently personal AND has no key
               if (currentAccess.credential_source === 'personal' && !currentAccess.api_key) {
                 return {
                   ...prev,
@@ -198,16 +197,20 @@ export default function StepIntake({ projectId, onComplete }: Props) {
     }
   }, [form])
 
-  const set = <K extends keyof StrategyIntake>(key: K, value: StrategyIntake[K]) =>
-    setForm((current) => ({ ...current, [key]: value }))
+  const set = <K extends keyof StrategyIntake>(key: K, value: StrategyIntake[K]) => {
+    // Only update if the value is actually different to prevent unnecessary re-renders
+    setForm((current) => {
+      if (current[key] === value) return current
+      return { ...current, [key]: value }
+    })
+  }
 
-  const toggleDay = (day: string) =>
-    set(
-      'trading_days',
-      form.trading_days.includes(day)
-        ? form.trading_days.filter((item) => item !== day)
-        : [...form.trading_days, day],
-    )
+  const toggleDay = (day: string) => {
+    const nextDays = form.trading_days.includes(day)
+      ? form.trading_days.filter((item) => item !== day)
+      : [...form.trading_days, day]
+    set('trading_days', nextDays)
+  }
 
   const validate = () => {
     if (!form.name.trim()) return 'Give the strategy a name.'

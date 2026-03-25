@@ -1,5 +1,6 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { ProjectDetail, ProjectSummary } from '@/types'
 
@@ -49,16 +50,17 @@ export default function WorkspaceOverview({
   currentStep: number
   restart: () => void
 }) {
+  const router = useRouter()
   const filteredProjects = projects.filter((project) => project.mode === workspaceMode)
   const stepActiveIndex = Math.max(0, currentStep - 1)
 
   const handleStrategyClick = () => {
-    restart()
-    setWorkspaceMode('strategy')
+    // Navigate to the builder page
+    const url = currentProjectId ? `/builder?project_id=${currentProjectId}` : '/builder'
+    router.push(url)
   }
 
   const handleBotLabClick = () => {
-    restart()
     setWorkspaceMode('botlab')
   }
 
@@ -193,7 +195,6 @@ export default function WorkspaceOverview({
             Open Bot Lab
           </button>
         </div>
-
         <div className="border border-slate-800/90 bg-slate-950/75 px-5 py-5">
           <div className="flex items-center justify-between gap-3">
             <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Active Projects</div>
@@ -234,7 +235,6 @@ export default function WorkspaceOverview({
           </div>
         </div>
       </section>
-
       <section id="workflow-visual" className="border border-slate-800/90 bg-slate-950/75 px-5 py-5 lg:px-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>

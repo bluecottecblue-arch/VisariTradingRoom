@@ -44,11 +44,12 @@ class StrategyFormalizer:
         """Salva i risultati del parsing per questa sessione"""
         self._sessions[session_id] = {"parsed": parsed, "intake": intake}
 
-    async def formalize(self, session_id: str, resolutions: dict) -> dict:
+    async def formalize(self, session_id: str, resolutions: dict, missing_inputs: dict = None) -> dict:
         """
         Produce la specifica algoritmica formale basandosi su:
         - parsed strategy (dal DB/memoria)
         - resolutions: scelte dell'utente per ogni ambiguità
+        - missing_inputs: testi manuali forniti per input mancanti
         """
         # In produzione: recupera parsed dal DB
         session_payload = self._sessions.get(session_id)
@@ -60,7 +61,7 @@ class StrategyFormalizer:
         claude_access = normalize_claude_access(session_payload.get("intake", {}).get("claude_access"))
 
         parsed = session_payload.get("parsed", {})
-        readiness = validate_resolutions_for_formalization(parsed, resolutions)
+        readiness = validate_resolutions_for_formalization(parsed, resolutions, missing_inputs)
         if not readiness["is_ready"]:
             return build_formalization_result(
                 status=STATUS_INVALID,
@@ -97,7 +98,7 @@ class StrategyFormalizer:
         llm_result = await invoke_json(
             module="formalize",
             system_prompt=FORMALIZATION_SYSTEM,
-            payload=self._build_payload(session_payload, readiness["selected_resolutions"]),
+            payload=self._build_payload(session_payload, readiness["selected_resolutions"], missing_inputs),
             model=self.model,
             ai_credentials=claude_access,
         )
@@ -479,7 +480,7 @@ class StrategyFormalizer:
             "assumptions": data.get("assumptions") if isinstance(data.get("assumptions"), list) else [],
         }
 
-    def _build_payload(self, session_payload: dict, selected_resolutions: list) -> dict:
+    def _build_payload(self, session_payload: dict, selected_resolutions: list, missing_inputs: dict = None) -> dict:
         parsed = session_payload.get("parsed", {})
         intake = session_payload.get("intake", {})
         return {
@@ -505,5 +506,6 @@ class StrategyFormalizer:
                 "parsed_strategy": parsed.get("structured_strategy", {}),
                 "codeable_rules": parsed.get("codeable_rules", []),
                 "selected_resolutions": selected_resolutions,
+                "provided_missing_inputs": missing_inputs or {},
             },
         }

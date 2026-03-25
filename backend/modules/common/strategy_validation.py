@@ -507,9 +507,16 @@ def validate_strategy_intake(intake: dict) -> dict:
     )
 
 
-def validate_resolutions_for_formalization(parsed: dict, resolutions: dict) -> dict:
+def validate_resolutions_for_formalization(parsed: dict, resolutions: dict, missing_inputs: dict = None) -> dict:
+    missing_inputs = missing_inputs or {}
     required_inputs = list(parsed.get("required_inputs", []))
     ambiguities = list(parsed.get("ambiguities", []))
+    
+    unresolved_required = []
+    for req in required_inputs:
+        if req.get("id") not in missing_inputs and req.get("blocking", True):
+            unresolved_required.append(req)
+            
     unresolved = []
     selected = []
 
@@ -540,7 +547,7 @@ def validate_resolutions_for_formalization(parsed: dict, resolutions: dict) -> d
             }
         )
 
-    is_ready = not required_inputs and not unresolved
+    is_ready = not unresolved_required and not unresolved
     if parsed.get("status") == STATUS_VALID:
         is_ready = True
 
@@ -549,9 +556,9 @@ def validate_resolutions_for_formalization(parsed: dict, resolutions: dict) -> d
         "message": (
             "Specifica pronta per la formalizzazione."
             if is_ready
-            else "Mancano ancora dettagli obbligatori prima della formalizzazione."
+            else "Mancano ancora dettagli obbligatori o opzioni ambigue prima della formalizzazione."
         ),
-        "required_inputs": required_inputs,
+        "required_inputs": unresolved_required,
         "unresolved_ambiguities": unresolved,
         "selected_resolutions": selected,
     }
