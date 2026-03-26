@@ -131,18 +131,9 @@ def _is_expired(expires_at: Optional[str]) -> bool:
     return dt <= datetime.now(timezone.utc)
 
 
+from sqlalchemy import select, update, delete, func
 from db.database import is_db_available, AsyncSessionLocal
-
-if is_db_available():
-    from db.models import User as DBUser
-    try:
-        from sqlalchemy import select, update, delete
-    except ImportError:
-        pass
-else:
-    # Fallback type for type hints when DB is not available
-    from typing import Any
-    DBUser = Any  # type: ignore
+from db.models import User as DBUser
 
 
 def _user_to_dict(user: DBUser) -> dict:
@@ -162,34 +153,90 @@ def _user_to_dict(user: DBUser) -> dict:
     }
 
 
-async def list_users() -> list[dict]:
-    if is_db_available():
-        async with AsyncSessionLocal() as session:
-            result = await session.execute(select(DBUser).order_by(DBUser.username))
-            return [_user_to_dict(u) for u in result.scalars().all()]
+async def migrate_legacy_users():
+    """Migra gli utenti dal vecchio users.json al nuovo database SQLite/Postgres."""
+    # Se il DB non è pronto, non possiamo migrare
+    if not is_db_available():
+        return
 
-    with _LOCK:
-        payload = _read_data()
-        users = []
-        for user in payload.get("users", []):
-            effective_status = "expired" if _is_expired(user.get("expires_at")) else _normalize_status(user.get("status"))
-            users.append(
-                {
-                    "username": user.get("username"),
-                    "status": effective_status,
-                    "plan": user.get("plan") or "standard",
-                    "expires_at": user.get("expires_at"),
-                    "notes": user.get("notes") or "",
-                    "ai_provider": user.get("ai_provider") or "anthropic",
-                    "claude_key_configured": bool(str(user.get("claude_api_key") or "").strip()),
-                    "openai_key_configured": bool(str(user.get("openai_api_key") or "").strip()),
-                    "google_key_configured": bool(str(user.get("google_api_key") or "").strip()),
-                    "created_at": user.get("created_at"),
-                    "updated_at": user.get("updated_at"),
-                    "last_login_at": user.get("last_login_at"),
-                }
-            )
-        return sorted(users, key=lambda item: item.get("username") or "")
+    path = _storage_path()
+    if not path.exists():
+        return
+
+    print(f"📦 Trovato archivio legacy {path.name}. Controllo migrazione...")
+    
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        legacy_users = payload.get("users", [])
+        if not legacy_users:
+            return
+    except Exception as e:
+        print(f"⚠️  Errore lettura {path.name}: {e}")
+        return
+
+    async with AsyncSessionLocal() as session:
+        # Conta quanti utenti ci sono già nel DB
+        count_res = await session.execute(select(func.count(DBUser.username)))
+        db_count = count_res.scalar() or 0
+        
+        # Se il DB è già popolato, assumiamo che la migrazione sia già avvenuta
+        # o che l'utente voglia un DB pulito. In produzione, di solito si migra solo se il DB è vuoto.
+        if db_count > 0:
+            print(f"ℹ️  Database già popolato ({db_count} utenti). Salto migrazione legacy.")
+            return
+
+        print(f"🚛 Migrazione di {len(legacy_users)} utenti in corso...")
+        count = 0
+        for lu in legacy_users:
+            try:
+                username = _normalize_username(lu.get("username"))
+                if not username:
+                    continue
+                
+                # Password record
+                password_data = lu.get("password") or {}
+                
+                user = DBUser(
+                    username=username,
+                    password_hash=password_data.get("hash"),
+                    password_salt=password_data.get("salt"),
+                    status=_normalize_status(lu.get("status")),
+                    plan=_normalize_plan(lu.get("plan")),
+                    expires_at=datetime.fromisoformat(lu["expires_at"].replace("Z", "+00:00")) if lu.get("expires_at") else None,
+                    notes=str(lu.get("notes") or "").strip(),
+                    ai_provider=str(lu.get("ai_provider") or "anthropic").strip(),
+                    claude_api_key=str(lu.get("claude_api_key") or "").strip(),
+                    openai_api_key=str(lu.get("openai_api_key") or "").strip(),
+                    google_api_key=str(lu.get("google_api_key") or "").strip(),
+                    created_at=datetime.fromisoformat(lu["created_at"].replace("Z", "+00:00")) if lu.get("created_at") else datetime.now(timezone.utc),
+                    updated_at=datetime.fromisoformat(lu["updated_at"].replace("Z", "+00:00")) if lu.get("updated_at") else datetime.now(timezone.utc),
+                    last_login_at=datetime.fromisoformat(lu["last_login_at"].replace("Z", "+00:00")) if lu.get("last_login_at") else None,
+                )
+                session.add(user)
+                count += 1
+            except Exception as ee:
+                print(f"⚠️  Salto utente {lu.get('username')}: {ee}")
+
+        await session.commit()
+        print(f"✅ Migrazione completata: {count} utenti importati.")
+        
+        # Rinominiamo il file vecchio per evitare di riprocessarlo
+        try:
+            old_name = path.with_suffix(".json.migrated")
+            path.rename(old_name)
+            print(f"♻️  File legacy rinominato in {old_name.name}")
+        except Exception:
+            pass
+
+
+async def list_users() -> list[dict]:
+    if not is_db_available():
+        return []
+
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(select(DBUser).order_by(DBUser.username))
+        return [_user_to_dict(u) for u in result.scalars().all()]
+    return []
 
 
 async def create_user(
@@ -211,91 +258,46 @@ async def create_user(
     if len(password or "") < 6:
         raise ValueError("Password troppo corta: minimo 6 caratteri")
 
+    if not is_db_available():
+        raise RuntimeError("Database non disponibile — registrazione disabilitata")
+
     pwd_rec = _build_password_record(password)
 
-    if is_db_available():
-        async with AsyncSessionLocal() as session:
-            existing = await session.get(DBUser, normalized)
-            if existing:
-                raise ValueError("Username già esistente")
-            
-            user = DBUser(
-                username=normalized,
-                password_hash=pwd_rec["hash"],
-                password_salt=pwd_rec["salt"],
-                status=_normalize_status(status),
-                plan=_normalize_plan(plan),
-                expires_at=datetime.fromisoformat(expires_at.replace("Z", "+00:00")) if expires_at else None,
-                notes=str(notes or "").strip(),
-                ai_provider=str(ai_provider or "anthropic").strip(),
-                claude_api_key=str(claude_api_key or "").strip(),
-                openai_api_key=str(openai_api_key or "").strip(),
-                google_api_key=str(google_api_key or "").strip(),
-            )
-            session.add(user)
-            await session.commit()
-            await session.refresh(user)
-            return _user_to_dict(user)
-
-    with _LOCK:
-        payload = _read_data()
-        if _find_user(payload, normalized):
+    async with AsyncSessionLocal() as session:
+        existing = await session.get(DBUser, normalized)
+        if existing:
             raise ValueError("Username già esistente")
-
-        now = _utc_now()
-        user = {
-            "username": normalized,
-            "password": pwd_rec,
-            "status": _normalize_status(status),
-            "plan": _normalize_plan(plan),
-            "expires_at": _normalize_expires_at(expires_at),
-            "notes": str(notes or "").strip(),
-            "ai_provider": str(ai_provider or "anthropic").strip(),
-            "claude_api_key": str(claude_api_key or "").strip(),
-            "openai_api_key": str(openai_api_key or "").strip(),
-            "google_api_key": str(google_api_key or "").strip(),
-            "created_at": now,
-            "updated_at": now,
-            "last_login_at": None,
-        }
-        payload["users"].append(user)
-        _write_data(payload)
-        return {
-            "username": normalized,
-            "status": user["status"],
-            "plan": user["plan"],
-            "expires_at": user["expires_at"],
-            "notes": user["notes"],
-            "ai_provider": user["ai_provider"],
-            "claude_key_configured": bool(user["claude_api_key"]),
-            "openai_key_configured": bool(user.get("openai_api_key")),
-            "google_key_configured": bool(user.get("google_api_key")),
-            "created_at": now,
-            "updated_at": now,
-            "last_login_at": None,
-        }
+        
+        user = DBUser(
+            username=normalized,
+            password_hash=pwd_rec["hash"],
+            password_salt=pwd_rec["salt"],
+            status=_normalize_status(status),
+            plan=_normalize_plan(plan),
+            expires_at=datetime.fromisoformat(expires_at.replace("Z", "+00:00")) if expires_at else None,
+            notes=str(notes or "").strip(),
+            ai_provider=str(ai_provider or "anthropic").strip(),
+            claude_api_key=str(claude_api_key or "").strip(),
+            openai_api_key=str(openai_api_key or "").strip(),
+            google_api_key=str(google_api_key or "").strip(),
+        )
+        session.add(user)
+        await session.commit()
+        await session.refresh(user)
+        return _user_to_dict(user)
+    raise RuntimeError("Errore creazione utente")
 
 
 async def delete_user(username: str) -> bool:
     normalized = _normalize_username(username)
-    if is_db_available():
-        async with AsyncSessionLocal() as session:
-            result = await session.execute(delete(DBUser).where(DBUser.username == normalized))
-            await session.commit()
-            return result.rowcount > 0
+    if not is_db_available():
+        return False
 
-    with _LOCK:
-        payload = _read_data()
-        before = len(payload.get("users", []))
-        payload["users"] = [
-            user
-            for user in payload.get("users", [])
-            if _normalize_username(user.get("username")) != normalized
-        ]
-        removed = len(payload["users"]) != before
-        if removed:
-            _write_data(payload)
-        return removed
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(delete(DBUser).where(DBUser.username == normalized))
+        await session.commit()
+        return result.rowcount > 0
+    return False
 
 
 async def reset_password(username: str, password: str) -> dict:
@@ -303,31 +305,21 @@ async def reset_password(username: str, password: str) -> dict:
     if len(password or "") < 6:
         raise ValueError("Password troppo corta: minimo 6 caratteri")
 
+    if not is_db_available():
+        raise RuntimeError("Database non disponibile")
+
     pwd_rec = _build_password_record(password)
 
-    if is_db_available():
-        async with AsyncSessionLocal() as session:
-            user = await session.get(DBUser, normalized)
-            if not user:
-                raise ValueError("Utente non trovato")
-            user.password_hash = pwd_rec["hash"]
-            user.password_salt = pwd_rec["salt"]
-            await session.commit()
-            return {"username": user.username, "status": user.status, "updated_at": _utc_now()}
-
-    with _LOCK:
-        payload = _read_data()
-        user = _find_user(payload, normalized)
+    async with AsyncSessionLocal() as session:
+        user = await session.get(DBUser, normalized)
         if not user:
             raise ValueError("Utente non trovato")
-        user["password"] = pwd_rec
-        user["updated_at"] = _utc_now()
-        _write_data(payload)
-        return {
-            "username": user.get("username"),
-            "status": user.get("status", "active"),
-            "updated_at": user.get("updated_at"),
-        }
+        user.password_hash = pwd_rec["hash"]
+        user.password_salt = pwd_rec["salt"]
+        user.updated_at = datetime.now(timezone.utc)
+        await session.commit()
+        return {"username": user.username, "status": user.status, "updated_at": user.updated_at.isoformat()}
+    raise RuntimeError("Errore reset password")
 
 
 async def update_user(
@@ -343,236 +335,129 @@ async def update_user(
     google_api_key: Optional[str] = None,
 ) -> dict:
     normalized = _normalize_username(username)
-    if is_db_available():
-        async with AsyncSessionLocal() as session:
-            user = await session.get(DBUser, normalized)
-            if not user:
-                raise ValueError("Utente non trovato")
-            if status is not None:
-                user.status = _normalize_status(status)
-            if plan is not None:
-                user.plan = _normalize_plan(plan)
-            if expires_at is not None:
-                user.expires_at = datetime.fromisoformat(expires_at.replace("Z", "+00:00")) if expires_at else None
-            if notes is not None:
-                user.notes = str(notes).strip()
-            if ai_provider is not None:
-                user.ai_provider = str(ai_provider).strip()
-            if claude_api_key is not None:
-                user.claude_api_key = str(claude_api_key).strip()
-            if openai_api_key is not None:
-                user.openai_api_key = str(openai_api_key).strip()
-            if google_api_key is not None:
-                user.google_api_key = str(google_api_key).strip()
-            await session.commit()
-            await session.refresh(user)
-            return _user_to_dict(user)
+    if not is_db_available():
+        raise RuntimeError("Database non disponibile")
 
-    with _LOCK:
-        payload = _read_data()
-        user = _find_user(payload, normalized)
+    async with AsyncSessionLocal() as session:
+        user = await session.get(DBUser, normalized)
         if not user:
             raise ValueError("Utente non trovato")
+        
         if status is not None:
-            user["status"] = _normalize_status(status)
+            user.status = _normalize_status(status)
         if plan is not None:
-            user["plan"] = _normalize_plan(plan)
+            user.plan = _normalize_plan(plan)
         if expires_at is not None:
-            user["expires_at"] = _normalize_expires_at(expires_at)
+            user.expires_at = datetime.fromisoformat(expires_at.replace("Z", "+00:00")) if expires_at else None
         if notes is not None:
-            user["notes"] = str(notes).strip()
+            user.notes = str(notes).strip()
         if ai_provider is not None:
-            user["ai_provider"] = str(ai_provider).strip()
+            user.ai_provider = str(ai_provider).strip()
         if claude_api_key is not None:
-            user["claude_api_key"] = str(claude_api_key).strip()
+            user.claude_api_key = str(claude_api_key).strip()
         if openai_api_key is not None:
-            user["openai_api_key"] = str(openai_api_key).strip()
+            user.openai_api_key = str(openai_api_key).strip()
         if google_api_key is not None:
-            user["google_api_key"] = str(google_api_key).strip()
-        if _is_expired(user.get("expires_at")):
-            user["status"] = "expired"
-        user["updated_at"] = _utc_now()
-        _write_data(payload)
-        return {
-            "username": user.get("username"),
-            "status": user.get("status", "active"),
-            "plan": user.get("plan", "standard"),
-            "expires_at": user.get("expires_at"),
-            "notes": user.get("notes", ""),
-            "ai_provider": user.get("ai_provider", "anthropic"),
-            "claude_key_configured": bool(str(user.get("claude_api_key") or "").strip()),
-            "openai_key_configured": bool(str(user.get("openai_api_key") or "").strip()),
-            "google_key_configured": bool(str(user.get("google_api_key") or "").strip()),
-            "updated_at": user.get("updated_at"),
-        }
+            user.google_api_key = str(google_api_key).strip()
+        
+        # Check expiry
+        if user.expires_at and user.expires_at <= datetime.now(timezone.utc):
+            user.status = "expired"
+            
+        user.updated_at = datetime.now(timezone.utc)
+        await session.commit()
+        await session.refresh(user)
+        return _user_to_dict(user)
 
 
 async def verify_user(username: str, password: str) -> Optional[dict]:
     normalized = _normalize_username(username)
-    if is_db_available():
-        async with AsyncSessionLocal() as session:
-            user = await session.get(DBUser, normalized)
-            if not user or user.status != "active":
-                return None
-            
-            candidate_hash = _hash_password(password, user.password_salt)
-            if not secrets.compare_digest(candidate_hash, user.password_hash):
-                return None
-            
-            user.last_login_at = datetime.now(timezone.utc)
-            await session.commit()
-            return _user_to_dict(user)
+    if not is_db_available():
+        return None
 
-    with _LOCK:
-        payload = _read_data()
-        user = _find_user(payload, normalized)
+    async with AsyncSessionLocal() as session:
+        user = await session.get(DBUser, normalized)
         if not user:
             return None
-
-        password_record = user.get("password") or {}
-        salt = str(password_record.get("salt") or "")
-        stored_hash = str(password_record.get("hash") or "")
-        if not salt or not stored_hash:
+        
+        # Check status and expiry
+        if user.expires_at and user.expires_at <= datetime.now(timezone.utc):
+            user.status = "expired"
+            await session.commit()
             return None
-        if _is_expired(user.get("expires_at")):
-            user["status"] = "expired"
-            user["updated_at"] = _utc_now()
-            _write_data(payload)
+            
+        if user.status != "active":
             return None
-        if _normalize_status(user.get("status")) != "active":
+        
+        candidate_hash = _hash_password(password, user.password_salt)
+        if not secrets.compare_digest(candidate_hash, user.password_hash):
             return None
-
-        candidate_hash = _hash_password(password, salt)
-        if not secrets.compare_digest(candidate_hash, stored_hash):
-            return None
-
-        user["last_login_at"] = _utc_now()
-        _write_data(payload)
-        return {
-            "username": user.get("username"),
-            "status": user.get("status", "active"),
-            "plan": user.get("plan", "standard"),
-            "expires_at": user.get("expires_at"),
-            "ai_provider": user.get("ai_provider", "anthropic"),
-            "claude_key_configured": bool(str(user.get("claude_api_key") or "").strip()),
-            "openai_key_configured": bool(str(user.get("openai_api_key") or "").strip()),
-            "google_key_configured": bool(str(user.get("google_api_key") or "").strip()),
-            "created_at": user.get("created_at"),
-            "updated_at": user.get("updated_at"),
-            "last_login_at": user.get("last_login_at"),
-        }
+        
+        user.last_login_at = datetime.now(timezone.utc)
+        await session.commit()
+        return _user_to_dict(user)
+    return None
 
 
 async def get_user_count() -> int:
-    if is_db_available():
-        async with AsyncSessionLocal() as session:
-            from sqlalchemy import func
-            result = await session.execute(select(func.count(DBUser.username)))
-            return result.scalar() or 0
-
-    with _LOCK:
-        payload = _read_data()
-        return len(payload.get("users", []))
+    if not is_db_available():
+        return 0
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(select(func.count(DBUser.username)))
+        return result.scalar() or 0
+    return 0
 
 
 async def get_user_profile(username: str) -> Optional[dict]:
     normalized = _normalize_username(username)
-    if is_db_available():
-        async with AsyncSessionLocal() as session:
-            user = await session.get(DBUser, normalized)
-            return _user_to_dict(user) if user else None
-
-    with _LOCK:
-        payload = _read_data()
-        user = _find_user(payload, normalized)
-        if not user:
-            return None
-        effective_status = "expired" if _is_expired(user.get("expires_at")) else _normalize_status(user.get("status"))
-        return {
-            "username": user.get("username"),
-            "status": effective_status,
-            "plan": user.get("plan", "standard"),
-            "expires_at": user.get("expires_at"),
-            "notes": user.get("notes") or "",
-            "ai_provider": user.get("ai_provider", "anthropic"),
-            "claude_key_configured": bool(str(user.get("claude_api_key") or "").strip()),
-            "openai_key_configured": bool(str(user.get("openai_api_key") or "").strip()),
-            "google_key_configured": bool(str(user.get("google_api_key") or "").strip()),
-            "created_at": user.get("created_at"),
-            "updated_at": user.get("updated_at"),
-            "last_login_at": user.get("last_login_at"),
-        }
+    if not is_db_available():
+        return None
+    async with AsyncSessionLocal() as session:
+        user = await session.get(DBUser, normalized)
+        return _user_to_dict(user) if user else None
+    return None
 
 
 async def get_user_ai_credentials(username: str) -> dict:
     normalized = _normalize_username(username)
-    if is_db_available():
-        async with AsyncSessionLocal() as session:
-            user = await session.get(DBUser, normalized)
-            if not user:
-                return {"provider": "anthropic", "api_key": ""}
-            
-            provider = (user.ai_provider or "anthropic").strip().lower()
-            key = ""
-            if provider == "openai":
-                key = (user.openai_api_key or "").strip()
-            elif provider == "google":
-                key = (user.google_api_key or "").strip()
-            else:
-                key = (user.claude_api_key or "").strip()
-
-            if not key:
-                if (user.google_api_key or "").strip():
-                    provider = "google"
-                    key = user.google_api_key.strip()
-                elif (user.openai_api_key or "").strip():
-                    provider = "openai"
-                    key = user.openai_api_key.strip()
-                elif (user.claude_api_key or "").strip():
-                    provider = "anthropic"
-                    key = user.claude_api_key.strip()
-
-            return {"provider": provider, "api_key": key}
-
-    with _LOCK:
-        payload = _read_data()
-        user = _find_user(payload, normalized)
+    if not is_db_available():
+        return {"provider": "anthropic", "api_key": ""}
+        
+    async with AsyncSessionLocal() as session:
+        user = await session.get(DBUser, normalized)
         if not user:
             return {"provider": "anthropic", "api_key": ""}
-            
-        provider = str(user.get("ai_provider") or "anthropic").strip().lower()
+        
+        provider = (user.ai_provider or "anthropic").strip().lower()
         key = ""
         if provider == "openai":
-            key = str(user.get("openai_api_key") or "").strip()
+            key = (user.openai_api_key or "").strip()
         elif provider == "google":
-            key = str(user.get("google_api_key") or "").strip()
+            key = (user.google_api_key or "").strip()
         else:
-            key = str(user.get("claude_api_key") or "").strip()
-            
+            key = (user.claude_api_key or "").strip()
+
+        # Fallback to any available key
         if not key:
-            if str(user.get("google_api_key") or "").strip():
+            if (user.google_api_key or "").strip():
                 provider = "google"
-                key = str(user.get("google_api_key")).strip()
-            elif str(user.get("openai_api_key") or "").strip():
+                key = user.google_api_key.strip()
+            elif (user.openai_api_key or "").strip():
                 provider = "openai"
-                key = str(user.get("openai_api_key")).strip()
-            elif str(user.get("claude_api_key") or "").strip():
+                key = user.openai_api_key.strip()
+            elif (user.claude_api_key or "").strip():
                 provider = "anthropic"
-                key = str(user.get("claude_api_key")).strip()
+                key = user.claude_api_key.strip()
 
         return {"provider": provider, "api_key": key}
+    return {"provider": "anthropic", "api_key": ""}
 
 
 async def get_user_claude_api_key(username: str) -> str:
     normalized = _normalize_username(username)
-    if is_db_available():
-        async with AsyncSessionLocal() as session:
-            user = await session.get(DBUser, normalized)
-            return user.claude_api_key or "" if user else ""
-
-    with _LOCK:
-        payload = _read_data()
-        user = _find_user(payload, normalized)
-        if not user:
-            return ""
-        return str(user.get("claude_api_key") or "").strip()
+    if not is_db_available():
+        return ""
+    async with AsyncSessionLocal() as session:
+        user = await session.get(DBUser, normalized)
+        return user.claude_api_key or "" if user else ""
+    return ""

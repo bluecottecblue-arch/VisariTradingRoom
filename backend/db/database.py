@@ -10,12 +10,21 @@ In produzione:
   - init_db() crea le tabelle automaticamente
 """
 import os
+# Ensure storage directory exists for SQLite fallback
+storage_dir = os.environ.get("STORAGE_PATH", "./storage")
+if not os.path.isabs(storage_dir):
+    # If relative, make it absolute relative to the backend root
+    backend_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    storage_dir = os.path.join(backend_root, storage_dir)
+
+os.makedirs(storage_dir, exist_ok=True)
 
 DATABASE_URL = os.environ.get(
     "DATABASE_URL",
-    "postgresql+asyncpg://sf_user:sf_pass@localhost:5432/strategyforge"
+    f"sqlite+aiosqlite:///{os.path.join(storage_dir, 'strategyforge.db')}"
 )
 
+# Handle Render/Heroku style postgres URLs
 if DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 
@@ -65,7 +74,10 @@ async def init_db():
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         _db_connected = True
-        print("✅ Database connesso")
+        # Local import to avoid circular dependency
+        from modules.auth.user_store import migrate_legacy_users
+        await migrate_legacy_users()
+        print("✅ Database connesso e migrazione completata")
     except Exception as e:
         _db_connected = False
         print(f"⚠️  Database non disponibile: {e}. Funziona in modalità stateless.")
