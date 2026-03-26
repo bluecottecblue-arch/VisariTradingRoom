@@ -21,6 +21,7 @@ _TECHNICAL_DEFAULT_NOTES = (
     ("account_balance", "account_balance=10000 USD"),
     ("broker_spread", "broker_spread_max=1.5 pips"),
     ("ema_method", "EMA calculation method = exponential moving average on close price"),
+    ("max_open_positions", "max_open_positions=1 trade aperto contemporaneamente"),
 )
 
 
@@ -72,6 +73,8 @@ def enrich_intake_with_technical_defaults(intake: dict) -> dict:
         elif key == "broker_spread" and "broker_spread" not in normalized_notes and "broker spread" not in normalized_notes and "spread_max" not in normalized_notes:
             additions.append(note)
         elif key == "ema_method" and "ema calculation method" not in normalized_notes and "ema method" not in normalized_notes:
+            additions.append(note)
+        elif key == "max_open_positions" and not _mentions_max_open_positions(normalized_notes):
             additions.append(note)
 
     if additions:

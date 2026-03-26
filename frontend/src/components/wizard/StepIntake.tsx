@@ -416,7 +416,7 @@ export default function StepIntake({ projectId, onComplete }: Props) {
                   </Field>
                 </div>
                 <div className="mt-4">
-                  <Accordion title="Advanced Context & Timeframes" defaultOpen={false}>
+                  <Accordion title="Advanced Context & Timeframes" defaultOpen={true}>
                     <div className="grid gap-4 md:grid-cols-2">
                       <Field label="Analysis timeframe">
                         <select value={form.analysis_timeframe} onChange={(e) => set('analysis_timeframe', e.target.value)} className={inputCls}>
@@ -486,7 +486,7 @@ export default function StepIntake({ projectId, onComplete }: Props) {
                 />
               </Field>
               <div className="mt-4">
-                <Accordion title="Trailing Stop (Optional)" defaultOpen={false}>
+                <Accordion title="Trailing Stop (Optional)" defaultOpen={true}>
                   <Field label="Trailing stop logic">
                     <input
                       value={form.trailing_stop}
@@ -526,7 +526,7 @@ export default function StepIntake({ projectId, onComplete }: Props) {
           {formStep === 4 && (
             <div className="space-y-8">
               <Section title="Sessions and filters">
-                <Accordion title="Session & Day Triggers" defaultOpen={false}>
+                <Accordion title="Session & Day Triggers" defaultOpen={true}>
                   <div className="grid gap-4 md:grid-cols-2">
                     <Field label="Session start (UTC)">
                       <input type="time" value={form.trading_hours_start} onChange={(e) => set('trading_hours_start', e.target.value)} className={inputCls} />
@@ -577,7 +577,7 @@ export default function StepIntake({ projectId, onComplete }: Props) {
                 </div>
 
                 <div className="mt-4">
-                  <Accordion title="Advanced Context & News Handling" defaultOpen={false}>
+                  <Accordion title="Advanced Context & News Handling" defaultOpen={true}>
                     <Field label="Context notes">
                       <input
                         value={form.context_filter}
