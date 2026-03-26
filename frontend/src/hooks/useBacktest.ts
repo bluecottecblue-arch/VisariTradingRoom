@@ -82,7 +82,7 @@ export function useBacktest() {
         // Backend può rispondere direttamente con i risultati (sync) o con task_id (async)
         if (response.status === 'complete' && response.results) {
           if (!mountedRef.current || runTokenRef.current !== currentToken) return
-          clearInterval(phaseTimerRef.current!)
+          if (phaseTimerRef.current) clearInterval(phaseTimerRef.current)
           setPhase('complete')
           setResults(response.results)
           return

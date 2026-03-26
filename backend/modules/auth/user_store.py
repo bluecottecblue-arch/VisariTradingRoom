@@ -318,6 +318,7 @@ async def reset_password(username: str, password: str) -> dict:
         user.password_salt = pwd_rec["salt"]
         user.updated_at = datetime.now(timezone.utc)
         await session.commit()
+        await session.refresh(user)
         return {"username": user.username, "status": user.status, "updated_at": user.updated_at.isoformat()}
     raise RuntimeError("Errore reset password")
 
@@ -395,6 +396,7 @@ async def verify_user(username: str, password: str) -> Optional[dict]:
         
         user.last_login_at = datetime.now(timezone.utc)
         await session.commit()
+        await session.refresh(user)
         return _user_to_dict(user)
     return None
 

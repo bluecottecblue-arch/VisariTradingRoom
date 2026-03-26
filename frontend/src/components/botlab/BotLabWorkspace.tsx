@@ -97,6 +97,23 @@ export default function BotLabWorkspace() {
 
   const uiLocked = loadingAnalyze || loadingModify
 
+  const cancelInFlightOperations = () => {
+    analyzeTokenRef.current += 1
+    modifyTokenRef.current += 1
+    setLoadingAnalyze(false)
+    setLoadingModify(false)
+  }
+
+  const resetWorkspaceState = () => {
+    setAnalysis(null)
+    setModifyResult(null)
+    setModifyPrompt('')
+    setError(null)
+    setExportSaveFailed(false)
+    originalBacktest.reset()
+    modifiedBacktest.reset()
+  }
+
   const compareMetrics = useMemo(() => {
     if (!originalBacktest.results || !modifiedBacktest.results) return null
     return {
@@ -156,16 +173,10 @@ export default function BotLabWorkspace() {
 
     try {
       const text = await file.text()
-      analyzeTokenRef.current += 1
-      modifyTokenRef.current += 1
+      cancelInFlightOperations()
       setFilename(file.name)
       setCode(text)
-      setError(null)
-      setExportSaveFailed(false)
-      setAnalysis(null)
-      setModifyResult(null)
-      originalBacktest.reset()
-      modifiedBacktest.reset()
+      resetWorkspaceState()
     } catch {
       setError('Failed to read the file contents.')
     }
@@ -174,6 +185,7 @@ export default function BotLabWorkspace() {
   const onDropFile = async (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault()
     setDragActive(false)
+    if (uiLocked) return
     await handleFileSelected(event.dataTransfer.files?.[0] || null)
   }
 
@@ -404,9 +416,13 @@ export default function BotLabWorkspace() {
             <div
               onDragOver={(event) => {
                 event.preventDefault()
+                if (uiLocked) return
                 setDragActive(true)
               }}
-              onDragLeave={() => setDragActive(false)}
+              onDragLeave={() => {
+                if (uiLocked) return
+                setDragActive(false)
+              }}
               onDrop={onDropFile}
               className={`border border-dashed px-5 py-8 transition-colors ${
                 dragActive ? 'border-cyan-700/80 bg-cyan-950/10' : 'border-slate-800 bg-slate-950/45'
@@ -435,6 +451,7 @@ export default function BotLabWorkspace() {
                 <input
                   value={filename}
                   onChange={(e) => setFilename(e.target.value)}
+                  disabled={uiLocked}
                   className={inputCls}
                   placeholder="expert_advisor.mq5"
                 />
@@ -466,12 +483,13 @@ export default function BotLabWorkspace() {
               <textarea
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
+                disabled={uiLocked}
                 className={`${textareaCls} h-64`}
                 placeholder="Paste the bot source code here..."
               />
             </Field>
             <Field label="What do you want to do?">
-              <select value={actionFocus} onChange={(e) => setActionFocus(e.target.value)} className={inputCls}>
+              <select value={actionFocus} onChange={(e) => setActionFocus(e.target.value)} disabled={uiLocked} className={inputCls}>
                 {ACTIONS.map((action) => (
                   <option key={action} value={action}>{action}</option>
                 ))}
@@ -487,17 +505,10 @@ export default function BotLabWorkspace() {
               </button>
               <button
                 onClick={() => {
-                  analyzeTokenRef.current += 1
-                  modifyTokenRef.current += 1
+                  cancelInFlightOperations()
                   setFilename('uploaded_bot.mq5')
                   setCode('')
-                  setAnalysis(null)
-                  setModifyResult(null)
-                  setModifyPrompt('')
-                  originalBacktest.reset()
-                  modifiedBacktest.reset()
-                  setError(null)
-                  setExportSaveFailed(false)
+                  resetWorkspaceState()
                 }}
                 className="border border-slate-800 px-4 py-3 text-slate-300"
               >
