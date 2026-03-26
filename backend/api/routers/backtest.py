@@ -111,38 +111,49 @@ def _get_formal_spec_from_session(session_id: str) -> dict:
     }
 
 
-def _build_strategy_function(formal_spec: dict, params: dict = None, news_windows: Optional[List[dict]] = None):
+def _build_strategy_function(data: pd.DataFrame, formal_spec: dict, params: dict = None, news_windows: Optional[List[dict]] = None):
     """
-    Costruisce una funzione Python che implementa la strategia.
-    In produzione: parsing completo della specifica formale.
-    Demo: implementa una semplice EMA crossover come placeholder.
+    Costruisce una funzione Python che implementa la strategia, ottimizzata con pre-calcolo.
     """
     spec = (formal_spec or {}).get("formal_spec", {}) if formal_spec else {}
     indicators = spec.get("indicators") or []
     strategy_style = str(spec.get("strategy_style") or "").strip().lower() or "trend_following"
-    macro_news = normalize_macro_news_config(
-        spec.get("macro_news") or spec.get("fundamental_filters")
-    )
+    macro_news = normalize_macro_news_config(spec.get("macro_news") or spec.get("fundamental_filters"))
     symbol = str((formal_spec or {}).get("symbol") or spec.get("symbol") or "").upper()
     risk_management = spec.get("risk_management") or {}
     news_windows = news_windows or []
 
-    ema_periods = sorted(
-        [value for value in (_extract_indicator_period(indicators, "EMA")) if value],
-    )
-    fast_ema = ema_periods[0] if ema_periods else 20
-    slow_ema = ema_periods[1] if len(ema_periods) > 1 else 50
-    rsi_period = next(iter(_extract_indicator_period(indicators, "RSI")), None) or 14
-    atr_period = next(iter(_extract_indicator_period(indicators, "ATR")), None) or 14
+    ema_periods = sorted([p for p in _extract_indicator_period(indicators, "EMA") if p])
+    fast_ema_p = ema_periods[0] if ema_periods else 20
+    slow_ema_p = ema_periods[1] if len(ema_periods) > 1 else 50
+    rsi_p = next(iter(_extract_indicator_period(indicators, "RSI")), None) or 14
+    atr_p = next(iter(_extract_indicator_period(indicators, "ATR")), None) or 14
     rr_ratio = _safe_float((spec.get("take_profit") or {}).get("rr_ratio"), 2.0)
     atr_multiplier = _safe_float((spec.get("stop_loss") or {}).get("atr_multiplier"), 1.5)
     session_window = _extract_session_window(risk_management)
     directional_bias = str(macro_news.get("directional_bias") or "").strip().lower()
     bias_mode = str(macro_news.get("bias_mode") or "").strip().lower()
 
+    # Pre-calcolo vettoriale degli indicatori (MOLTO più veloce di calcolarli in loop)
+    close = data["Close"]
+    high = data["High"]
+    low = data["Low"]
+    
+    ema_fast = close.ewm(span=max(2, fast_ema_p), adjust=False).mean()
+    ema_slow = close.ewm(span=max(max(3, fast_ema_p + 1), slow_ema_p), adjust=False).mean()
+    
+    tr = pd.DataFrame({
+        "hl": high - low,
+        "hc": abs(high - close.shift(1)),
+        "lc": abs(low - close.shift(1))
+    }).max(axis=1)
+    atr = tr.ewm(span=max(2, atr_p), adjust=False).mean()
+    rsi = _compute_rsi(close, rsi_p)
+
     def strategy(history: pd.DataFrame):
-        if len(history) < 52:
-            return None
+        # NOTA: history è data.iloc[:i]. Usiamo l'ultimo indice per accedere ai dati pre-calcolati.
+        i = len(history) - 1
+        if i < 50: return None
 
         last_ts = history.index[-1]
         if session_window and not _timestamp_in_session(last_ts, session_window):
@@ -150,49 +161,31 @@ def _build_strategy_function(formal_spec: dict, params: dict = None, news_window
         if news_windows and _is_in_news_blackout(last_ts, news_windows):
             return None
 
-        close = history["Close"]
-        ema_fast = close.ewm(span=max(2, fast_ema), adjust=False).mean()
-        ema_slow = close.ewm(span=max(max(3, fast_ema + 1), slow_ema), adjust=False).mean()
-
-        # ATR per SL
-        high = history["High"]
-        low = history["Low"]
-        tr = pd.DataFrame({
-            "hl": high - low,
-            "hc": abs(high - close.shift(1)),
-            "lc": abs(low - close.shift(1))
-        }).max(axis=1)
-        atr = tr.ewm(span=max(2, atr_period), adjust=False).mean().iloc[-1]
-        rsi_series = _compute_rsi(close, rsi_period)
-        last_rsi = float(rsi_series.iloc[-1]) if not rsi_series.empty else 50.0
-
-        last_close = close.iloc[-1]
-        prev_fast = ema_fast.iloc[-2]
-        curr_fast = ema_fast.iloc[-1]
-        prev_slow = ema_slow.iloc[-2]
-        curr_slow = ema_slow.iloc[-1]
+        curr_close = close.iloc[i]
+        curr_fast = ema_fast.iloc[i]
+        prev_fast = ema_fast.iloc[i-1]
+        curr_slow = ema_slow.iloc[i]
+        prev_slow = ema_slow.iloc[i-1]
+        curr_rsi = rsi.iloc[i]
+        curr_atr = atr.iloc[i]
 
         signal = None
         if strategy_style == "breakout":
-            rolling_high = high.tail(21).iloc[:-1].max()
-            rolling_low = low.tail(21).iloc[:-1].min()
-            if last_close > rolling_high:
-                signal = "LONG"
-            elif last_close < rolling_low:
-                signal = "SHORT"
+            rolling_high = high.iloc[max(0, i-20):i].max()
+            rolling_low = low.iloc[max(0, i-20):i].min()
+            if curr_close > rolling_high: signal = "LONG"
+            elif curr_close < rolling_low: signal = "SHORT"
         elif strategy_style == "mean_reversion":
-            if last_rsi <= 30 and curr_fast >= curr_slow:
-                signal = "LONG"
-            elif last_rsi >= 70 and curr_fast <= curr_slow:
-                signal = "SHORT"
+            if curr_rsi <= 30 and curr_fast >= curr_slow: signal = "LONG"
+            elif curr_rsi >= 70 and curr_fast <= curr_slow: signal = "SHORT"
         else:
             if prev_fast <= prev_slow and curr_fast > curr_slow:
                 signal = "LONG"
             elif prev_fast >= prev_slow and curr_fast < curr_slow:
                 signal = "SHORT"
-            elif curr_fast > curr_slow and last_rsi > 55:
+            elif curr_fast > curr_slow and curr_rsi > 55:
                 signal = "LONG"
-            elif curr_fast < curr_slow and last_rsi < 45:
+            elif curr_fast < curr_slow and curr_rsi < 45:
                 signal = "SHORT"
 
         if signal and bias_mode == "confirm_with_bias" and directional_bias:
@@ -200,14 +193,9 @@ def _build_strategy_function(formal_spec: dict, params: dict = None, news_window
                 return None
 
         if signal == "LONG":
-            sl = last_close - atr * atr_multiplier
-            tp = last_close + atr * max(1.2, atr_multiplier * rr_ratio)
-            return {"signal": "LONG", "sl": sl, "tp": tp}
-
+            return {"signal": "LONG", "sl": curr_close - curr_atr * atr_multiplier, "tp": curr_close + curr_atr * max(1.2, atr_multiplier * rr_ratio)}
         if signal == "SHORT":
-            sl = last_close + atr * atr_multiplier
-            tp = last_close - atr * max(1.2, atr_multiplier * rr_ratio)
-            return {"signal": "SHORT", "sl": sl, "tp": tp}
+            return {"signal": "SHORT", "sl": curr_close + curr_atr * atr_multiplier, "tp": curr_close - curr_atr * max(1.2, atr_multiplier * rr_ratio)}
 
         return None
 
@@ -477,7 +465,7 @@ def _run_backtest_sync(payload: dict) -> dict:
     else:
         news_windows = []
     formal_spec_bundle["symbol"] = symbol
-    strategy_fn = _build_strategy_function(formal_spec_bundle, news_windows=news_windows)
+    strategy_fn = _build_strategy_function(data, formal_spec_bundle, news_windows=news_windows)
     implementation_context = _build_implementation_context(session_id, formal_spec_bundle)
 
     oos_start = cfg.get("date_oos_start")
@@ -501,7 +489,7 @@ def _run_backtest_sync(payload: dict) -> dict:
         wf_data = data.tail(6000) if len(data) > 6000 else data
         wf_results = engine.run_walk_forward(
             data=wf_data,
-            strategy_factory=lambda params: _build_strategy_function(formal_spec_bundle, params),
+            strategy_factory=lambda params: _build_strategy_function(wf_data, formal_spec_bundle, params),
             params_optimizer=lambda train_data: {},
         )
 
