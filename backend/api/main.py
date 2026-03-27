@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager
 
 from api.routers import auth, strategy, backtest, export, guide, botlab, projects, dashboard
 from modules.auth.security import require_authenticated
-from db.database import init_db
+from db.database import DATABASE_URL, init_db, is_db_available, resolve_storage_root
 
 
 def _load_cors_origins() -> list[str]:
@@ -74,4 +74,19 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "service": "VisariTradingRoom"}
+    storage_root = str(resolve_storage_root())
+    return {
+        "status": "ok",
+        "service": "VisariTradingRoom",
+        "persistence": {
+            "db_available": is_db_available(),
+            "db_mode": "postgres" if "postgresql+asyncpg://" in DATABASE_URL else "sqlite",
+            "storage_mode": "persistent_candidate"
+            if (
+                "PERSISTENT_STORAGE_PATH" in os.environ
+                or "RENDER_DISK_ROOT" in os.environ
+                or storage_root.startswith("/var/data/")
+            )
+            else "local_storage",
+        },
+    }

@@ -11,6 +11,7 @@ Nota: se Celery non è installato, il backtest viene eseguito in modo sincrono
       direttamente nell'endpoint FastAPI (accettabile per uso locale).
 """
 import os
+from db.database import resolve_storage_root
 
 try:
     from celery import Celery
@@ -129,7 +130,7 @@ try:
             )
 
             update("Report...", 95)
-            storage = os.environ.get("STORAGE_PATH", "./storage")
+            storage = str(resolve_storage_root())
             os.makedirs(storage, exist_ok=True)
             ReportGenerator(storage).generate(session_id, {
                 "in_sample": is_results, "out_of_sample": oos_results,

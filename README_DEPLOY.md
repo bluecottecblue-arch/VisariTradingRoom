@@ -22,6 +22,9 @@ Deploy gratuito e personale:
     - senza DB il backend degrada in memoria e perde persistenza professionale su progetti/versioni/job
   - `USERS_STORAGE_PATH`
     - valore consigliato: `./storage/users.json`
+  - `PERSISTENT_STORAGE_PATH` opzionale ma consigliata
+    - se la imposti, backend e fallback utenti salvano tutto lì
+    - in alternativa, se usi un disco Render montato su `/var/data`, il backend lo rileva automaticamente
   - `CORS_ALLOW_ORIGINS`
     - valore consigliato iniziale: `https://TUO-FRONTEND.vercel.app`
   - `CORS_ALLOW_ORIGIN_REGEX`
@@ -49,7 +52,8 @@ Comportamento atteso:
 - L'app reindirizza a `/login` se non esiste una sessione utente valida.
 - Il pannello admin è su `/admin` con login separato su `/admin/login`.
 - Gli account cliente sono salvati dal backend in `users.json`.
-- La soluzione è intenzionalmente semplice: adatta a pochi clienti, non enterprise.
+- Se il database non è disponibile, il backend ora usa davvero il fallback su `users.json` invece di mostrare una lista utenti vuota.
+- La soluzione resta semplice: adatta a pochi clienti, non enterprise.
 
 ## 4. Claude key personale
 
@@ -61,6 +65,11 @@ Comportamento atteso:
 
 - Per uso demo il sistema continua a funzionare anche senza database.
 - Per uso professionale vero è fortemente consigliato configurare `DATABASE_URL`.
+- Se non configuri `DATABASE_URL`, il backend usa SQLite nella storage root attiva.
+- Se lo storage è locale/effimero, utenti e dati possono ancora sparire dopo restart o redeploy.
+- Per evitare questo senza Postgres, usa almeno un path persistente:
+  - `PERSISTENT_STORAGE_PATH`
+  - oppure un disk Render montato su `/var/data`
 - Con DB attivo vengono persistiti:
   - utenti e stato account
   - progetti

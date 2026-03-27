@@ -21,10 +21,10 @@ from modules.research.decision_engine import is_promoted_verdict
 from modules.projects.store import ProjectStore
 from modules.auth.security import AuthContext, ensure_session_access, require_authenticated
 from api.routers.backtest import get_completed_results_for_session
-from db.database import InMemorySessionStore
+from db.database import InMemorySessionStore, resolve_storage_root
 
 router = APIRouter()
-STORAGE = Path(os.environ.get("STORAGE_PATH", "./storage"))
+STORAGE = resolve_storage_root()
 STORAGE.mkdir(exist_ok=True)
 report_gen = ReportGenerator(str(STORAGE))
 

@@ -10,14 +10,57 @@ In produzione:
   - init_db() crea le tabelle automaticamente
 """
 import os
-# Ensure storage directory exists for SQLite fallback
-storage_dir = os.environ.get("STORAGE_PATH", "./storage")
-if not os.path.isabs(storage_dir):
-    # If relative, make it absolute relative to the backend root
-    backend_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    storage_dir = os.path.join(backend_root, storage_dir)
+from pathlib import Path
 
-os.makedirs(storage_dir, exist_ok=True)
+
+def _backend_root() -> Path:
+    return Path(__file__).resolve().parent.parent
+
+
+def resolve_storage_root() -> Path:
+    """
+    Determina uno storage root coerente e, quando possibile, durevole.
+
+    Priorità:
+    1. PERSISTENT_STORAGE_PATH esplicito
+    2. STORAGE_PATH esplicito diverso dal fallback demo ./storage
+    3. RENDER_DISK_ROOT se presente
+    4. /var/data/strategyforge se disponibile
+    5. backend/./storage come fallback locale
+    """
+    explicit_persistent = (os.environ.get("PERSISTENT_STORAGE_PATH") or "").strip()
+    explicit_storage = (os.environ.get("STORAGE_PATH") or "").strip()
+    render_disk_root = (os.environ.get("RENDER_DISK_ROOT") or "").strip()
+
+    if explicit_persistent:
+        root = Path(explicit_persistent)
+    elif explicit_storage and explicit_storage not in {"./storage", "storage"}:
+        root = Path(explicit_storage)
+    elif render_disk_root:
+        root = Path(render_disk_root) / "strategyforge"
+    else:
+        render_data_root = Path("/var/data")
+        if render_data_root.exists() and os.access(render_data_root, os.W_OK):
+            root = render_data_root / "strategyforge"
+        elif explicit_storage:
+            root = Path(explicit_storage)
+        else:
+            root = Path("./storage")
+
+    if not root.is_absolute():
+        root = _backend_root() / root
+    root.mkdir(parents=True, exist_ok=True)
+    return root
+
+
+def resolve_storage_path(*parts: str) -> Path:
+    path = resolve_storage_root()
+    for part in parts:
+        path = path / part
+    return path
+
+
+storage_dir = str(resolve_storage_root())
 
 DATABASE_URL = os.environ.get(
     "DATABASE_URL",
@@ -77,7 +120,20 @@ async def init_db():
         # Local import to avoid circular dependency
         from modules.auth.user_store import migrate_legacy_users
         await migrate_legacy_users()
-        print("✅ Database connesso e migrazione completata")
+        storage_root = resolve_storage_root()
+        db_mode = "Postgres" if "postgresql+asyncpg://" in DATABASE_URL else "SQLite"
+        print(f"✅ Database connesso e migrazione completata ({db_mode})")
+        print(f"📁 Storage root attiva: {storage_root}")
+        if (
+            db_mode == "SQLite"
+            and "/var/data/" not in str(storage_root)
+            and "PERSISTENT_STORAGE_PATH" not in os.environ
+            and "RENDER_DISK_ROOT" not in os.environ
+        ):
+            print(
+                "⚠️  SQLite sta usando uno storage locale non esplicitamente persistente. "
+                "In cloud i dati possono sparire dopo restart o redeploy."
+            )
     except Exception as e:
         _db_connected = False
         print(f"⚠️  Database non disponibile: {e}. Funziona in modalità stateless.")

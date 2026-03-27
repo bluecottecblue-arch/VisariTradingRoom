@@ -17,12 +17,13 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Optional
 import requests
+from db.database import resolve_storage_root
 
 
 class DataProvider:
     def __init__(self):
         self.polygon_key = os.environ.get("POLYGON_API_KEY", "")
-        self.storage_path = Path(os.environ.get("STORAGE_PATH", "./storage"))
+        self.storage_path = resolve_storage_root()
         self.storage_path.mkdir(exist_ok=True)
 
     def get_ohlc(
