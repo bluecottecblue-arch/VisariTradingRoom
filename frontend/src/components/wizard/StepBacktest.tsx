@@ -3,9 +3,10 @@
 import { useState } from 'react'
 import { useBacktest } from '@/hooks/useBacktest'
 import {
-  Section, Field, inputCls, Alert, MetricCard, NavButtons, Spinner, ProgressBar, TabBar
+  Section, Field, inputCls, Alert, MetricCard, NavButtons, Spinner, ProgressBar, TabBar, Accordion
 } from '@/components/ui'
 import FundamentalFiltersCard from '@/components/FundamentalFiltersCard'
+import BacktestExecutiveSummary from '@/components/wizard/BacktestExecutiveSummary'
 import { DEFAULT_FUNDAMENTAL_FILTERS } from '@/lib/fundamentals'
 import type { BacktestResult } from '@/types'
 
@@ -331,47 +332,13 @@ function BacktestResults({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-amber-400 mb-2">Risultati backtest</h1>
+        <h1 className="text-2xl font-bold text-amber-400 mb-2">Validation Results</h1>
         <p className="text-stone-400 text-sm">
-          La pipeline ora valuta non solo performance OOS ma anche statistica, robustezza,
-          dipendenza da regime, rischio operativo e completezza dell&apos;implementazione.
+          This page turns raw backtest output into a research-backed evaluation. The goal is not just to show numbers, but to explain what they mean for deployment quality.
         </p>
       </div>
 
-      <div
-        className={`px-4 py-3 border rounded flex items-center justify-between ${
-          decision.verdict === 'REJECT'
-            ? 'border-red-700 bg-red-950/20'
-            : decision.verdict === 'NEEDS_RESEARCH'
-              ? 'border-amber-700 bg-amber-950/20'
-              : decision.verdict === 'PAPER_TRADE_ONLY'
-                ? 'border-blue-700 bg-blue-950/20'
-                : 'border-green-800 bg-green-950/10'
-        }`}
-      >
-        <div className="space-y-1">
-          <div className="text-xs uppercase tracking-[0.2em] text-stone-500">Final Decision Engine</div>
-          <div className="flex items-center gap-3">
-            <VerdictPill verdict={decision.verdict} />
-            <span className="text-stone-300 text-sm">
-              score {decision.overall_score.toFixed(2)} · {decision.confidence_label}
-            </span>
-          </div>
-        </div>
-        <div className="text-right">
-          <div className="text-stone-500 text-xs">Pipeline</div>
-          <div className="text-stone-300 text-sm">
-            codifiability → backtest → research → verdict
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <MetricCard label="Codifiability" value={`${(decision.score_breakdown.codifiability * 100).toFixed(0)}%`} />
-        <MetricCard label="Robustness" value={`${(decision.score_breakdown.robustness * 100).toFixed(0)}%`} />
-        <MetricCard label="Regime independence" value={`${(decision.score_breakdown.regime_independence * 100).toFixed(0)}%`} />
-        <MetricCard label="Risk quality" value={`${(decision.score_breakdown.risk_quality * 100).toFixed(0)}%`} />
-      </div>
+      <BacktestExecutiveSummary results={results} />
 
       {(calendarContext?.provider && calendarContext.provider !== 'none') || (calendarContext?.warnings?.length ?? 0) > 0 ? (
         <Alert type={calendarContext?.provider && calendarContext.provider !== 'none' ? 'info' : 'warning'} title="News / Fundamentals context">
@@ -399,264 +366,284 @@ function BacktestResults({
         </Alert>
       )}
 
-      <TabBar tabs={tabs} active={tab} onChange={setTab} />
-
-      {tab === 'oos' && (
-        <div className="space-y-4">
-          <p className="text-stone-500 text-xs">
-            ★ Questi sono i dati non visti durante lo sviluppo. Restano il metro di misura
-            più onesto, ma adesso vengono letti insieme al research verdict finale.
-          </p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <MetricCard label="Sharpe Ratio" value={oos.sharpe_ratio?.toFixed(2)}
-              colorClass={metricColor(oos.sharpe_ratio, 1.0, 0.3)} />
-            <MetricCard label="Sortino Ratio" value={oos.sortino_ratio?.toFixed(2)}
-              colorClass={metricColor(oos.sortino_ratio, 1.5, 0.5)} />
-            <MetricCard label="Calmar Ratio" value={oos.calmar_ratio?.toFixed(2)}
-              colorClass={metricColor(oos.calmar_ratio, 1.0, 0.3)} />
-            <MetricCard label="Profit Factor" value={oos.profit_factor?.toFixed(2)}
-              colorClass={metricColor(oos.profit_factor, 1.5, 1.0)} />
-            <MetricCard label="Hit Rate" value={`${(oos.hit_rate * 100)?.toFixed(1)}%`} />
-            <MetricCard label="Expectancy (R)" value={oos.expectancy_r?.toFixed(3)}
-              colorClass={metricColor(oos.expectancy_r, 0.2, 0)} />
-            <MetricCard label="Max Drawdown" value={`${oos.max_drawdown_pct?.toFixed(1)}%`}
-              colorClass={metricColor(-oos.max_drawdown_pct, -5, -25)} />
-            <MetricCard label="Rendimento %" value={`${oos.total_return_pct?.toFixed(1)}%`}
-              colorClass={metricColor(oos.total_return_pct, 10, 0)} />
-            <MetricCard label="Trade totali" value={oos.total_trades} />
-            <MetricCard label="Trade vincenti" value={oos.winning_trades} />
-            <MetricCard label="Max perd. consec." value={oos.max_consecutive_losses}
-              colorClass={metricColor(-(oos.max_consecutive_losses ?? 0), -5, -12)} />
-            <MetricCard label="Capitale finale" value={`$${oos.final_capital?.toFixed(0)}`} />
+      <Accordion title="Deep Research Detail" defaultOpen={false}>
+        <div className="space-y-6">
+          <div className="border border-slate-900/80 bg-slate-950/55 px-4 py-4">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Structured workflow</div>
+                <div className="mt-1 text-sm font-semibold text-slate-100">Codifiability → Backtest → Validation → Export gate</div>
+              </div>
+              <div className="flex items-center gap-3">
+                <VerdictPill verdict={decision.verdict} />
+                <span className="text-sm text-stone-400">score {decision.overall_score.toFixed(2)}</span>
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+              <MetricCard label="Codifiability" value={`${(decision.score_breakdown.codifiability * 100).toFixed(0)}%`} />
+              <MetricCard label="Robustness" value={`${(decision.score_breakdown.robustness * 100).toFixed(0)}%`} />
+              <MetricCard label="Regime independence" value={`${(decision.score_breakdown.regime_independence * 100).toFixed(0)}%`} />
+              <MetricCard label="Risk quality" value={`${(decision.score_breakdown.risk_quality * 100).toFixed(0)}%`} />
+            </div>
           </div>
-          <EquityCurve data={oos.equity_curve} />
-          {oos.data_quality_warnings?.map((w, i) => (
-            <p key={i} className="text-stone-600 text-xs">• {w}</p>
-          ))}
-        </div>
-      )}
 
-      {tab === 'is' && (
-        <div className="space-y-4">
-          <Alert type="warning">
-            I risultati in-sample sono ATTESI essere buoni — la strategia è stata sviluppata
-            su questi dati. Non usarli per valutare la strategia. Confrontali con OOS
-            per stimare il grado di overfitting.
-          </Alert>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <MetricCard label="Sharpe (IS)" value={is_.sharpe_ratio?.toFixed(2)} />
-            <MetricCard label="Rendimento (IS)" value={`${is_.total_return_pct?.toFixed(1)}%`} />
-            <MetricCard label="Max DD (IS)" value={`${is_.max_drawdown_pct?.toFixed(1)}%`} />
-            <MetricCard label="Trade (IS)" value={is_.total_trades} />
-          </div>
-          {oos && is_ && (
-            <div className="p-4 bg-stone-900 border border-stone-800 rounded space-y-3">
-              <div className="text-stone-400 text-xs font-bold">Rapporto IS/OOS (overfitting indicator)</div>
-              <ProgressBar
-                value={oos.sharpe_ratio ?? 0}
-                max={is_.sharpe_ratio ?? 1}
-                label={`Sharpe OOS / IS: ${((oos.sharpe_ratio ?? 0) / (is_.sharpe_ratio || 1) * 100).toFixed(0)}%`}
-              />
-              <p className="text-stone-600 text-xs">
-                Se il rapporto OOS/IS è sotto 50%, c&apos;è probabile overfitting.
+          <TabBar tabs={tabs} active={tab} onChange={setTab} />
+
+          {tab === 'oos' && (
+            <div className="space-y-4">
+              <p className="text-stone-500 text-xs">
+                ★ These out-of-sample results remain the cleanest measure of whether the system generalizes beyond development data.
               </p>
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                <MetricCard label="Sharpe Ratio" value={oos.sharpe_ratio?.toFixed(2)}
+                  colorClass={metricColor(oos.sharpe_ratio, 1.0, 0.3)} />
+                <MetricCard label="Sortino Ratio" value={oos.sortino_ratio?.toFixed(2)}
+                  colorClass={metricColor(oos.sortino_ratio, 1.5, 0.5)} />
+                <MetricCard label="Calmar Ratio" value={oos.calmar_ratio?.toFixed(2)}
+                  colorClass={metricColor(oos.calmar_ratio, 1.0, 0.3)} />
+                <MetricCard label="Profit Factor" value={oos.profit_factor?.toFixed(2)}
+                  colorClass={metricColor(oos.profit_factor, 1.5, 1.0)} />
+                <MetricCard label="Hit Rate" value={`${(oos.hit_rate * 100)?.toFixed(1)}%`} />
+                <MetricCard label="Expectancy (R)" value={oos.expectancy_r?.toFixed(3)}
+                  colorClass={metricColor(oos.expectancy_r, 0.2, 0)} />
+                <MetricCard label="Max Drawdown" value={`${oos.max_drawdown_pct?.toFixed(1)}%`}
+                  colorClass={metricColor(-oos.max_drawdown_pct, -5, -25)} />
+                <MetricCard label="Return %" value={`${oos.total_return_pct?.toFixed(1)}%`}
+                  colorClass={metricColor(oos.total_return_pct, 10, 0)} />
+                <MetricCard label="Trades" value={oos.total_trades} />
+                <MetricCard label="Winning trades" value={oos.winning_trades} />
+                <MetricCard label="Consecutive losses" value={oos.max_consecutive_losses}
+                  colorClass={metricColor(-(oos.max_consecutive_losses ?? 0), -5, -12)} />
+                <MetricCard label="Final capital" value={`$${oos.final_capital?.toFixed(0)}`} />
+              </div>
+              <EquityCurve data={oos.equity_curve} />
+              {oos.data_quality_warnings?.map((w, i) => (
+                <p key={i} className="text-stone-600 text-xs">• {w}</p>
+              ))}
             </div>
           )}
-        </div>
-      )}
 
-      {tab === 'wf' && wf && (
-        <div className="space-y-4">
-          <p className="text-stone-400 text-sm">{wf.interpretation}</p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <MetricCard label="Sharpe medio OOS"
-              value={wf.aggregated.avg_sharpe_oos.toFixed(2)}
-              colorClass={metricColor(wf.aggregated.avg_sharpe_oos, 0.8, 0.3)} />
-            <MetricCard label="Return medio OOS"
-              value={`${wf.aggregated.avg_return_oos.toFixed(1)}%`}
-              colorClass={metricColor(wf.aggregated.avg_return_oos, 8, 0)} />
-            <MetricCard label="Periodi profittevoli"
-              value={`${(wf.aggregated.pct_profitable_periods * 100).toFixed(0)}%`}
-              colorClass={metricColor(wf.aggregated.pct_profitable_periods, 0.65, 0.4)} />
-            <MetricCard label="WF Efficiency"
-              value={wf.wf_efficiency.toFixed(2)}
-              colorClass={metricColor(wf.wf_efficiency, 0.5, 0.2)} />
-          </div>
-        </div>
-      )}
-
-      {tab === 'mc' && mc && (
-        <div className="space-y-4">
-          <p className="text-stone-400 text-sm">{mc.interpretation}</p>
-          <div className="grid grid-cols-3 gap-3">
-            <MetricCard label="Capitale P5 (pessimista)"
-              value={`$${mc.final_capital.p5.toFixed(0)}`} colorClass="text-red-400" />
-            <MetricCard label="Capitale mediano"
-              value={`$${mc.final_capital.median.toFixed(0)}`} />
-            <MetricCard label="Capitale P95 (ottimista)"
-              value={`$${mc.final_capital.p95.toFixed(0)}`} colorClass="text-green-400" />
-            <MetricCard label="Prob. profitto"
-              value={`${(mc.prob_profit * 100).toFixed(0)}%`}
-              colorClass={metricColor(mc.prob_profit, 0.65, 0.45)} />
-            <MetricCard label="Max DD mediano"
-              value={`${(mc.max_drawdown.p50 * 100).toFixed(1)}%`} />
-            <MetricCard label="Prob. rovina (−50%)"
-              value={`${(mc.prob_ruin * 100).toFixed(1)}%`}
-              colorClass={metricColor(-mc.prob_ruin, -0.01, -0.1)} />
-          </div>
-        </div>
-      )}
-
-      {tab === 'research' && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <MetricCard label="Trade OOS" value={stats.sample_rules.trade_count} />
-            <MetricCard label="Sample status" value={stats.sample_rules.status} />
-            <MetricCard label="Bootstrap edge +" value={`${(stats.bootstrap.positive_expectancy_probability * 100).toFixed(0)}%`} />
-            <MetricCard label="Stability score" value={`${(stats.subperiod_stability.stability_score * 100).toFixed(0)}%`} />
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <MetricCard label="Mean R 95% CI" value={`${stats.confidence_intervals.mean_return_per_trade_r.ci_95_low.toFixed(2)} → ${stats.confidence_intervals.mean_return_per_trade_r.ci_95_high.toFixed(2)}`} />
-            <MetricCard label="Hit rate 95% CI" value={`${(stats.confidence_intervals.hit_rate.ci_95_low * 100).toFixed(0)}% → ${(stats.confidence_intervals.hit_rate.ci_95_high * 100).toFixed(0)}%`} />
-            <MetricCard label="Skew" value={stats.distribution_diagnostics.skew.toFixed(2)} />
-            <MetricCard label="Tail concentration" value={`${(stats.distribution_diagnostics.tail_concentration * 100).toFixed(0)}%`} />
-          </div>
-          <div className="p-4 bg-stone-900 border border-stone-800 rounded space-y-2">
-            <div className="text-stone-300 text-sm font-bold">Sottoperiodi</div>
-            {stats.subperiod_stability.periods.map((period) => (
-              <div key={period.label} className="grid grid-cols-4 gap-3 text-xs text-stone-400">
-                <div>{period.label}</div>
-                <div>{period.trade_count} trade</div>
-                <div>Expectancy {period.expectancy_r.toFixed(2)}R</div>
-                <div>Win rate {(period.hit_rate * 100).toFixed(0)}%</div>
+          {tab === 'is' && (
+            <div className="space-y-4">
+              <Alert type="warning">
+                In-sample data should only be used to compare degradation versus out-of-sample. It is not the decision anchor.
+              </Alert>
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                <MetricCard label="Sharpe (IS)" value={is_.sharpe_ratio?.toFixed(2)} />
+                <MetricCard label="Return (IS)" value={`${is_.total_return_pct?.toFixed(1)}%`} />
+                <MetricCard label="Max DD (IS)" value={`${is_.max_drawdown_pct?.toFixed(1)}%`} />
+                <MetricCard label="Trades (IS)" value={is_.total_trades} />
               </div>
-            ))}
-          </div>
-          {stats.warnings.length > 0 && (
-            <Alert type="warning" title="Statistical humility">
-              <div className="space-y-1">
-                {stats.warnings.map((warning, index) => (
-                  <div key={index}>• {warning}</div>
+              {oos && is_ && (
+                <div className="p-4 bg-stone-900 border border-stone-800 rounded space-y-3">
+                  <div className="text-stone-400 text-xs font-bold">IS/OOS degradation checkpoint</div>
+                  <ProgressBar
+                    value={oos.sharpe_ratio ?? 0}
+                    max={is_.sharpe_ratio ?? 1}
+                    label={`OOS Sharpe / IS Sharpe: ${((oos.sharpe_ratio ?? 0) / (is_.sharpe_ratio || 1) * 100).toFixed(0)}%`}
+                  />
+                  <p className="text-stone-600 text-xs">
+                    Values materially below 50% often signal excessive overfitting or a weak regime transfer.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {tab === 'wf' && wf && (
+            <div className="space-y-4">
+              <p className="text-stone-400 text-sm">{wf.interpretation}</p>
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                <MetricCard label="Avg OOS Sharpe"
+                  value={wf.aggregated.avg_sharpe_oos.toFixed(2)}
+                  colorClass={metricColor(wf.aggregated.avg_sharpe_oos, 0.8, 0.3)} />
+                <MetricCard label="Avg OOS Return"
+                  value={`${wf.aggregated.avg_return_oos.toFixed(1)}%`}
+                  colorClass={metricColor(wf.aggregated.avg_return_oos, 8, 0)} />
+                <MetricCard label="Profitable Periods"
+                  value={`${(wf.aggregated.pct_profitable_periods * 100).toFixed(0)}%`}
+                  colorClass={metricColor(wf.aggregated.pct_profitable_periods, 0.65, 0.4)} />
+                <MetricCard label="WF Efficiency"
+                  value={wf.wf_efficiency.toFixed(2)}
+                  colorClass={metricColor(wf.wf_efficiency, 0.5, 0.2)} />
+              </div>
+            </div>
+          )}
+
+          {tab === 'mc' && mc && (
+            <div className="space-y-4">
+              <p className="text-stone-400 text-sm">{mc.interpretation}</p>
+              <div className="grid grid-cols-3 gap-3">
+                <MetricCard label="Capital P5"
+                  value={`$${mc.final_capital.p5.toFixed(0)}`} colorClass="text-red-400" />
+                <MetricCard label="Median capital"
+                  value={`$${mc.final_capital.median.toFixed(0)}`} />
+                <MetricCard label="Capital P95"
+                  value={`$${mc.final_capital.p95.toFixed(0)}`} colorClass="text-green-400" />
+                <MetricCard label="Profit probability"
+                  value={`${(mc.prob_profit * 100).toFixed(0)}%`}
+                  colorClass={metricColor(mc.prob_profit, 0.65, 0.45)} />
+                <MetricCard label="Median max DD"
+                  value={`${(mc.max_drawdown.p50 * 100).toFixed(1)}%`} />
+                <MetricCard label="Ruin probability"
+                  value={`${(mc.prob_ruin * 100).toFixed(1)}%`}
+                  colorClass={metricColor(-mc.prob_ruin, -0.01, -0.1)} />
+              </div>
+            </div>
+          )}
+
+          {tab === 'research' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                <MetricCard label="OOS Trades" value={stats.sample_rules.trade_count} />
+                <MetricCard label="Sample status" value={stats.sample_rules.status} />
+                <MetricCard label="Bootstrap edge +" value={`${(stats.bootstrap.positive_expectancy_probability * 100).toFixed(0)}%`} />
+                <MetricCard label="Stability score" value={`${(stats.subperiod_stability.stability_score * 100).toFixed(0)}%`} />
+              </div>
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                <MetricCard label="Mean R 95% CI" value={`${stats.confidence_intervals.mean_return_per_trade_r.ci_95_low.toFixed(2)} → ${stats.confidence_intervals.mean_return_per_trade_r.ci_95_high.toFixed(2)}`} />
+                <MetricCard label="Hit rate 95% CI" value={`${(stats.confidence_intervals.hit_rate.ci_95_low * 100).toFixed(0)}% → ${(stats.confidence_intervals.hit_rate.ci_95_high * 100).toFixed(0)}%`} />
+                <MetricCard label="Skew" value={stats.distribution_diagnostics.skew.toFixed(2)} />
+                <MetricCard label="Tail concentration" value={`${(stats.distribution_diagnostics.tail_concentration * 100).toFixed(0)}%`} />
+              </div>
+              <div className="p-4 bg-stone-900 border border-stone-800 rounded space-y-2">
+                <div className="text-stone-300 text-sm font-bold">Subperiod stability</div>
+                {stats.subperiod_stability.periods.map((period) => (
+                  <div key={period.label} className="grid grid-cols-4 gap-3 text-xs text-stone-400">
+                    <div>{period.label}</div>
+                    <div>{period.trade_count} trades</div>
+                    <div>Expectancy {period.expectancy_r.toFixed(2)}R</div>
+                    <div>Win rate {(period.hit_rate * 100).toFixed(0)}%</div>
+                  </div>
                 ))}
               </div>
-            </Alert>
-          )}
-        </div>
-      )}
-
-      {tab === 'robust' && (
-        <div className="space-y-4">
-          <Alert type="info" title="Robustness suite">
-            {robustness.summary}
-          </Alert>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <MetricCard label="Robustness score" value={`${(robustness.robustness_score * 100).toFixed(0)}%`} />
-            <MetricCard label="Cost robustness" value={`${(robustness.cost_robustness_score * 100).toFixed(0)}%`} />
-            <MetricCard label="Fragility" value={`${(robustness.parameter_fragility_score * 100).toFixed(0)}%`} colorClass={metricColor(-robustness.parameter_fragility_score, -0.2, -0.7)} />
-            <MetricCard label="Overfit suspicion" value={`${(robustness.overfit_suspicion_score * 100).toFixed(0)}%`} colorClass={metricColor(-robustness.overfit_suspicion_score, -0.2, -0.7)} />
-          </div>
-          <HeatmapTable heatmap={robustness.heatmap} />
-          <div className="space-y-2">
-            {robustness.stress_scenarios.map((scenario) => (
-              <div key={scenario.label} className="grid grid-cols-5 gap-3 text-xs p-3 bg-stone-900 border border-stone-800 rounded text-stone-400">
-                <div className="font-bold text-stone-300">{scenario.label}</div>
-                <div>Return {scenario.total_return_pct.toFixed(1)}%</div>
-                <div>Expectancy {scenario.expectancy_r.toFixed(2)}R</div>
-                <div>DD {scenario.max_drawdown_pct.toFixed(1)}%</div>
-                <div>Sharpe {scenario.sharpe_ratio.toFixed(2)}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {tab === 'regime' && (
-        <div className="space-y-4">
-          {regime.warning && <Alert type="warning">{regime.warning}</Alert>}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <MetricCard label="Dependence score" value={`${(regime.dependence_score * 100).toFixed(0)}%`} colorClass={metricColor(-regime.dependence_score, -0.25, -0.7)} />
-            <MetricCard label="Regimi attivi" value={regime.by_regime.length} />
-          </div>
-          {regime.by_regime.map((item) => (
-            <div key={item.regime} className="p-4 bg-stone-900 border border-stone-800 rounded">
-              <div className="text-stone-200 font-bold text-sm">{item.regime}</div>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-2 text-xs text-stone-400">
-                <div>{item.trade_count} trade</div>
-                <div>Expectancy {item.expectancy_r.toFixed(2)}R</div>
-                <div>Win rate {(item.win_rate * 100).toFixed(0)}%</div>
-                <div>Drawdown {item.drawdown_r.toFixed(2)}R</div>
-                <div>Contrib. {item.contribution_to_total_r_pct.toFixed(0)}%</div>
-              </div>
+              {stats.warnings.length > 0 && (
+                <Alert type="warning" title="Statistical humility">
+                  <div className="space-y-1">
+                    {stats.warnings.map((warning, index) => (
+                      <div key={index}>• {warning}</div>
+                    ))}
+                  </div>
+                </Alert>
+              )}
             </div>
-          ))}
-        </div>
-      )}
+          )}
 
-      {tab === 'risk' && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <MetricCard label="Daily DD guard" value={`${risk.guards.daily_drawdown_guard_pct.toFixed(1)}%`} />
-            <MetricCard label="Kill switch" value={`${risk.guards.equity_kill_switch_pct.toFixed(1)}%`} />
-            <MetricCard label="Consecutive loss guard" value={risk.guards.consecutive_losses_guard} />
-            <MetricCard label="Risk score" value={`${(risk.risk_score * 100).toFixed(0)}%`} />
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <MetricCard label="Worst day" value={`${risk.metrics.worst_daily_return_pct.toFixed(2)}%`} />
-            <MetricCard label="Risk concentration" value={`${risk.metrics.risk_concentration_pct.toFixed(2)}%`} />
-            <MetricCard label="Risk of ruin proxy" value={`${(risk.metrics.risk_of_ruin_proxy * 100).toFixed(1)}%`} />
-            <MetricCard label="Variance pressure" value={`${(risk.metrics.variance_pressure_score * 100).toFixed(0)}%`} />
-          </div>
-          {risk.warnings.length > 0 && (
-            <Alert type="warning" title="Risk review">
-              <div className="space-y-1">
-                {risk.warnings.map((warning, index) => (
-                  <div key={index}>• {warning}</div>
+          {tab === 'robust' && (
+            <div className="space-y-4">
+              <Alert type="info" title="Robustness suite">
+                {robustness.summary}
+              </Alert>
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                <MetricCard label="Robustness score" value={`${(robustness.robustness_score * 100).toFixed(0)}%`} />
+                <MetricCard label="Cost robustness" value={`${(robustness.cost_robustness_score * 100).toFixed(0)}%`} />
+                <MetricCard label="Fragility" value={`${(robustness.parameter_fragility_score * 100).toFixed(0)}%`} colorClass={metricColor(-robustness.parameter_fragility_score, -0.2, -0.7)} />
+                <MetricCard label="Overfit suspicion" value={`${(robustness.overfit_suspicion_score * 100).toFixed(0)}%`} colorClass={metricColor(-robustness.overfit_suspicion_score, -0.2, -0.7)} />
+              </div>
+              <HeatmapTable heatmap={robustness.heatmap} />
+              <div className="space-y-2">
+                {robustness.stress_scenarios.map((scenario) => (
+                  <div key={scenario.label} className="grid grid-cols-5 gap-3 text-xs p-3 bg-stone-900 border border-stone-800 rounded text-stone-400">
+                    <div className="font-bold text-stone-300">{scenario.label}</div>
+                    <div>Return {scenario.total_return_pct.toFixed(1)}%</div>
+                    <div>Expectancy {scenario.expectancy_r.toFixed(2)}R</div>
+                    <div>DD {scenario.max_drawdown_pct.toFixed(1)}%</div>
+                    <div>Sharpe {scenario.sharpe_ratio.toFixed(2)}</div>
+                  </div>
                 ))}
               </div>
-            </Alert>
-          )}
-        </div>
-      )}
-
-      {tab === 'bias' && (
-        <div className="space-y-3">
-          <p className="text-stone-400 text-sm">{bias.recommendation}</p>
-          {bias.warnings.map((w, i) => (
-            <div
-              key={i}
-              className={`p-3 rounded border space-y-1 ${
-                w.severity === 'CRITICAL'
-                  ? 'border-red-700/60 bg-red-950/15'
-                  : w.severity === 'HIGH'
-                    ? 'border-amber-700/50 bg-amber-950/15'
-                    : w.severity === 'MEDIUM'
-                      ? 'border-stone-600/50 bg-stone-900'
-                      : 'border-stone-800 bg-stone-900/50'
-              }`}
-            >
-              <div
-                className={`text-xs font-bold ${
-                  w.severity === 'CRITICAL'
-                    ? 'text-red-400'
-                    : w.severity === 'HIGH'
-                      ? 'text-amber-400'
-                      : 'text-stone-400'
-                }`}
-              >
-                [{w.severity}] {(w.type || (w as any).bias_type || '').replace(/_/g, ' ')}
-              </div>
-              <div className="text-stone-300 text-sm">{w.description}</div>
-              <div className="text-stone-500 text-xs">{w.what_it_means}</div>
-              <div className="text-stone-400 text-xs">
-                💡 <em>{w.how_to_mitigate}</em>
-              </div>
             </div>
-          ))}
-          {bias.warnings.length === 0 && (
-            <Alert type="success">Nessun bias critico rilevato automaticamente.</Alert>
+          )}
+
+          {tab === 'regime' && (
+            <div className="space-y-4">
+              {regime.warning && <Alert type="warning">{regime.warning}</Alert>}
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                <MetricCard label="Dependence score" value={`${(regime.dependence_score * 100).toFixed(0)}%`} colorClass={metricColor(-regime.dependence_score, -0.25, -0.7)} />
+                <MetricCard label="Observed regimes" value={regime.by_regime.length} />
+              </div>
+              {regime.by_regime.map((item) => (
+                <div key={item.regime} className="p-4 bg-stone-900 border border-stone-800 rounded">
+                  <div className="text-stone-200 font-bold text-sm">{item.regime}</div>
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-2 text-xs text-stone-400">
+                    <div>{item.trade_count} trades</div>
+                    <div>Expectancy {item.expectancy_r.toFixed(2)}R</div>
+                    <div>Win rate {(item.win_rate * 100).toFixed(0)}%</div>
+                    <div>Drawdown {item.drawdown_r.toFixed(2)}R</div>
+                    <div>Contribution {item.contribution_to_total_r_pct.toFixed(0)}%</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {tab === 'risk' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                <MetricCard label="Daily DD guard" value={`${risk.guards.daily_drawdown_guard_pct.toFixed(1)}%`} />
+                <MetricCard label="Kill switch" value={`${risk.guards.equity_kill_switch_pct.toFixed(1)}%`} />
+                <MetricCard label="Consecutive loss guard" value={risk.guards.consecutive_losses_guard} />
+                <MetricCard label="Risk score" value={`${(risk.risk_score * 100).toFixed(0)}%`} />
+              </div>
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                <MetricCard label="Worst day" value={`${risk.metrics.worst_daily_return_pct.toFixed(2)}%`} />
+                <MetricCard label="Risk concentration" value={`${risk.metrics.risk_concentration_pct.toFixed(2)}%`} />
+                <MetricCard label="Risk of ruin proxy" value={`${(risk.metrics.risk_of_ruin_proxy * 100).toFixed(1)}%`} />
+                <MetricCard label="Variance pressure" value={`${(risk.metrics.variance_pressure_score * 100).toFixed(0)}%`} />
+              </div>
+              {risk.warnings.length > 0 && (
+                <Alert type="warning" title="Risk review">
+                  <div className="space-y-1">
+                    {risk.warnings.map((warning, index) => (
+                      <div key={index}>• {warning}</div>
+                    ))}
+                  </div>
+                </Alert>
+              )}
+            </div>
+          )}
+
+          {tab === 'bias' && (
+            <div className="space-y-3">
+              <p className="text-stone-400 text-sm">{bias.recommendation}</p>
+              {bias.warnings.map((w, i) => (
+                <div
+                  key={i}
+                  className={`p-3 rounded border space-y-1 ${
+                    w.severity === 'CRITICAL'
+                      ? 'border-red-700/60 bg-red-950/15'
+                      : w.severity === 'HIGH'
+                        ? 'border-amber-700/50 bg-amber-950/15'
+                        : w.severity === 'MEDIUM'
+                          ? 'border-stone-600/50 bg-stone-900'
+                          : 'border-stone-800 bg-stone-900/50'
+                  }`}
+                >
+                  <div
+                    className={`text-xs font-bold ${
+                      w.severity === 'CRITICAL'
+                        ? 'text-red-400'
+                        : w.severity === 'HIGH'
+                          ? 'text-amber-400'
+                          : 'text-stone-400'
+                    }`}
+                  >
+                    [{w.severity}] {(w.type || (w as any).bias_type || '').replace(/_/g, ' ')}
+                  </div>
+                  <div className="text-stone-300 text-sm">{w.description}</div>
+                  <div className="text-stone-500 text-xs">{w.what_it_means}</div>
+                  <div className="text-stone-400 text-xs">
+                    💡 <em>{w.how_to_mitigate}</em>
+                  </div>
+                </div>
+              ))}
+              {bias.warnings.length === 0 && (
+                <Alert type="success">No critical bias issues were detected automatically.</Alert>
+              )}
+            </div>
           )}
         </div>
-      )}
+      </Accordion>
 
       <NavButtons
         onBack={onBack}

@@ -7,13 +7,22 @@ import type { ProjectDetail, ProjectSummary } from '@/types'
 type WorkspaceMode = 'strategy' | 'botlab'
 
 const PIPELINE = [
-  { label: 'Strategy', detail: 'Market, timeframe, entry logic' },
-  { label: 'Parse', detail: 'Objective codifiability review' },
-  { label: 'Formalize', detail: 'Structured trading specification' },
-  { label: 'Backtest', detail: 'Historical execution and OOS review' },
-  { label: 'Validation', detail: 'Risk, robustness, macro filters' },
-  { label: 'Bot Export', detail: 'MT5 package and deployment notes' },
+  { id: 'strategy', label: 'Strategy', detail: 'Market, timeframe, entry logic' },
+  { id: 'parse', label: 'Parse', detail: 'Objective codifiability review' },
+  { id: 'formalize', label: 'Formalize', detail: 'Structured trading specification' },
+  { id: 'backtest', label: 'Backtest', detail: 'Historical execution and OOS review' },
+  { id: 'validation', label: 'Validation', detail: 'Risk, robustness, macro filters' },
+  { id: 'export', label: 'Bot Export', detail: 'MT5 package and deployment notes' },
 ]
+
+type PipelineStepId = (typeof PIPELINE)[number]['id']
+
+function pipelineTone(status: 'complete' | 'running' | 'current' | 'locked') {
+  if (status === 'complete') return 'border-emerald-900/70 bg-emerald-950/12 text-emerald-300'
+  if (status === 'running') return 'border-cyan-900/70 bg-cyan-950/14 text-cyan-300'
+  if (status === 'current') return 'border-slate-700 bg-slate-900/80 text-slate-200'
+  return 'border-slate-900 bg-slate-950/60 text-slate-600'
+}
 
 function statusTone(status?: string | null) {
   const normalized = String(status || '').toLowerCase()
@@ -52,7 +61,58 @@ export default function WorkspaceOverview({
 }) {
   const router = useRouter()
   const filteredProjects = projects.filter((project) => project.mode === workspaceMode)
-  const stepActiveIndex = Math.max(0, currentStep - 1)
+  const completedKinds = new Set((currentProject?.versions || []).map((item) => item.version_kind))
+  const hasVerdict = Boolean(currentProject?.latest_verdict)
+  const projectArtifacts = currentProject?.artifacts || []
+  const projectJobs = currentProject?.jobs || []
+  const hasVersion = (kind: string) => completedKinds.has(kind)
+  const hasArtifact = (type: string) => projectArtifacts.some((artifact) => artifact.artifact_type === type)
+  const hasRunningJob = (jobTypes: string[]) =>
+    projectJobs.some((job) => jobTypes.includes(job.job_type) && ['queued', 'running', 'submitted'].includes(job.status))
+
+  const pipelineState = PIPELINE.map((step) => {
+    const statusByStep: Record<PipelineStepId, 'complete' | 'running' | 'current' | 'locked'> = {
+      strategy: hasVersion('intake') ? 'complete' : 'current',
+      parse: hasVersion('parse_result')
+        ? 'complete'
+        : hasRunningJob(['strategy_parse'])
+          ? 'running'
+          : hasVersion('intake')
+            ? 'current'
+            : 'locked',
+      formalize: hasVersion('formal_spec')
+        ? 'complete'
+        : hasRunningJob(['strategy_formalize'])
+          ? 'running'
+          : hasVersion('parse_result')
+            ? 'current'
+            : 'locked',
+      backtest: hasVersion('backtest')
+        ? 'complete'
+        : hasRunningJob(['backtest'])
+          ? 'running'
+          : hasVersion('formal_spec')
+            ? 'current'
+            : 'locked',
+      validation: hasVerdict
+        ? 'complete'
+        : hasVersion('backtest')
+          ? 'current'
+          : 'locked',
+      export:
+        hasVersion('export_package') || hasVersion('bot_code') || hasArtifact('mql5_source')
+          ? 'complete'
+          : hasRunningJob(['bot_generation'])
+            ? 'running'
+            : hasVerdict
+              ? 'current'
+              : 'locked',
+    }
+
+    return { ...step, status: statusByStep[step.id] }
+  })
+  const currentPipelineIndex = pipelineState.findIndex((step) => step.status === 'running' || step.status === 'current')
+  const stepActiveIndex = currentPipelineIndex === -1 ? PIPELINE.length - 1 : currentPipelineIndex
 
   const handleStrategyClick = () => {
     // Navigate to the builder page
@@ -72,30 +132,39 @@ export default function WorkspaceOverview({
           <div className="space-y-6">
             <div className="space-y-3">
               <div className="text-[11px] uppercase tracking-[0.28em] text-cyan-300">Visari Trading Room</div>
+              <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">What do you want to do?</div>
               <h1 className="max-w-4xl text-4xl font-semibold leading-tight tracking-tight text-slate-50 lg:text-5xl">
-                Transform your trading strategy into a validated MT5 algorithm
+                Build a new strategy or analyze an existing MT5 bot
               </h1>
               <p className="max-w-2xl text-base leading-relaxed text-slate-400 lg:text-lg">
-                Analyze, improve, and deploy trading systems with structured validation and real backtesting.
+                Structured strategy engineering, research-backed evaluation, and deliverable-ready MT5 output.
               </p>
             </div>
 
-            <div className="flex flex-wrap gap-3">
+            <div className="grid gap-4 lg:grid-cols-[1fr_1fr_auto]">
               <button
                 onClick={handleStrategyClick}
-                className="border border-cyan-800/70 bg-cyan-400/90 px-5 py-3 text-sm font-semibold text-slate-950 hover:bg-cyan-300"
+                className="border border-cyan-900/70 bg-cyan-950/12 px-5 py-5 text-left transition-colors hover:border-cyan-700/70 hover:bg-cyan-950/18"
               >
-                Create Strategy
+                <div className="text-[10px] uppercase tracking-[0.18em] text-cyan-300">Create Strategy</div>
+                <div className="mt-3 text-xl font-semibold text-slate-50">Start from trading logic</div>
+                <div className="mt-2 text-sm leading-relaxed text-slate-400">
+                  Build a new strategy from market context, entry logic, exits, risk controls and macro filters.
+                </div>
               </button>
               <button
                 onClick={handleBotLabClick}
-                className="border border-slate-700 bg-slate-950/70 px-5 py-3 text-sm font-semibold text-slate-100 hover:border-slate-500"
+                className="border border-slate-800 bg-slate-950/65 px-5 py-5 text-left transition-colors hover:border-slate-600"
               >
-                Upload Bot
+                <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Analyze Existing Bot</div>
+                <div className="mt-3 text-xl font-semibold text-slate-50">Upload, inspect and improve</div>
+                <div className="mt-2 text-sm leading-relaxed text-slate-400">
+                  Audit an existing EA, diagnose weaknesses, compare revisions and prepare a better export package.
+                </div>
               </button>
               <a
                 href="#workflow-visual"
-                className="border border-slate-800 bg-slate-950/40 px-5 py-3 text-sm font-semibold text-slate-300 hover:border-slate-600 hover:text-slate-100"
+                className="flex items-center justify-center border border-slate-800 bg-slate-950/40 px-5 py-3 text-sm font-semibold text-slate-300 hover:border-slate-600 hover:text-slate-100"
               >
                 View Demo Workflow
               </a>
@@ -139,15 +208,17 @@ export default function WorkspaceOverview({
                 </div>
                 <div className="border border-slate-900 bg-slate-950/70 px-4 py-3">
                   <div className="text-[10px] uppercase tracking-[0.18em] text-slate-600">Artifacts</div>
-                  <div className="mt-2 text-xl font-semibold text-slate-50">{currentProject?.artifacts?.length || 0}</div>
+                  <div className="mt-2 text-xl font-semibold text-slate-50">{projectArtifacts.length}</div>
                 </div>
                 <div className="border border-slate-900 bg-slate-950/70 px-4 py-3">
                   <div className="text-[10px] uppercase tracking-[0.18em] text-slate-600">Versions</div>
                   <div className="mt-2 text-xl font-semibold text-slate-50">{currentProject?.versions?.length || 0}</div>
                 </div>
                 <div className="border border-slate-900 bg-slate-950/70 px-4 py-3">
-                  <div className="text-[10px] uppercase tracking-[0.18em] text-slate-600">Current step</div>
-                  <div className="mt-2 text-xl font-semibold text-slate-50">{workspaceMode === 'strategy' ? `${currentStep}/6` : 'Bot Lab'}</div>
+                  <div className="text-[10px] uppercase tracking-[0.18em] text-slate-600">Current stage</div>
+                  <div className="mt-2 text-xl font-semibold text-slate-50">
+                    {workspaceMode === 'strategy' ? pipelineState[stepActiveIndex]?.label || `${currentStep}/6` : 'Bot Lab'}
+                  </div>
                 </div>
               </div>
             </div>
@@ -247,20 +318,47 @@ export default function WorkspaceOverview({
         </div>
 
         <div className="mt-6 grid gap-3 xl:grid-cols-6">
-          {PIPELINE.map((step, index) => {
-            const active = workspaceMode === 'strategy' && index <= stepActiveIndex
+          {pipelineState.map((step, index) => {
+            const active = index === stepActiveIndex && (step.status === 'running' || step.status === 'current')
+            const done = step.status === 'complete'
+            const locked = step.status === 'locked'
+            const running = step.status === 'running'
             return (
-              <div key={step.label} className="relative border border-slate-900 bg-slate-950/60 px-4 py-4">
+              <div key={step.label} className={`relative border px-4 py-4 ${pipelineTone(step.status)}`}>
                 <div className="flex items-center justify-between gap-3">
-                  <div className={`h-8 w-8 border ${active ? 'border-cyan-800 bg-cyan-950/30 text-cyan-300' : 'border-slate-800 text-slate-500'} flex items-center justify-center text-xs font-semibold`}>
-                    0{index + 1}
+                  <div className={`h-8 w-8 border flex items-center justify-center text-xs font-semibold ${
+                    running
+                      ? 'border-cyan-800 bg-cyan-950/30 text-cyan-300'
+                      : active
+                        ? 'border-slate-600 bg-slate-900/80 text-slate-200'
+                        : done
+                          ? 'border-emerald-900/70 bg-emerald-950/15 text-emerald-300'
+                          : locked
+                            ? 'border-slate-900 text-slate-700'
+                            : 'border-slate-800 text-slate-500'
+                  }`}>
+                    {done ? '✓' : `0${index + 1}`}
                   </div>
-                  <span className={`text-[10px] uppercase tracking-[0.16em] ${active ? 'text-cyan-300' : 'text-slate-600'}`}>
-                    {active ? 'active' : 'pending'}
+                  <span className={`text-[10px] uppercase tracking-[0.16em] ${
+                    running
+                      ? 'text-cyan-300'
+                      : active
+                        ? 'text-slate-200'
+                        : done
+                          ? 'text-emerald-300'
+                          : locked
+                            ? 'text-slate-700'
+                            : 'text-slate-600'
+                  }`}>
+                    {running ? 'running' : active ? 'current' : done ? 'done' : locked ? 'locked' : 'ready'}
                   </span>
                 </div>
                 <div className="mt-4 text-sm font-semibold text-slate-100">{step.label}</div>
-                <div className="mt-1 text-xs leading-relaxed text-slate-500">{step.detail}</div>
+                {(active || done || running) ? (
+                  <div className="mt-1 text-xs leading-relaxed text-slate-500">{step.detail}</div>
+                ) : (
+                  <div className="mt-1 text-xs leading-relaxed text-slate-700">Unlocks once the previous stage is completed.</div>
+                )}
               </div>
             )
           })}

@@ -13,12 +13,12 @@ import { projectApi } from "@/lib/api";
 import type { ProjectDetail } from "@/types";
 
 const STEPS = [
-  { id: 1, label: "Strategy Intake", description: "Describe the trading logic" },
-  { id: 2, label: "AI Review", description: "Clarify blockers and ambiguities" },
-  { id: 3, label: "Formal Spec", description: "Codified trading rules" },
-  { id: 4, label: "Backtest", description: "Historical validation" },
-  { id: 5, label: "Bot Export", description: "MT5 Expert Advisor output" },
-  { id: 6, label: "Deployment Guide", description: "Install and run on MT5" },
+  { id: 1, label: "Strategy Design", description: "Market, timeframe, entries and risk model" },
+  { id: 2, label: "Structured Review", description: "Resolve blockers before formalization" },
+  { id: 3, label: "Formal Specification", description: "Codified rules for execution" },
+  { id: 4, label: "Validation", description: "Backtest, regime, stability and risk review" },
+  { id: 5, label: "Bot Export", description: "MT5 delivery package" },
+  { id: 6, label: "Deployment Guide", description: "Install and supervise the system" },
 ];
 
 export default function BuilderPage() {
@@ -60,6 +60,16 @@ export default function BuilderPage() {
   };
   const stepReady = stepRequirements[currentStep] ?? true;
 
+  const stepUnlocked = (stepId: number) => {
+    if (stepId === 1) return true
+    if (stepId === 2) return !!parseResult
+    if (stepId === 3) return !!formalSpec
+    if (stepId === 4) return !!sessionId && !!formalSpec
+    if (stepId === 5) return !!backtestResult
+    if (stepId === 6) return !!botResult
+    return false
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
       {/* Clean Header */}
@@ -98,12 +108,13 @@ export default function BuilderPage() {
             {STEPS.map((step) => {
               const active = step.id === currentStep;
               const completed = step.id < currentStep;
-              const disabled = !sessionId && step.id > 1;
+              const unlocked = stepUnlocked(step.id)
+              const locked = !completed && !active && !unlocked
               
               return (
                 <div 
                   key={step.id}
-                  className={`relative pl-8 py-3 group ${active ? 'opacity-100' : 'opacity-50'}`}
+                  className={`relative pl-8 py-3 group ${active ? 'opacity-100' : completed ? 'opacity-80' : 'opacity-55'}`}
                 >
                   {/* Line */}
                   {step.id < STEPS.length && (
@@ -113,18 +124,37 @@ export default function BuilderPage() {
                   {/* Dot */}
                   <div className={`absolute left-0 top-4 w-6 h-6 rounded-full border-2 flex items-center justify-center text-[10px] font-bold transition-all
                     ${active ? 'border-cyan-500 bg-cyan-950 text-cyan-300 scale-110' : 
-                      completed ? 'border-emerald-500 bg-emerald-950 text-emerald-400' : 'border-slate-800 bg-slate-900 text-slate-500'}`}
+                      completed ? 'border-emerald-500 bg-emerald-950 text-emerald-400' : locked ? 'border-slate-900 bg-slate-950 text-slate-700' : 'border-slate-800 bg-slate-900 text-slate-500'}`}
                   >
-                    {completed ? '✓' : step.id}
+                    {completed ? '✓' : locked ? '•' : step.id}
                   </div>
 
                   <div className="flex flex-col">
-                    <span className={`text-xs font-bold uppercase transition-colors ${active ? 'text-slate-100' : 'text-slate-500'}`}>
-                      {step.label}
-                    </span>
-                    <span className="text-[10px] text-slate-600 leading-tight mt-1">
-                      {step.description}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-bold uppercase transition-colors ${active ? 'text-slate-100' : completed ? 'text-slate-300' : 'text-slate-500'}`}>
+                        {step.label}
+                      </span>
+                      {active && (
+                        <span className="border border-cyan-900/70 bg-cyan-950/15 px-2 py-0.5 text-[9px] uppercase tracking-[0.16em] text-cyan-300">
+                          Current
+                        </span>
+                      )}
+                      {locked && (
+                        <span className="border border-slate-800 px-2 py-0.5 text-[9px] uppercase tracking-[0.16em] text-slate-600">
+                          Locked
+                        </span>
+                      )}
+                    </div>
+                    {(active || completed) && (
+                      <span className="text-[10px] text-slate-600 leading-tight mt-1">
+                        {step.description}
+                      </span>
+                    )}
+                    {locked && (
+                      <span className="text-[10px] text-slate-700 leading-tight mt-1">
+                        Complete the current stage to unlock this step.
+                      </span>
+                    )}
                   </div>
                 </div>
               );
@@ -132,9 +162,9 @@ export default function BuilderPage() {
           </div>
 
           <div className="mt-12 p-4 bg-slate-900/40 border border-slate-800 rounded-lg">
-            <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Safety Note</h4>
+            <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Validated pipeline</h4>
             <p className="text-[10px] text-slate-600 leading-relaxed">
-              Tutte le strategie vengono validate formalmente prima della generazione del codice. In caso di errori, sblocca i requisiti nello step 2.
+              Future steps stay locked until the current stage is completed. This keeps the workflow controlled, auditable, and easier to supervise.
             </p>
           </div>
         </aside>
@@ -142,16 +172,31 @@ export default function BuilderPage() {
         {/* Main Content Area */}
         <main className="flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top_right,rgba(8,47,73,0.1),transparent_70%)]">
           <div className="max-w-4xl mx-auto px-6 py-12">
+            <div className="mb-8 border border-slate-800/90 bg-slate-950/55 px-5 py-5">
+              <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Structured strategy engineering</div>
+              <div className="mt-2 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                  <div className="text-2xl font-semibold text-slate-50">{STEPS[currentStep - 1].label}</div>
+                  <div className="mt-1 text-sm text-slate-400">{STEPS[currentStep - 1].description}</div>
+                </div>
+                <div className="text-xs text-slate-500">
+                  Step {currentStep} of {STEPS.length} · Institutional-grade validation layer
+                </div>
+              </div>
+            </div>
+
             {!stepReady && (
               <div className="border border-slate-800 bg-slate-950/60 p-12 text-center rounded-xl backdrop-blur-sm">
                 <div className="text-4xl mb-6">🔄</div>
-                <h3 className="text-xl font-bold text-slate-200 mb-2">Sessione non sincronizzata</h3>
-                <p className="text-slate-500 mb-8 max-w-md mx-auto">La sessione corrente è scaduta o hai ricaricato la pagina. Per sicurezza, ricominciamo dall&apos;inserimento dati.</p>
+                <h3 className="text-xl font-bold text-slate-200 mb-2">Session not synchronized</h3>
+                <p className="text-slate-500 mb-8 max-w-md mx-auto">
+                  The current workflow session expired or the page was refreshed mid-process. Restart from strategy intake to restore a controlled validation path.
+                </p>
                 <button 
                   onClick={restart} 
                   className="bg-cyan-600 hover:bg-cyan-500 text-slate-50 px-8 py-3 rounded font-bold transition-all"
                 >
-                  Ricomincia →
+                  Restart workflow →
                 </button>
               </div>
             )}

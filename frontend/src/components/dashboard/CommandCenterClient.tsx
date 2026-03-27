@@ -19,10 +19,10 @@ type DeskTab = 'performance' | 'risk' | 'execution' | 'fundamentals'
 type DataSource = 'auto' | 'real' | 'demo'
 
 const tabs: Array<{ id: DeskTab; label: string }> = [
-  { id: 'performance', label: 'Performance' },
-  { id: 'risk', label: 'Risk' },
-  { id: 'execution', label: 'Execution' },
-  { id: 'fundamentals', label: 'Fundamentals' },
+  { id: 'performance', label: 'Strategy Health' },
+  { id: 'risk', label: 'Risk Exposure' },
+  { id: 'execution', label: 'Execution Status' },
+  { id: 'fundamentals', label: 'Macro Context' },
 ]
 
 const timeframeOptions = ['7D', '30D', '90D']
@@ -55,6 +55,108 @@ function formatMoney(value: number) {
     currency: 'USD',
     maximumFractionDigits: 0,
   }).format(value)
+}
+
+function buildDeskBadges(dashboard: CommandCenterDashboard) {
+  const badges: Array<{ label: string; tone: DashboardTone }> = []
+  const { header, risk_panel, market_panel, tech_panel, source_mode } = dashboard
+
+  if (
+    header.strategy_health_score >= 78 &&
+    risk_panel.max_drawdown_pct < 10 &&
+    risk_panel.daily_loss_used_pct < 70 &&
+    source_mode !== 'mock'
+  ) {
+    badges.push({ label: 'STABLE', tone: 'positive' })
+  }
+  if (
+    risk_panel.max_drawdown_pct >= 10 ||
+    tech_panel.warnings.length > 0 ||
+    String(market_panel.volatility).toLowerCase().includes('high')
+  ) {
+    badges.push({ label: 'FRAGILE', tone: 'warning' })
+  }
+  if (
+    risk_panel.risk_usage_pct >= 75 ||
+    risk_panel.daily_loss_used_pct >= 80 ||
+    risk_panel.max_drawdown_pct >= 14
+  ) {
+    badges.push({ label: 'HIGH RISK', tone: 'negative' })
+  }
+  if (
+    market_panel.news_risk_active ||
+    market_panel.news_events > 0 ||
+    String(market_panel.macro_filter_status).toLowerCase() !== 'inactive'
+  ) {
+    badges.push({ label: 'MACRO SENSITIVE', tone: 'warning' })
+  }
+  if (
+    header.strategy_health_score < 70 ||
+    source_mode !== 'real' ||
+    risk_panel.warnings.length > 0
+  ) {
+    badges.push({ label: 'RESEARCH CANDIDATE', tone: 'neutral' })
+  }
+
+  return badges.slice(0, 5)
+}
+
+function buildSupervisoryAlerts(dashboard: CommandCenterDashboard) {
+  const alerts = [...dashboard.alerts]
+  const titles = new Set(alerts.map((alert) => alert.title))
+  const maybePush = (title: string, detail: string, tone: DashboardTone) => {
+    if (titles.has(title)) return
+    titles.add(title)
+    alerts.push({ title, detail, tone })
+  }
+
+  if (dashboard.risk_panel.max_drawdown_pct >= 10) {
+    maybePush(
+      'Drawdown threshold approaching',
+      `Max drawdown is at ${dashboard.risk_panel.max_drawdown_pct.toFixed(1)}%. Tighten risk budget or reduce exposure before the next degradation phase.`,
+      dashboard.risk_panel.max_drawdown_pct >= 14 ? 'negative' : 'warning',
+    )
+  }
+
+  if (
+    String(dashboard.market_panel.volatility).toLowerCase().includes('high') ||
+    dashboard.risk_panel.var_proxy_pct >= 2.5
+  ) {
+    maybePush(
+      'Volatility spike detected',
+      'The desk is operating under elevated volatility pressure. Execution quality and stop placement should be reviewed before scaling risk.',
+      'warning',
+    )
+  }
+
+  if (
+    String(dashboard.market_panel.regime).toLowerCase().includes('range') ||
+    String(dashboard.market_panel.regime).toLowerCase().includes('transition')
+  ) {
+    maybePush(
+      'Regime shift detected',
+      `Current regime reads ${dashboard.market_panel.regime}. A change in market structure may invalidate assumptions that held during recent expansion phases.`,
+      'warning',
+    )
+  }
+
+  if (dashboard.market_panel.news_risk_active || dashboard.market_panel.news_events > 0) {
+    maybePush(
+      'Macro window active',
+      `${dashboard.market_panel.news_events} monitored event(s) sit inside the active risk window. Confirm that macro-sensitive filters remain aligned before new entries.`,
+      'warning',
+    )
+  }
+
+  if (dashboard.tech_panel.jobs_running > 0) {
+    maybePush(
+      'Research pipeline updating',
+      `${dashboard.tech_panel.jobs_running} workflow job(s) are still running. Treat the desk as supervised rather than final until the processing queue clears.`,
+      'neutral',
+    )
+  }
+
+  return alerts
 }
 
 function DashboardKpiTile({ item }: { item: DashboardKpi }) {
@@ -231,6 +333,8 @@ export default function CommandCenterClient() {
   }, [selectedProjectId, timeframe, source, reloadToken])
 
   const topInsights = useMemo(() => dashboard?.insight_boxes.slice(0, 4) || [], [dashboard])
+  const deskBadges = useMemo(() => (dashboard ? buildDeskBadges(dashboard) : []), [dashboard])
+  const supervisoryAlerts = useMemo(() => (dashboard ? buildSupervisoryAlerts(dashboard) : []), [dashboard])
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(14,116,144,0.16),transparent_25%),radial-gradient(circle_at_top_right,rgba(15,23,42,0.36),transparent_34%),linear-gradient(180deg,#020617_0%,#020617_100%)] text-slate-100">
@@ -247,7 +351,7 @@ export default function CommandCenterClient() {
                 Algorithmic Trading Command Center
               </h1>
               <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-400">
-                Monitor strategy quality, risk posture, macro exposure and execution health from a single institutional-grade desk view.
+                Supervise strategy health, risk exposure, execution status and macro context from a single institutional-grade control room.
               </p>
             </div>
             <div className="flex flex-wrap gap-3 text-xs text-slate-500">
@@ -337,12 +441,15 @@ export default function CommandCenterClient() {
                       <StatusPill label={dashboard.header.status} tone={dashboard.header.status_tone} />
                       <StatusPill label={dashboard.header.connection_status} tone={dashboard.header.connection_tone} />
                       <StatusPill label={dashboard.header.strategy_health_label} tone={dashboard.header.strategy_health_score >= 70 ? 'positive' : 'warning'} />
+                      {deskBadges.map((badge) => (
+                        <StatusPill key={badge.label} label={badge.label} tone={badge.tone} />
+                      ))}
                     </div>
                   </div>
                   <div className="min-w-[240px] border border-slate-900/80 bg-slate-950/70 px-4 py-4">
-                    <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Control Summary</div>
+                    <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Strategy Health</div>
                     <div className="mt-3 text-4xl font-semibold text-slate-50">{dashboard.header.strategy_health_score}</div>
-                    <div className="mt-2 text-sm text-slate-400">{dashboard.header.source_label}</div>
+                    <div className="mt-2 text-sm text-slate-400">{dashboard.header.source_label} · Research-backed evaluation</div>
                     <div className="mt-4 grid grid-cols-2 gap-3 text-xs text-slate-500">
                       <div>
                         <div className="uppercase tracking-[0.14em] text-slate-600">Session</div>
@@ -379,8 +486,8 @@ export default function CommandCenterClient() {
                 />
               </PanelFrame>
 
-              <PanelFrame title="Desk Alerts" eyebrow="Risk and execution watchlist">
-                <AlertList alerts={dashboard.alerts} />
+              <PanelFrame title="Supervisory Alerts" eyebrow="Risk, regime and execution watchlist">
+                <AlertList alerts={supervisoryAlerts} />
               </PanelFrame>
             </section>
 
@@ -407,7 +514,7 @@ export default function CommandCenterClient() {
               <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800/90 px-4 py-3">
                 <div>
                   <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Control tabs</div>
-                  <div className="mt-1 text-sm font-semibold text-slate-100">Execution, risk and macro context</div>
+                  <div className="mt-1 text-sm font-semibold text-slate-100">Structured supervision modules</div>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {tabs.map((tab) => (
@@ -438,7 +545,7 @@ export default function CommandCenterClient() {
                         ))}
                       </div>
                     </PanelFrame>
-                    <PanelFrame title="Performance Summary" eyebrow="Core desk posture">
+                    <PanelFrame title="Strategy Health" eyebrow="Core desk posture">
                       <KeyValueGrid
                         items={[
                           { label: 'Operating Mode', value: dashboard.operating_mode },
@@ -455,7 +562,7 @@ export default function CommandCenterClient() {
 
                 {activeTab === 'risk' && (
                   <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-                    <PanelFrame title="Risk Control Board" eyebrow="Daily loss, exposure and kill-switch">
+                    <PanelFrame title="Risk Exposure" eyebrow="Daily loss, exposure and kill-switch">
                       <KeyValueGrid
                         items={[
                           { label: 'Risk Usage', value: `${dashboard.risk_panel.risk_usage_pct.toFixed(1)}%`, tone: dashboard.risk_panel.risk_usage_pct >= 70 ? 'warning' : 'neutral' },
@@ -493,7 +600,7 @@ export default function CommandCenterClient() {
                       <PanelFrame title="Open Positions" eyebrow="Runtime exposure">
                         <PositionsTable items={dashboard.open_positions} />
                       </PanelFrame>
-                      <PanelFrame title="Bot Health / Technical" eyebrow="Runtime stack">
+                      <PanelFrame title="Execution Status" eyebrow="Runtime stack">
                         <KeyValueGrid
                           items={[
                             { label: 'Data Provider', value: dashboard.tech_panel.data_provider },
@@ -515,7 +622,7 @@ export default function CommandCenterClient() {
 
                 {activeTab === 'fundamentals' && (
                   <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
-                    <PanelFrame title="Market / Regime / Macro" eyebrow="Macro-aware desk context">
+                    <PanelFrame title="Macro Context" eyebrow="Macro-aware desk context">
                       <KeyValueGrid
                         items={[
                           { label: 'Regime', value: dashboard.market_panel.regime },
