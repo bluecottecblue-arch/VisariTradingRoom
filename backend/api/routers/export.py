@@ -2,7 +2,8 @@
 Router: Export
 Genera e serve i file scaricabili: EA .mq5, report HTML, report JSON
 """
-from fastapi import APIRouter, HTTPException
+import logging
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
 from pathlib import Path
 import os
@@ -15,8 +16,10 @@ from modules.common.deployment_bundle import (
     build_setup_text,
 )
 from modules.common.strategy_validation import validate_mql5_code
+from modules.common.public_errors import build_public_error
 from modules.research.decision_engine import is_promoted_verdict
 from modules.projects.store import ProjectStore
+from modules.auth.security import AuthContext, ensure_session_access, require_authenticated
 from api.routers.backtest import get_completed_results_for_session
 from db.database import InMemorySessionStore
 
@@ -70,7 +73,11 @@ async def _register_artifact(
 
 
 @router.get("/mql5/{session_id}")
-async def download_mql5(session_id: str):
+async def download_mql5(
+    session_id: str,
+    context: AuthContext = Depends(require_authenticated),
+):
+    await ensure_session_access(session_id, context)
     backtest_results = get_completed_results_for_session(session_id)
     final_decision = (backtest_results or {}).get("final_decision") or {}
     verdict = final_decision.get("verdict")
@@ -101,7 +108,12 @@ async def download_mql5(session_id: str):
 
 
 @router.post("/mql5/{session_id}")
-async def save_mql5(session_id: str, payload: dict):
+async def save_mql5(
+    session_id: str,
+    payload: dict,
+    context: AuthContext = Depends(require_authenticated),
+):
+    await ensure_session_access(session_id, context)
     backtest_results = get_completed_results_for_session(session_id)
     final_decision = (backtest_results or {}).get("final_decision") or {}
     verdict = final_decision.get("verdict")
@@ -175,7 +187,12 @@ async def save_mql5(session_id: str, payload: dict):
 
 
 @router.post("/report/{session_id}")
-async def generate_report(session_id: str, payload: dict):
+async def generate_report(
+    session_id: str,
+    payload: dict,
+    context: AuthContext = Depends(require_authenticated),
+):
+    await ensure_session_access(session_id, context)
     try:
         paths = report_gen.generate(session_id, payload)
         html_path = STORAGE / f"{session_id}_report.html"
@@ -196,11 +213,16 @@ async def generate_report(session_id: str, payload: dict):
         )
         return {"generated": True, "html_url": paths["html_url"]}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Errore report: {e}")
+        logging.exception("Errore generazione report")
+        raise HTTPException(status_code=500, detail=build_public_error("Generazione report", e))
 
 
 @router.get("/report/{session_id}", response_class=HTMLResponse)
-async def get_report_html(session_id: str):
+async def get_report_html(
+    session_id: str,
+    context: AuthContext = Depends(require_authenticated),
+):
+    await ensure_session_access(session_id, context)
     html_path = STORAGE / f"{session_id}_report.html"
     if not html_path.exists():
         raise HTTPException(status_code=404, detail="Report non disponibile. Esegui prima il backtest.")
@@ -208,7 +230,11 @@ async def get_report_html(session_id: str):
 
 
 @router.get("/report/{session_id}/json")
-async def get_report_json(session_id: str):
+async def get_report_json(
+    session_id: str,
+    context: AuthContext = Depends(require_authenticated),
+):
+    await ensure_session_access(session_id, context)
     json_path = STORAGE / f"{session_id}_report.json"
     if not json_path.exists():
         raise HTTPException(status_code=404, detail="Dati report non disponibili")
@@ -217,7 +243,11 @@ async def get_report_json(session_id: str):
 
 
 @router.get("/bundle/{session_id}")
-async def get_bundle_info(session_id: str):
+async def get_bundle_info(
+    session_id: str,
+    context: AuthContext = Depends(require_authenticated),
+):
+    await ensure_session_access(session_id, context)
     file_path = STORAGE / f"{session_id}.mq5"
     files = {}
     for key, pattern in [
@@ -251,7 +281,11 @@ async def get_bundle_info(session_id: str):
 
 
 @router.get("/bundle/{session_id}/manifest.json")
-async def get_bundle_manifest(session_id: str):
+async def get_bundle_manifest(
+    session_id: str,
+    context: AuthContext = Depends(require_authenticated),
+):
+    await ensure_session_access(session_id, context)
     manifest_path = STORAGE / f"{session_id}_manifest.json"
     if manifest_path.exists():
         return JSONResponse(content=json.loads(manifest_path.read_text(encoding="utf-8")))
@@ -268,7 +302,11 @@ async def get_bundle_manifest(session_id: str):
 
 
 @router.get("/bundle/{session_id}/setup.txt", response_class=PlainTextResponse)
-async def get_bundle_setup_text(session_id: str):
+async def get_bundle_setup_text(
+    session_id: str,
+    context: AuthContext = Depends(require_authenticated),
+):
+    await ensure_session_access(session_id, context)
     setup_path = STORAGE / f"{session_id}_setup.txt"
     if setup_path.exists():
         return PlainTextResponse(

@@ -1,7 +1,8 @@
 import os
+import time
 from typing import Optional
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from modules.auth.security import AuthContext, create_session_token, require_admin, require_authenticated
@@ -18,6 +19,9 @@ from modules.auth.user_store import (
 
 
 router = APIRouter()
+_FAILED_LOGIN_ATTEMPTS: dict[str, dict[str, float]] = {}
+_LOGIN_WINDOW_SECONDS = 10 * 60
+_LOGIN_MAX_ATTEMPTS = 8
 
 
 class LoginRequest(BaseModel):
@@ -72,11 +76,53 @@ def _validate_admin_credentials(username: str, password: str) -> bool:
     )
 
 
+def _client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+    if forwarded:
+        return forwarded
+    return request.client.host if request.client else "unknown"
+
+
+def _rate_limit_key(request: Request, username: str, scope: str) -> str:
+    return f"{scope}:{_client_ip(request)}:{username.strip().lower()}"
+
+
+def _check_rate_limit(key: str) -> None:
+    now = time.time()
+    stale_keys = [item for item, record in _FAILED_LOGIN_ATTEMPTS.items() if record.get("reset_at", 0) <= now]
+    for stale_key in stale_keys:
+        _FAILED_LOGIN_ATTEMPTS.pop(stale_key, None)
+    record = _FAILED_LOGIN_ATTEMPTS.get(key)
+    if record and record.get("count", 0) >= _LOGIN_MAX_ATTEMPTS and record.get("reset_at", 0) > now:
+        wait_seconds = max(1, int(record["reset_at"] - now))
+        raise HTTPException(
+            status_code=429,
+            detail=f"Troppi tentativi di login falliti. Riprova tra circa {wait_seconds} secondi.",
+        )
+
+
+def _register_failed_attempt(key: str) -> None:
+    now = time.time()
+    record = _FAILED_LOGIN_ATTEMPTS.get(key)
+    if not record or record.get("reset_at", 0) <= now:
+        _FAILED_LOGIN_ATTEMPTS[key] = {"count": 1, "reset_at": now + _LOGIN_WINDOW_SECONDS}
+        return
+    record["count"] = record.get("count", 0) + 1
+
+
+def _clear_failed_attempts(key: str) -> None:
+    _FAILED_LOGIN_ATTEMPTS.pop(key, None)
+
+
 @router.post("/login")
-async def login_user(payload: LoginRequest):
+async def login_user(payload: LoginRequest, request: Request):
+    rate_limit_key = _rate_limit_key(request, payload.username, "user_login")
+    _check_rate_limit(rate_limit_key)
     user = await verify_user(payload.username, payload.password)
     if not user:
+        _register_failed_attempt(rate_limit_key)
         raise HTTPException(status_code=401, detail="Credenziali non valide")
+    _clear_failed_attempts(rate_limit_key)
 
     return {
         "ok": True,
@@ -87,11 +133,15 @@ async def login_user(payload: LoginRequest):
 
 
 @router.post("/admin/login")
-async def login_admin(payload: LoginRequest):
+async def login_admin(payload: LoginRequest, request: Request):
+    rate_limit_key = _rate_limit_key(request, payload.username, "admin_login")
+    _check_rate_limit(rate_limit_key)
     if not _normalize_admin_username() or not _normalize_admin_password():
         raise HTTPException(status_code=503, detail="Admin non configurato")
     if not _validate_admin_credentials(payload.username, payload.password):
+        _register_failed_attempt(rate_limit_key)
         raise HTTPException(status_code=401, detail="Credenziali admin non valide")
+    _clear_failed_attempts(rate_limit_key)
 
     return {
         "ok": True,

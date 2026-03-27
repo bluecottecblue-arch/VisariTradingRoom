@@ -5,6 +5,7 @@ import json
 import os
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import HTTPException, Request
@@ -93,16 +94,66 @@ def _extract_bearer_token(request: Request) -> str:
     return request.headers.get("x-session-token", "").strip()
 
 
-def require_authenticated(request: Request) -> AuthContext:
+def _is_expired(expires_at: Optional[str]) -> bool:
+    if not expires_at:
+        return False
+    try:
+        dt = datetime.fromisoformat(str(expires_at).replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt <= datetime.now(timezone.utc)
+
+
+async def require_authenticated(request: Request) -> AuthContext:
     token = _extract_bearer_token(request)
     context = verify_session_token(token)
     if not context:
         raise HTTPException(status_code=401, detail="Sessione non valida o scaduta")
+    if context.role == "user":
+        from modules.auth.user_store import get_user_profile
+
+        profile = await get_user_profile(context.username)
+        if not profile:
+            raise HTTPException(status_code=401, detail="Sessione non valida o scaduta")
+        status = str(profile.get("status") or "").strip().lower()
+        if _is_expired(profile.get("expires_at")) or status == "expired":
+            raise HTTPException(status_code=403, detail="Account scaduto")
+        if status != "active":
+            raise HTTPException(status_code=403, detail="Account sospeso o non attivo")
     return context
 
 
-def require_admin(request: Request) -> AuthContext:
-    context = require_authenticated(request)
+async def require_admin(request: Request) -> AuthContext:
+    context = await require_authenticated(request)
     if context.role != "admin":
         raise HTTPException(status_code=403, detail="Accesso admin richiesto")
     return context
+
+
+async def ensure_session_access(session_id: str, context: AuthContext) -> dict:
+    from db.database import InMemorySessionStore
+    from modules.projects.store import ProjectStore
+
+    project_ref = InMemorySessionStore.get(session_id, "project_ref") or {}
+    if context.role == "admin":
+        return project_ref
+
+    owner_username = str(project_ref.get("owner_username") or "").strip().lower()
+    if owner_username:
+        if owner_username != context.username:
+            raise HTTPException(status_code=404, detail="Sessione non trovata o non accessibile")
+        return project_ref
+
+    project_id = str(project_ref.get("project_id") or "").strip()
+    if not project_id:
+        raise HTTPException(status_code=404, detail="Sessione non trovata o non accessibile")
+
+    project = await ProjectStore.get_project(context.username, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Sessione non trovata o non accessibile")
+
+    updated_ref = {**project_ref, "project_id": project_id, "owner_username": context.username}
+    InMemorySessionStore.save(session_id, "project_ref", updated_ref)
+    return updated_ref

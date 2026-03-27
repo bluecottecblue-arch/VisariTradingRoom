@@ -6,6 +6,7 @@ Session state held in module-level singletons (in-memory for local dev).
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from typing import Any, Optional
+import logging
 import uuid
 
 from modules.parser.strategy_parser import StrategyParser
@@ -22,7 +23,8 @@ from modules.common.strategy_validation import (
 from modules.auth.user_store import get_user_ai_credentials
 from modules.research.decision_engine import is_promoted_verdict
 from modules.projects.store import ProjectStore
-from modules.auth.security import AuthContext, require_authenticated
+from modules.auth.security import AuthContext, ensure_session_access, require_authenticated
+from modules.common.public_errors import build_public_error
 from db.database import InMemorySessionStore
 from api.routers.backtest import get_task_for_session, get_completed_results_for_session
 
@@ -368,7 +370,8 @@ async def parse_strategy(
     except Exception as e:
         if parse_job:
             await ProjectStore.update_job(parse_job["job_id"], status="error", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Errore parsing: {str(e)}")
+        logging.exception("Errore parse strategy")
+        raise HTTPException(status_code=500, detail=build_public_error("Analisi strategia", e))
 
 
 @router.post("/resolve-ambiguities", response_model=FormalSpecResponse)
@@ -379,6 +382,7 @@ async def resolve_ambiguities(
     """Step 2: user chose how to resolve ambiguities → produce formal spec."""
     formalize_job: Optional[dict[str, Any]] = None
     try:
+        await ensure_session_access(req.session_id, context)
         project_ref = _project_ref_for_session(req.session_id)
         project_id = project_ref.get("project_id")
         formalize_job = await ProjectStore.create_job(
@@ -425,7 +429,8 @@ async def resolve_ambiguities(
     except Exception as e:
         if formalize_job:
             await ProjectStore.update_job(formalize_job["job_id"], status="error", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Errore formalizzazione: {str(e)}")
+        logging.exception("Errore formalizzazione strategy")
+        raise HTTPException(status_code=500, detail=build_public_error("Formalizzazione strategia", e))
 
 
 @router.post("/generate-bot", response_model=BotGenerationResponse)
@@ -436,6 +441,7 @@ async def generate_bot(
     """Step 3: generate MQL5 Expert Advisor from the formal spec."""
     bot_job: Optional[dict[str, Any]] = None
     try:
+        await ensure_session_access(session_id, context)
         project_ref = _project_ref_for_session(session_id)
         project_id = project_ref.get("project_id")
         backtest_results = get_completed_results_for_session(session_id)
@@ -504,12 +510,17 @@ async def generate_bot(
     except Exception as e:
         if bot_job:
             await ProjectStore.update_job(bot_job["job_id"], status="error", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Errore generazione bot: {str(e)}")
+        logging.exception("Errore generazione bot")
+        raise HTTPException(status_code=500, detail=build_public_error("Generazione bot", e))
 
 
 @router.get("/session/{session_id}")
-async def get_session(session_id: str):
+async def get_session(
+    session_id: str,
+    context: AuthContext = Depends(require_authenticated),
+):
     """Debug: check session state."""
+    await ensure_session_access(session_id, context)
     parsed_bundle = formalizer._sessions.get(session_id) or {}
     parsed = parsed_bundle.get("parsed")
     spec_bundle = bot_gen._sessions.get(session_id) or {}

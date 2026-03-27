@@ -7,7 +7,8 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import math
 import re
-from fastapi import APIRouter, HTTPException
+import logging
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional, Tuple
 import pandas as pd
@@ -29,6 +30,8 @@ from modules.fundamentals.economic_calendar import (
     normalize_macro_news_config,
 )
 from modules.projects.store import ProjectStore
+from modules.auth.security import AuthContext, ensure_session_access, require_authenticated
+from modules.common.public_errors import build_public_error
 from db.database import InMemorySessionStore
 
 router = APIRouter()
@@ -52,7 +55,10 @@ class BacktestRequest(BaseModel):
 
 
 @router.post("/run")
-async def run_backtest(req: BacktestRequest):
+async def run_backtest(
+    req: BacktestRequest,
+    context: AuthContext = Depends(require_authenticated),
+):
     """
     Esegue il backtest completo:
     1. Scarica dati storici dal provider scelto
@@ -65,7 +71,7 @@ async def run_backtest(req: BacktestRequest):
     8. Compila report finale
     """
     task_id = str(uuid.uuid4())
-    project_ref = InMemorySessionStore.get(req.session_id, "project_ref") or {}
+    project_ref = await ensure_session_access(req.session_id, context)
     project_id = req.project_id or project_ref.get("project_id")
     job = await ProjectStore.create_job(
         project_id=project_id,
@@ -78,10 +84,30 @@ async def run_backtest(req: BacktestRequest):
         },
         status="running",
     )
-    _task_store[task_id] = {"status": "running", "project_id": project_id, "job_id": job["job_id"]}
+    InMemorySessionStore.save(
+        req.session_id,
+        "project_ref",
+        {"project_id": project_id, "owner_username": project_ref.get("owner_username") or context.username},
+    )
+    _task_store[task_id] = {
+        "status": "running",
+        "project_id": project_id,
+        "job_id": job["job_id"],
+        "owner_username": context.username,
+    }
     _session_task_map[req.session_id] = task_id
     InMemorySessionStore.save(req.session_id, "backtest_task_ref", {"task_id": task_id})
-    asyncio.create_task(_execute_backtest(task_id, {**req.model_dump(), "project_id": project_id, "job_id": job["job_id"]}))
+    asyncio.create_task(
+        _execute_backtest(
+            task_id,
+            {
+                **req.model_dump(),
+                "project_id": project_id,
+                "job_id": job["job_id"],
+                "owner_username": context.username,
+            },
+        )
+    )
     return {"task_id": task_id, "job_id": job["job_id"], "project_id": project_id, "status": "running"}
 
 
@@ -254,23 +280,48 @@ def _deserialize_trades(trades_data: list) -> list:
 
 
 @router.get("/status/{task_id}")
-async def backtest_status(task_id: str):
+async def backtest_status(
+    task_id: str,
+    context: AuthContext = Depends(require_authenticated),
+):
     """
     Polling dello stato del backtest.
     Il frontend chiama questo endpoint ogni 3 secondi finché status == 'complete' | 'error'.
     """
-    result = _task_store.get(task_id)
+    result = await _ensure_task_access(task_id, context)
     if result is None:
         raise HTTPException(status_code=404, detail="Task non trovato")
-    return result
+    return _task_public_view(task_id, result)
 
 
 @router.get("/session/{session_id}")
-async def backtest_status_for_session(session_id: str):
+async def backtest_status_for_session(
+    session_id: str,
+    context: AuthContext = Depends(require_authenticated),
+):
+    await ensure_session_access(session_id, context)
     task = get_task_for_session(session_id)
     if task is None:
         raise HTTPException(status_code=404, detail="Nessun backtest associato a questa sessione")
     return task
+
+
+async def _ensure_task_access(task_id: str, context: AuthContext) -> Optional[dict]:
+    task = _task_store.get(task_id)
+    if task is None:
+        return None
+    if context.role == "admin":
+        return task
+    owner_username = str(task.get("owner_username") or "").strip().lower()
+    if owner_username and owner_username == context.username:
+        return task
+    project_id = str(task.get("project_id") or "").strip()
+    if project_id:
+        project = await ProjectStore.get_project(context.username, project_id)
+        if project:
+            task["owner_username"] = context.username
+            return task
+    raise HTTPException(status_code=404, detail="Task non trovato")
 
 
 def get_task_for_session(session_id: str) -> Optional[dict]:
@@ -280,7 +331,16 @@ def get_task_for_session(session_id: str) -> Optional[dict]:
         task_id = stored.get("task_id")
     if not task_id:
         return None
-    return {"task_id": task_id, **(_task_store.get(task_id) or {})}
+    task = _task_store.get(task_id) or {}
+    return _task_public_view(task_id, task)
+
+
+def _task_public_view(task_id: str, task: dict) -> dict:
+    return {
+        key: value
+        for key, value in {"task_id": task_id, **(task or {})}.items()
+        if key != "owner_username"
+    }
 
 
 def get_completed_results_for_session(session_id: str) -> Optional[dict]:
@@ -335,7 +395,14 @@ async def _execute_backtest(task_id: str, payload: dict) -> None:
         result = await loop.run_in_executor(_executor, _run_backtest_sync, payload)
         project_id = payload.get("project_id")
         job_id = payload.get("job_id")
-        _task_store[task_id] = {"status": "complete", "results": result, "project_id": project_id, "job_id": job_id}
+        owner_username = payload.get("owner_username")
+        _task_store[task_id] = {
+            "status": "complete",
+            "results": result,
+            "project_id": project_id,
+            "job_id": job_id,
+            "owner_username": owner_username,
+        }
         if job_id:
             await ProjectStore.update_job(
                 job_id,
@@ -374,9 +441,17 @@ async def _execute_backtest(task_id: str, payload: dict) -> None:
     except Exception as exc:
         project_id = payload.get("project_id")
         job_id = payload.get("job_id")
-        _task_store[task_id] = {"status": "error", "error": str(exc), "project_id": project_id, "job_id": job_id}
+        owner_username = payload.get("owner_username")
+        logging.exception("Errore backtest task")
+        _task_store[task_id] = {
+            "status": "error",
+            "error": build_public_error("Backtest", exc),
+            "project_id": project_id,
+            "job_id": job_id,
+            "owner_username": owner_username,
+        }
         if job_id:
-            await ProjectStore.update_job(job_id, status="error", error=str(exc))
+            await ProjectStore.update_job(job_id, status="error", error=build_public_error("Backtest", exc))
 
 
 def _run_backtest_sync(payload: dict) -> dict:
@@ -592,7 +667,11 @@ def _run_backtest_sync(payload: dict) -> dict:
     safe_result = _make_json_safe(result)
     InMemorySessionStore.save(session_id, "backtest_results_bundle", safe_result)
     if project_id:
-        InMemorySessionStore.save(session_id, "project_ref", {"project_id": project_id})
+        InMemorySessionStore.save(
+            session_id,
+            "project_ref",
+            {"project_id": project_id, "owner_username": payload.get("owner_username")},
+        )
     return safe_result
 
 

@@ -11,15 +11,17 @@ Permette:
 from __future__ import annotations
 
 from typing import Any, Optional
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from db.database import InMemorySessionStore
-from modules.auth.security import AuthContext, require_authenticated
+from modules.auth.security import AuthContext, ensure_session_access, require_authenticated
 from modules.botlab.modifier import BotModifier
 from modules.botlab.parser import analyze_bot_code, summarize_bot_diff
+from modules.common.public_errors import build_public_error
 from modules.common.strategy_validation import empty_usage, resolve_claude_access
 from modules.fundamentals.economic_calendar import fetch_calendar_events, list_calendar_providers
 from modules.projects.store import ProjectStore
@@ -150,7 +152,8 @@ async def upload_bot(
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Errore upload/analyze bot: {exc}")
+        logging.exception("Errore upload/analyze bot")
+        raise HTTPException(status_code=500, detail=build_public_error("Analisi bot", exc))
 
 
 @router.post("/modify")
@@ -158,6 +161,7 @@ async def modify_bot(
     req: BotModifyRequest,
     context: AuthContext = Depends(require_authenticated),
 ):
+    await ensure_session_access(req.session_id, context)
     stored = InMemorySessionStore.get(req.session_id, "bot_lab_bundle")
     if not stored:
         raise HTTPException(status_code=404, detail="Sessione Bot Lab non trovata")
@@ -175,14 +179,15 @@ async def modify_bot(
 
     original_analysis = dict(stored.get("analysis") or {})
     original_analysis["modification_preflight"] = preflight
+    user_creds = await get_user_ai_credentials(context.username)
     llm_modified = await modifier.modify(
         original_code=stored.get("content", ""),
         original_analysis=original_analysis,
         prompt=req.prompt,
         claude_access=resolve_claude_access(
             req.claude_access or {},
-            account_api_key=get_user_ai_credentials(context.username)["api_key"],
-            account_provider=get_user_ai_credentials(context.username)["provider"],
+            account_api_key=user_creds["api_key"],
+            account_provider=user_creds["provider"],
         ),
         fundamental_filters=fundamental_filters,
     )
@@ -222,7 +227,7 @@ async def modify_bot(
         "compare": compare,
     }
     if project_id:
-        InMemorySessionStore.save(new_session_id, "project_ref", {"project_id": project_id})
+        InMemorySessionStore.save(new_session_id, "project_ref", {"project_id": project_id, "owner_username": context.username})
     InMemorySessionStore.save(new_session_id, "bot_lab_bundle", modified_bundle)
     if modified_analysis.get("formal_spec_bundle", {}).get("status") == "VALID":
         InMemorySessionStore.save(new_session_id, "formal_spec_bundle", modified_analysis["formal_spec_bundle"])
@@ -264,7 +269,11 @@ async def modify_bot(
 
 
 @router.get("/session/{session_id}")
-async def bot_lab_session(session_id: str):
+async def bot_lab_session(
+    session_id: str,
+    context: AuthContext = Depends(require_authenticated),
+):
+    await ensure_session_access(session_id, context)
     stored = InMemorySessionStore.get(session_id, "bot_lab_bundle")
     if not stored:
         raise HTTPException(status_code=404, detail="Sessione Bot Lab non trovata")
