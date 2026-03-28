@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { exportApi } from "@/lib/api";
+import { deriveLaunchReadinessPack } from "@/lib/launchReadiness";
 import type { BotResult } from "@/types";
 
 interface Props {
@@ -277,6 +278,7 @@ export default function StepGuide({ botResult, onBack }: Props) {
   const [activeStep, setActiveStep] = useState(1);
 
   const step = MT5_STEPS.find((s) => s.id === activeStep)!;
+  const launchPack = deriveLaunchReadinessPack(botResult, null);
 
   return (
     <div className="space-y-6">
@@ -287,6 +289,31 @@ export default function StepGuide({ botResult, onBack }: Props) {
           come se fosse la prima volta che usi MetaTrader.
         </p>
       </div>
+
+      {launchPack && (
+        <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
+          <div className="border border-slate-800 bg-slate-950/70 p-5">
+            <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Protocollo di lancio consigliato</div>
+            <div className="mt-2 flex items-start justify-between gap-3">
+              <div>
+                <div className="text-lg font-semibold text-slate-100">{launchPack.label}</div>
+                <div className="mt-2 text-sm leading-relaxed text-slate-400">{launchPack.summary}</div>
+              </div>
+              <span className={`border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] ${launchPack.toneClass}`}>
+                {launchPack.mode.replaceAll("_", " ")}
+              </span>
+            </div>
+          </div>
+          <div className="border border-slate-800 bg-slate-950/70 p-5">
+            <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Prima settimana</div>
+            <div className="mt-3 space-y-2">
+              {launchPack.firstWeekProtocol.map((item, index) => (
+                <div key={index} className="text-sm leading-relaxed text-slate-300">• {item}</div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex gap-6">
         {/* Step navigation sidebar */}

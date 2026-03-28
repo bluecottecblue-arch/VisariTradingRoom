@@ -15,6 +15,83 @@ from typing import Any, Dict, List, Optional
 TRADING_ECONOMICS_CALENDAR_URL = "https://api.tradingeconomics.com/calendar"
 
 
+def _build_launch_pack(*, readiness: dict, research_summary: Optional[dict], macro_enabled: bool) -> dict:
+    research_summary = research_summary or {}
+    verdict = str(research_summary.get("verdict") or "").strip().upper()
+    readiness_status = str(readiness.get("status") or "").strip().upper()
+    warnings = list(readiness.get("warnings") or [])
+    blockers = list(readiness.get("live_blockers") or [])
+    runtime_requirements = list(readiness.get("runtime_requirements") or [])
+
+    mode = "DEMO_ONLY"
+    summary = (
+        "La build è pronta per un setup controllato ma deve ancora essere osservata in demo o paper "
+        "prima di qualsiasi uso con capitale reale."
+    )
+
+    if readiness_status == "BLOCKED" or verdict in {"REJECT", "NEEDS_RESEARCH"}:
+        mode = "RESEARCH_ONLY"
+        summary = (
+            "Non portare questo bot in ambiente operativo. Chiudi i blocker, migliora il verdict research "
+            "e rigenera il pacchetto prima di pensare al deploy."
+        )
+    elif verdict == "PAPER_TRADE_ONLY":
+        mode = "PAPER_TRADE"
+        summary = (
+            "Il sistema è adatto a demo/paper trading controllato, ma non ha ancora sufficiente robustezza "
+            "per giustificare un uso live."
+        )
+    elif verdict == "LIMITED_LIVE_TEST" and readiness_status == "READY_FOR_EXPORT":
+        mode = "LIMITED_LIVE"
+        summary = (
+            "La build supporta un test live limitato con size ridotta, un solo ambiente broker e supervisione quotidiana."
+        )
+    elif verdict == "PRODUCTION_CANDIDATE" and readiness_status == "READY_FOR_EXPORT":
+        mode = "CONTROLLED_LIVE"
+        summary = (
+            "Il pacchetto è adatto a un rollout live controllato, ma resta necessario un presidio operativo e un ramp-up graduale."
+        )
+
+    first_week_protocol = [
+        (
+            "Se non sei in LIMITED_LIVE o CONTROLLED_LIVE, mantieni il bot in demo/paper fino a quando il comportamento "
+            "non combacia con la validazione."
+        ),
+        "Controlla a fine giornata Journal MT5, trade aperti/chiusi e rispetto delle regole della strategia.",
+        "Verifica ogni giorno sizing, sessioni, spread e parametri runtime prima dell'apertura del mercato.",
+        "Metti in pausa il bot immediatamente se vedi entry inattese, uscite mancanti o errori runtime.",
+    ]
+    if mode in {"LIMITED_LIVE", "CONTROLLED_LIVE"}:
+        first_week_protocol[0] = "Avvia con size ridotta, un solo simbolo e supervisione umana quotidiana."
+    if macro_enabled:
+        first_week_protocol.append(
+            "Verifica ogni giorno API key macro, whitelist WebRequest e aggiornamento del calendario live."
+        )
+
+    operator_brief: List[str] = [str(readiness.get("recommended_next_action") or "").strip()]
+    operator_brief.extend(blockers[:2])
+    operator_brief.extend(warnings[:2])
+    operator_brief.extend(
+        f"{item.get('label')}: {item.get('value')}"
+        for item in runtime_requirements
+        if item.get("required")
+    )
+
+    return {
+        "mode": mode,
+        "summary": summary,
+        "first_week_protocol": first_week_protocol,
+        "operator_brief": [item for item in operator_brief if item][:5],
+        "deliverables": [
+            "Strategy Specification",
+            "Validation Report",
+            "Risk Assessment",
+            "MQL5 Bot",
+            "Deployment Guide",
+        ],
+    }
+
+
 def build_deployment_readiness(*, code: str, spec: Optional[dict], code_validation: dict) -> dict:
     spec = spec or {}
     formal_spec = dict(spec.get("formal_spec") or {})
@@ -225,6 +302,11 @@ def build_export_manifest(
     macro_enabled = "UseMacroNewsFilter" in code or "MacroNewsProvider" in code
     provider_hint = calendar_context.get("provider") or ("trading_economics" if "tradingeconomics.com" in code.lower() else "none")
     readiness = deployment_readiness or {}
+    launch_pack = _build_launch_pack(
+        readiness=readiness,
+        research_summary=final_decision,
+        macro_enabled=macro_enabled,
+    )
 
     return {
         "session_id": session_id,
@@ -249,6 +331,7 @@ def build_export_manifest(
             "webrequest_url": TRADING_ECONOMICS_CALENDAR_URL if provider_hint == "trading_economics" else None,
         },
         "deployment_readiness": readiness,
+        "launch_pack": launch_pack,
         "recommended_workflow": [
             "Compila il .mq5 in .ex5 dentro MetaEditor.",
             "Imposta gli input runtime dell'EA su simbolo, rischio, sessione e provider macro.",
@@ -260,6 +343,7 @@ def build_export_manifest(
 
 def build_setup_text(manifest: dict) -> str:
     readiness = manifest.get("deployment_readiness") or {}
+    launch_pack = manifest.get("launch_pack") or {}
     macro = manifest.get("macro_news") or {}
     research = manifest.get("research_summary") or {}
 
@@ -274,13 +358,27 @@ def build_setup_text(manifest: dict) -> str:
         f"- Export allowed: {research.get('export_allowed')}",
         f"- Deployment readiness: {readiness.get('status') or 'N/A'} ({readiness.get('score') or 0}/100)",
         "",
-        "2. Setup operativo minimo",
+        "2. Modalità di lancio consigliata",
+        f"- Launch mode: {launch_pack.get('mode') or 'DEMO_ONLY'}",
+        f"- Summary: {launch_pack.get('summary') or 'Valida il comportamento del bot in demo prima del live.'}",
+        "",
+        "3. Setup operativo minimo",
     ]
 
     for step in readiness.get("setup_steps") or []:
         lines.append(f"- {step}")
 
-    lines.extend(["", "3. Requisiti runtime"])
+    if launch_pack.get("first_week_protocol"):
+        lines.extend(["", "4. Protocollo prima settimana"])
+        for item in launch_pack.get("first_week_protocol") or []:
+            lines.append(f"- {item}")
+
+    if launch_pack.get("operator_brief"):
+        lines.extend(["", "5. Handoff operativo"])
+        for item in launch_pack.get("operator_brief") or []:
+            lines.append(f"- {item}")
+
+    lines.extend(["", "6. Requisiti runtime"])
     for item in readiness.get("runtime_requirements") or []:
         required = "required" if item.get("required") else "optional"
         lines.append(f"- {item.get('label')}: {item.get('value')} [{required}]")
@@ -289,7 +387,7 @@ def build_setup_text(manifest: dict) -> str:
         lines.extend(
             [
                 "",
-                "4. Macro news live",
+                "7. Macro news live",
                 f"- Provider hint: {macro.get('provider_hint') or 'N/A'}",
             ]
         )
@@ -297,24 +395,29 @@ def build_setup_text(manifest: dict) -> str:
             lines.append(f"- WebRequest URL da consentire in MT5: {macro.get('webrequest_url')}")
         lines.append("- Inserisci sempre la tua API key macro negli input dell'EA al runtime.")
     else:
-        lines.extend(["", "4. Macro news live", "- Non attivo in questa build."])
+        lines.extend(["", "7. Macro news live", "- Non attivo in questa build."])
 
     warnings = list(readiness.get("warnings") or []) + list(macro.get("warnings") or [])
-    lines.extend(["", "5. Warning"])
+    lines.extend(["", "8. Warning"])
     if warnings:
         for item in warnings:
             lines.append(f"- {item}")
     else:
         lines.append("- Nessun warning operativo aggiuntivo.")
 
-    lines.extend(["", "6. Checklist MT5"])
+    lines.extend(["", "9. Checklist MT5"])
     for item in readiness.get("mt5_checklist") or []:
         lines.append(f"- {item}")
+
+    if launch_pack.get("deliverables"):
+        lines.extend(["", "10. Deliverable inclusi"])
+        for item in launch_pack.get("deliverables") or []:
+            lines.append(f"- {item}")
 
     lines.extend(
         [
             "",
-            "7. Next action",
+            "11. Next action",
             f"- {readiness.get('recommended_next_action') or 'Compila, configura e valida in demo.'}",
             "",
         ]

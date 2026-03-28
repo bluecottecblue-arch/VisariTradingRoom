@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { strategyApi, exportApi, formatError } from '@/lib/api'
+import { deriveLaunchReadinessPack } from '@/lib/launchReadiness'
 import { Alert, Spinner, TabBar, CodeBlock, NavButtons, MetricCard } from '@/components/ui'
 import type { BacktestResult, BotResult, FormalSpec } from '@/types'
 
@@ -183,6 +184,7 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
 
   // Result state
   const generationSucceeded = result?.status === 'VALID' && result.download_ready && result.code_validation?.is_valid
+  const launchPack = deriveLaunchReadinessPack(result, backtestResult)
 
   return (
     <div className="space-y-6">
@@ -236,6 +238,42 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
             <Alert type="warning" title="Operator warnings">
               {result.deployment_readiness.warnings.join(' · ')}
             </Alert>
+          )}
+
+          {launchPack && (
+            <div className="space-y-4 border border-slate-800 bg-slate-950/60 p-4">
+              <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Launch readiness pack</div>
+                  <div className="mt-1 text-lg font-semibold text-slate-100">{launchPack.label}</div>
+                  <div className="mt-1 max-w-3xl text-sm leading-relaxed text-slate-400">{launchPack.summary}</div>
+                </div>
+                <div className={`border px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] ${launchPack.toneClass}`}>
+                  {launchPack.mode.replaceAll('_', ' ')}
+                </div>
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-[1fr_1fr_0.9fr]">
+                <div className="space-y-2 border border-slate-800 bg-slate-950 p-4">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">First-week protocol</div>
+                  {launchPack.firstWeekProtocol.map((item, index) => (
+                    <div key={index} className="text-sm text-slate-300">• {item}</div>
+                  ))}
+                </div>
+                <div className="space-y-2 border border-slate-800 bg-slate-950 p-4">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Operator brief</div>
+                  {launchPack.operatorBrief.map((item, index) => (
+                    <div key={index} className="text-sm text-slate-300">• {item}</div>
+                  ))}
+                </div>
+                <div className="space-y-2 border border-slate-800 bg-slate-950 p-4">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Deliverables</div>
+                  {launchPack.deliverables.map((item, index) => (
+                    <div key={index} className="text-sm text-slate-300">• {item}</div>
+                  ))}
+                </div>
+              </div>
+            </div>
           )}
 
           <div className="grid gap-4 lg:grid-cols-2">

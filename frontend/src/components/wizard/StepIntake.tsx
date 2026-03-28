@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { strategyApi, formatError, authApi } from '@/lib/api'
 import FundamentalFiltersCard from '@/components/FundamentalFiltersCard'
+import StrategyReadinessAudit from '@/components/wizard/StrategyReadinessAudit'
 import { DEFAULT_FUNDAMENTAL_FILTERS, summarizeFundamentalFilters } from '@/lib/fundamentals'
 import { Alert, Field, NavButtons, Section, Accordion, inputCls, textareaCls } from '@/components/ui'
 import type { ParseResult, PreflightResult, StrategyIntake } from '@/types'
@@ -636,6 +637,8 @@ export default function StepIntake({ projectId, onComplete }: Props) {
                   />
                 </Field>
               </Section>
+
+              <StrategyReadinessAudit preflight={preflight} loading={preflightLoading} />
 
               {preflight && (
                 <section className="rounded-lg border border-slate-800 bg-slate-950/70 p-4 space-y-3">

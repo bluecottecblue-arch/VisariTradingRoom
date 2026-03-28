@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import ProjectMemoryPanel from '@/components/workspace/ProjectMemoryPanel'
 import type { ProjectDetail, ProjectSummary } from '@/types'
 
 type WorkspaceMode = 'strategy' | 'botlab'
@@ -364,6 +365,8 @@ export default function WorkspaceOverview({
           })}
         </div>
       </section>
+
+      <ProjectMemoryPanel project={currentProject} />
     </div>
   )
 }
