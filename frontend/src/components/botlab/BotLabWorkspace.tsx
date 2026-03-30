@@ -27,21 +27,21 @@ import type {
 } from '@/types'
 
 const ACTIONS = [
-  'Analyze the bot',
-  'Explain the logic',
-  'Improve the system',
-  'Apply my instructions',
-  'Prepare for backtest review',
-  'Check robustness',
+  'Analizza il bot',
+  'Spiega la logica',
+  'Migliora il sistema',
+  'Applica le mie istruzioni',
+  'Preparalo per il backtest',
+  'Controlla la robustezza',
 ]
 
 const PROMPT_PRESETS = [
-  'add a trailing stop',
-  'use RSI confirmation',
-  'do not trade during high-impact USD news',
-  'add London and New York session filter',
-  'turn stop loss into ATR-based risk',
-  'make the bot more conservative',
+  'aggiungi un trailing stop',
+  'usa conferma RSI',
+  'non tradare durante news USD ad alto impatto',
+  'aggiungi filtro sessione Londra e New York',
+  'trasforma lo stop loss in rischio basato su ATR',
+  'rendi il bot piu conservativo',
 ]
 
 const DEFAULT_BACKTEST_CONFIG = {
@@ -312,17 +312,17 @@ export default function BotLabWorkspace() {
             <div>
               <div className="text-[11px] uppercase tracking-[0.28em] text-cyan-300">Bot Lab</div>
               <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-50 lg:text-5xl">
-                Analyze, improve and re-validate existing trading bots
+                Analizza, migliora e rivalida bot di trading esistenti
               </h1>
               <p className="mt-4 max-w-3xl text-sm leading-relaxed text-slate-400 lg:text-base">
-                Upload an existing MT5 or strategy codebase, inspect the trading logic locally, apply controlled revisions in plain language and compare the revised version before export.
+                Carica un bot MT5 o un codice strategico esistente, ispeziona la logica in locale, applica revisioni controllate in linguaggio naturale e confronta la versione aggiornata prima dell'export.
               </p>
             </div>
 
             <div className="flex flex-wrap gap-3 text-[11px] uppercase tracking-[0.16em] text-slate-500">
-              <span className="border border-slate-800 px-3 py-1.5">Local code review first</span>
-              <span className="border border-slate-800 px-3 py-1.5">Structured revisions</span>
-              <span className="border border-slate-800 px-3 py-1.5">Backtest review ready</span>
+              <span className="border border-slate-800 px-3 py-1.5">Analisi locale del codice</span>
+              <span className="border border-slate-800 px-3 py-1.5">Revisioni strutturate</span>
+              <span className="border border-slate-800 px-3 py-1.5">Pronto per review e backtest</span>
             </div>
 
             <div className="grid gap-4 md:grid-cols-3">

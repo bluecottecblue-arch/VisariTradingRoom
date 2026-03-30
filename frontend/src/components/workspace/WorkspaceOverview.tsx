@@ -10,12 +10,12 @@ import type { ProjectDetail, ProjectSummary } from '@/types'
 type WorkspaceMode = 'strategy' | 'botlab'
 
 const PIPELINE = [
-  { id: 'strategy', label: 'Strategia', detail: 'Definizione di mercato, timeframe e logica operativa' },
-  { id: 'parse', label: 'Analisi', detail: 'Controllo di chiarezza e codificabilita' },
-  { id: 'formalize', label: 'Specifica', detail: 'Regole strutturate pronte per il motore' },
-  { id: 'backtest', label: 'Backtest', detail: 'Test storico con controllo OOS e rischio' },
-  { id: 'validation', label: 'Valutazione', detail: 'Verdetto, robustezza e limiti del sistema' },
-  { id: 'export', label: 'Export bot', detail: 'Pacchetto finale per MT5 e guida operativa' },
+  { id: 'strategy', label: 'Strategia' },
+  { id: 'parse', label: 'Analisi' },
+  { id: 'formalize', label: 'Specifica' },
+  { id: 'backtest', label: 'Backtest' },
+  { id: 'validation', label: 'Valutazione' },
+  { id: 'export', label: 'Export bot' },
 ] as const
 
 type PipelineStepId = (typeof PIPELINE)[number]['id']
@@ -234,35 +234,35 @@ export default function WorkspaceOverview({
         </div>
       )}
 
-      <section className="grid gap-5 xl:grid-cols-[1.08fr_0.92fr]">
-        <div className="border border-slate-800/90 bg-[linear-gradient(135deg,rgba(8,47,73,0.28),rgba(15,23,42,0.88)_38%,rgba(2,6,23,0.96))] px-6 py-6 lg:px-7">
+      <section className="grid items-start gap-5 xl:grid-cols-[0.98fr_1.02fr]">
+        <div className="border border-slate-800/90 bg-[linear-gradient(135deg,rgba(8,47,73,0.28),rgba(15,23,42,0.88)_38%,rgba(2,6,23,0.96))] px-5 py-5 lg:px-6">
           <div className="text-[10px] uppercase tracking-[0.22em] text-cyan-300">Operazioni rapide</div>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-50 lg:text-4xl">
-            Cosa vuoi fare adesso?
+          <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-50 lg:text-[2rem]">
+            Iniziamo!
           </h1>
-          <p className="mt-2 max-w-2xl text-sm text-slate-400">
-            Scegli come iniziare il lavoro.
+          <p className="mt-2 max-w-xl text-sm text-slate-400">
+            Scegli il punto di partenza.
           </p>
 
-          <div className="mt-5 flex flex-wrap gap-3">
+          <div className="mt-5 flex max-w-[340px] flex-col gap-3">
             <button
               onClick={handleCreateStrategy}
               disabled={pendingKey !== null}
-              className="border border-cyan-700/70 bg-cyan-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-70"
+              className="w-full border border-cyan-700/70 bg-cyan-500 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-70"
             >
               Crea nuova strategia
             </button>
 
             <button
               onClick={handleOpenBotLab}
-              className="border border-slate-800 bg-slate-950/70 px-5 py-3 text-sm font-semibold text-slate-100 transition hover:border-slate-600"
+              className="w-full border border-slate-800 bg-slate-950/70 px-4 py-3 text-sm font-semibold text-slate-100 transition hover:border-slate-600"
             >
               Apri Bot Lab
             </button>
             <button
               onClick={handleCreateBotLabProject}
               disabled={pendingKey !== null}
-              className="border border-slate-800 bg-slate-950/40 px-5 py-3 text-sm font-semibold text-slate-100 transition hover:border-slate-600 disabled:cursor-not-allowed disabled:opacity-70"
+              className="w-full border border-slate-800 bg-slate-950/40 px-4 py-3 text-sm font-semibold text-slate-100 transition hover:border-slate-600 disabled:cursor-not-allowed disabled:opacity-70"
             >
               Nuovo progetto Bot Lab
             </button>
@@ -304,35 +304,35 @@ export default function WorkspaceOverview({
             </div>
           </div>
 
-          <div className="mt-5 flex flex-wrap gap-3">
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
             <button
               onClick={() => {
                 if (!currentProject) return
                 openProject(currentProject)
               }}
               disabled={!currentProject || pendingKey !== null}
-              className="border border-cyan-800/70 bg-cyan-950/18 px-4 py-2 text-sm font-semibold text-cyan-200 hover:border-cyan-600 disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full border border-cyan-800/70 bg-cyan-950/18 px-4 py-2 text-center text-sm font-semibold text-cyan-200 hover:border-cyan-600 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {normalizeMode(currentProject?.mode) === 'botlab' ? 'Apri Bot Lab' : 'Apri progetto'}
             </button>
             <button
               onClick={() => openDesk(currentProjectId)}
               disabled={!currentProject}
-              className="border border-slate-800 px-4 py-2 text-sm font-semibold text-slate-300 hover:border-slate-600 hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full border border-slate-800 px-4 py-2 text-center text-sm font-semibold text-slate-300 hover:border-slate-600 hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Apri sul desk
             </button>
             <button
               onClick={() => handleRenameProject(currentProject)}
               disabled={!currentProject || pendingKey !== null}
-              className="border border-slate-800 px-4 py-2 text-sm text-slate-300 hover:border-slate-600 hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full border border-slate-800 px-4 py-2 text-center text-sm text-slate-300 hover:border-slate-600 hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Rinomina
             </button>
             <button
               onClick={() => handleDeleteProject(currentProject)}
               disabled={!currentProject || pendingKey !== null}
-              className="border border-rose-900/70 px-4 py-2 text-sm text-rose-200 hover:border-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full border border-rose-900/70 px-4 py-2 text-center text-sm text-rose-200 hover:border-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Elimina
             </button>
@@ -449,25 +449,19 @@ export default function WorkspaceOverview({
             </Link>
           </div>
 
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
             {pipelineState.map((step, index) => {
-              const active = step.status === 'running' || step.status === 'current'
               return (
-                <div key={step.label} className={`border px-4 py-4 ${pipelineTone(step.status)}`}>
+                <div key={step.label} className={`min-h-[120px] border px-4 py-3 ${pipelineTone(step.status)}`}>
                   <div className="flex items-center justify-between gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center border border-current/30 text-sm font-semibold">
+                    <div className="flex h-8 w-8 items-center justify-center border border-current/30 text-sm font-semibold">
                       {step.status === 'complete' ? '✓' : `0${index + 1}`}
                     </div>
                     <span className="text-[10px] uppercase tracking-[0.16em]">
                       {stepStatusLabel(step.status)}
                     </span>
                   </div>
-                  <div className="mt-4 text-lg font-semibold text-slate-100">{step.label}</div>
-                  {active ? (
-                    <div className="mt-2 text-sm leading-relaxed text-slate-400">{step.detail}</div>
-                  ) : (
-                    <div className="mt-2 text-xs text-slate-500">{stepStatusLabel(step.status)}</div>
-                  )}
+                  <div className="mt-5 text-[1.7rem] font-semibold leading-none text-slate-100">{step.label}</div>
                 </div>
               )
             })}
