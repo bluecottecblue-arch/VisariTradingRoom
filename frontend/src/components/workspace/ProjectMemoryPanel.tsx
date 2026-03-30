@@ -71,29 +71,23 @@ function jobSummary(item: ProjectJobRecord) {
 export default function ProjectMemoryPanel({ project }: { project: ProjectDetail | null }) {
   if (!project) {
     return (
-      <section className="border border-dashed border-slate-800/90 bg-slate-950/55 px-5 py-8 text-center">
+      <section className="border border-dashed border-slate-800/90 bg-slate-950/55 px-5 py-6 text-center">
         <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Project memory</div>
-        <div className="mt-3 text-lg font-semibold text-slate-200">Select an active project</div>
-        <div className="mt-2 text-sm text-slate-500">
-          Recent decisions, deliverables and workflow history will appear here once a project is active.
-        </div>
+        <div className="mt-3 text-base font-semibold text-slate-200">Select an active project</div>
       </section>
     )
   }
 
-  const recentVersions = (project.versions || []).slice(0, 5)
-  const recentArtifacts = (project.artifacts || []).slice(0, 4)
-  const recentJobs = (project.jobs || []).slice(0, 4)
+  const recentVersions = (project.versions || []).slice(0, 3)
+  const recentArtifacts = (project.artifacts || []).slice(0, 3)
+  const recentJobs = (project.jobs || []).slice(0, 3)
 
   return (
-    <section className="space-y-5 border border-slate-800/90 bg-slate-950/75 px-5 py-5 lg:px-6">
+    <section className="space-y-4 border border-slate-800/90 bg-slate-950/75 px-5 py-5 lg:px-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Project memory</div>
-          <div className="mt-2 text-xl font-semibold text-slate-50">Controlled project history</div>
-          <div className="mt-1 text-sm leading-relaxed text-slate-400">
-            Audit trail for what changed, what was delivered, and what the operator should look at next.
-          </div>
+          <div className="mt-2 text-xl font-semibold text-slate-50">Recent trail</div>
         </div>
         <div className="border border-slate-800 bg-slate-950/70 px-3 py-2 text-xs text-slate-400">
           Active session {project.active_session_id ? project.active_session_id.slice(0, 8) : 'not set'}
@@ -101,7 +95,7 @@ export default function ProjectMemoryPanel({ project }: { project: ProjectDetail
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr_1fr]">
-        <div className="space-y-3 border border-slate-800 bg-slate-950/60 px-4 py-4">
+        <div className="space-y-2 border border-slate-800 bg-slate-950/60 px-4 py-4">
           <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Latest decisions</div>
           {recentVersions.length > 0 ? (
             recentVersions.map((item) => (
@@ -121,7 +115,7 @@ export default function ProjectMemoryPanel({ project }: { project: ProjectDetail
           )}
         </div>
 
-        <div className="space-y-3 border border-slate-800 bg-slate-950/60 px-4 py-4">
+        <div className="space-y-2 border border-slate-800 bg-slate-950/60 px-4 py-4">
           <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Deliverables ready</div>
           {recentArtifacts.length > 0 ? (
             recentArtifacts.map((item) => (
@@ -136,7 +130,7 @@ export default function ProjectMemoryPanel({ project }: { project: ProjectDetail
           )}
         </div>
 
-        <div className="space-y-3 border border-slate-800 bg-slate-950/60 px-4 py-4">
+        <div className="space-y-2 border border-slate-800 bg-slate-950/60 px-4 py-4">
           <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Execution trail</div>
           {recentJobs.length > 0 ? (
             recentJobs.map((item) => (

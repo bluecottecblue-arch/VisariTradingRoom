@@ -87,7 +87,6 @@ export default function DashboardPage() {
                 }`}
               >
                 <div className="font-medium">Strategy Factory</div>
-                <div className="mt-1 text-xs text-slate-500">Build and validate systems.</div>
               </button>
               <button
                 onClick={() => setWorkspaceMode("botlab")}
@@ -98,21 +97,19 @@ export default function DashboardPage() {
                 }`}
               >
                 <div className="font-medium">Bot Lab</div>
-                <div className="mt-1 text-xs text-slate-500">Edit existing MT5 bots.</div>
               </button>
               <Link
                 href="/dashboard"
                 className="block w-full border border-slate-800 px-4 py-3 text-left text-sm text-slate-500 transition-colors hover:border-slate-700 hover:text-slate-200"
               >
                 <div className="font-medium text-slate-100">Algo Desk</div>
-                <div className="mt-1 text-xs text-slate-500">Performance tracking.</div>
               </Link>
             </div>
 
             <div className="space-y-3">
               <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Recent Projects</div>
               <div className="space-y-2">
-                {projects.filter((p) => p.mode === workspaceMode).slice(0, 10).map((project) => (
+                {projects.filter((p) => p.mode === workspaceMode).slice(0, 8).map((project) => (
                   <button
                     key={project.project_id}
                     onClick={() => setCurrentProjectId(project.project_id)}
@@ -123,9 +120,7 @@ export default function DashboardPage() {
                     }`}
                   >
                     <div className="truncate text-sm font-medium">{project.title}</div>
-                    <div className="mt-1 text-[10px] text-slate-600 uppercase tracking-tighter">
-                      {project.status} · {project.project_id.slice(0, 6)}
-                    </div>
+                    <div className="mt-1 text-[10px] text-slate-600 uppercase tracking-tighter">{project.status}</div>
                   </button>
                 ))}
               </div>
@@ -158,8 +153,6 @@ export default function DashboardPage() {
                    if (res.project) loadProjects(res.project.project_id)
                 }}
                 currentProject={currentProject}
-                currentStep={1}
-                restart={() => {}} // No longer needed here
               />
 
               {workspaceMode === "botlab" && (
