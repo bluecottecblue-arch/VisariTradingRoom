@@ -16,6 +16,12 @@ function isPublicPath(pathname: string): boolean {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+  if (pathname === '/') {
+    const loginUrl = request.nextUrl.clone()
+    loginUrl.pathname = '/login'
+    loginUrl.search = ''
+    return NextResponse.redirect(loginUrl)
+  }
   if (isPublicPath(pathname)) {
     return NextResponse.next()
   }
