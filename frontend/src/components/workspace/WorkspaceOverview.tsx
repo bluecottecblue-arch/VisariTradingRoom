@@ -50,10 +50,8 @@ function modeLabel(mode?: string | null) {
 }
 
 function stepStatusLabel(status: 'complete' | 'running' | 'current' | 'locked') {
-  if (status === 'complete') return 'Completato'
-  if (status === 'running') return 'In corso'
   if (status === 'current') return 'Pronto adesso'
-  return 'Bloccato'
+  return ''
 }
 
 export default function WorkspaceOverview({
@@ -304,39 +302,6 @@ export default function WorkspaceOverview({
             </div>
           </div>
 
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            <button
-              onClick={() => {
-                if (!currentProject) return
-                openProject(currentProject)
-              }}
-              disabled={!currentProject || pendingKey !== null}
-              className="min-h-[42px] w-full border border-cyan-800/70 bg-cyan-950/18 px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.12em] text-cyan-200 hover:border-cyan-600 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {normalizeMode(currentProject?.mode) === 'botlab' ? 'Apri Bot Lab' : 'Apri builder'}
-            </button>
-            <button
-              onClick={() => openDesk(currentProjectId)}
-              disabled={!currentProject}
-              className="min-h-[42px] w-full border border-slate-800 px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.12em] text-slate-300 hover:border-slate-600 hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Apri desk
-            </button>
-            <button
-              onClick={() => handleRenameProject(currentProject)}
-              disabled={!currentProject || pendingKey !== null}
-              className="min-h-[42px] w-full border border-slate-800 px-3 py-2 text-center text-xs uppercase tracking-[0.12em] text-slate-300 hover:border-slate-600 hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Rinomina
-            </button>
-            <button
-              onClick={() => handleDeleteProject(currentProject)}
-              disabled={!currentProject || pendingKey !== null}
-              className="min-h-[42px] w-full border border-rose-900/70 px-3 py-2 text-center text-xs uppercase tracking-[0.12em] text-rose-200 hover:border-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Elimina
-            </button>
-          </div>
         </div>
       </section>
 
@@ -457,9 +422,11 @@ export default function WorkspaceOverview({
                     <div className="flex h-8 w-8 items-center justify-center border border-current/30 text-sm font-semibold">
                       {step.status === 'complete' ? '✓' : `0${index + 1}`}
                     </div>
-                    <span className="pt-1 text-[9px] uppercase leading-[1.35] tracking-[0.16em]">
-                      {stepStatusLabel(step.status)}
-                    </span>
+                    {stepStatusLabel(step.status) ? (
+                      <span className="pt-1 text-[9px] uppercase leading-[1.35] tracking-[0.16em]">
+                        {stepStatusLabel(step.status)}
+                      </span>
+                    ) : null}
                   </div>
                   <div className="mt-4 max-w-[10ch] text-[1.2rem] font-semibold leading-[1.05] tracking-tight text-slate-100 sm:text-[1.35rem]">
                     {step.label}
