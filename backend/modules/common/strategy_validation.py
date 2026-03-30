@@ -45,6 +45,14 @@ def resolve_claude_access(raw: Optional[dict], *, account_api_key: Optional[str]
     return normalized
 
 
+def normalize_inference_policy(raw: Optional[dict]) -> dict:
+    raw = raw if isinstance(raw, dict) else {}
+    return {
+        "allow_non_critical_assumptions": bool(raw.get("allow_non_critical_assumptions")),
+        "operator_notes": str(raw.get("operator_notes") or "").strip(),
+    }
+
+
 def empty_usage(module: str) -> dict:
     return {
         "module": module,
@@ -81,6 +89,39 @@ def enrich_intake_with_technical_defaults(intake: dict) -> dict:
         enriched["additional_notes"] = "; ".join([part for part in [raw_notes, *additions] if part])
 
     return enriched
+
+
+def build_authorized_default_assumptions(intake: dict) -> List[str]:
+    policy = normalize_inference_policy(intake.get("inference_policy"))
+    if not policy.get("allow_non_critical_assumptions"):
+        return []
+
+    assumptions: List[str] = []
+    if not str(intake.get("short_entry") or "").strip():
+        assumptions.append("Treat the strategy as long-only unless the trader later adds explicit short-side rules.")
+
+    filters = " ".join(
+        str(intake.get(field) or "").strip().lower()
+        for field in ("trend_filter", "volatility_filter", "context_filter", "news_management")
+    )
+    if not filters:
+        assumptions.append("Do not add extra regime or context filters beyond the rules already stated in the setup.")
+
+    if not str(intake.get("trailing_stop") or "").strip():
+        assumptions.append("No trailing stop is applied unless the trader explicitly defines one.")
+
+    if not _mentions_max_open_positions(" ".join(
+        str(intake.get(field) or "")
+        for field in ("additional_notes", "long_entry", "short_entry", "risk_per_trade_pct")
+    )):
+        assumptions.append("Assume a single concurrent position unless the trader later approves multi-position behavior.")
+
+    assumptions.append("Any conservative completion must never override stated entry, invalidation, stop or take-profit logic.")
+
+    if policy.get("operator_notes"):
+        assumptions.append(f"Trader authorization note: {policy['operator_notes']}")
+
+    return assumptions
 
 
 def build_required_input(
@@ -269,6 +310,7 @@ def validate_strategy_intake(intake: dict) -> dict:
     seen_keys = set()
     macro_news = normalize_macro_news_config(intake.get("macro_news") or intake.get("fundamental_filters"))
     claude_access = normalize_claude_access(intake.get("claude_access"))
+    inference_policy = normalize_inference_policy(intake.get("inference_policy"))
 
     def add_required(field: str, label: str, why: str, example: str, source_text: str = "") -> None:
         key = ("required", field, label)
@@ -324,6 +366,38 @@ def validate_strategy_intake(intake: dict) -> dict:
                 example=example,
             )
 
+    minimum_detail_fields = [
+        ("long_entry", "Rendi il setup long più specifico", "Aggiungi trigger, filtro e condizione di esecuzione misurabili.", "Specifica trend H4, trigger M15, conferma e condizione di esecuzione in una frase completa.", 80),
+        ("invalidation", "Rendi l'invalidation più precisa", "La logica di invalidazione deve essere binaria e non descritta in modo vago.", "Se entro 3 candele M15 non c'è close sopra il trigger, il setup è annullato.", 35),
+        ("stop_loss", "Rendi lo stop loss più preciso", "Lo stop deve essere descritto con livello, buffer o struttura chiari.", "Stop sotto il minimo della candela trigger meno 2 pips.", 25),
+        ("take_profit", "Rendi il take profit più preciso", "Il target deve avere una logica misurabile.", "Take profit a 2R o al primo livello H4 opposto, quello che arriva prima.", 25),
+        ("valid_trade_examples", "Aggiungi esempi di trade validi", "Gli esempi reali migliorano molto la qualità della traduzione in specifica e dei risultati finali.", "Descrivi almeno 2 setup corretti con contesto, trigger, stop e target.", 60),
+        ("invalid_trade_examples", "Aggiungi esempi di trade da rifiutare", "Servono esempi di non-trade per evitare output troppo generici o permissivi.", "Descrivi setup che sembrano validi ma devono essere esclusi e spiega perché.", 40),
+    ]
+
+    for field, label, why, example, min_chars in minimum_detail_fields:
+        value = str(intake.get(field, "") or "").strip()
+        if value and len(value) < min_chars:
+            add_required(
+                field=field,
+                label=label,
+                why=f"{why} Il testo attuale è troppo corto ({len(value)} caratteri).",
+                example=example,
+                source_text=value,
+            )
+
+    filter_text = " ".join(
+        str(intake.get(field, "") or "").strip().lower()
+        for field in ("trend_filter", "volatility_filter", "context_filter", "news_management", "additional_notes")
+    )
+    if not _declares_filter_policy(filter_text):
+        add_required(
+            field="context_filter",
+            label="Dichiara la policy di contesto e filtri",
+            why="Specifica almeno un filtro di regime/contesto oppure dichiara esplicitamente che la strategia non usa filtri extra.",
+            example="Trade only with H4 trend alignment and avoid compressed volatility, oppure: no additional regime filters.",
+        )
+
     if not intake.get("trading_days"):
         add_required(
             field="trading_days",
@@ -352,6 +426,13 @@ def validate_strategy_intake(intake: dict) -> dict:
             label=label,
             why=why,
             example="sk-ant-...",
+        )
+
+    if inference_policy.get("allow_non_critical_assumptions"):
+        assumptions.extend(build_authorized_default_assumptions(intake))
+    else:
+        bias_warnings.append(
+            "Assunzioni conservative disattivate: il sistema bloccherà più facilmente strategie incomplete invece di completare gap non critici."
         )
 
     if macro_news.get("enabled"):
@@ -734,12 +815,17 @@ def _build_local_strategy_skeleton(intake: dict) -> dict:
             "take_profit": intake.get("take_profit"),
             "trailing_stop": intake.get("trailing_stop"),
         },
+        "trade_examples": {
+            "valid": intake.get("valid_trade_examples"),
+            "invalid": intake.get("invalid_trade_examples"),
+        },
         "risk_management": {
             "risk_per_trade_pct": intake.get("risk_per_trade_pct"),
             "max_daily_trades": intake.get("max_daily_trades"),
             "trading_days": days,
         },
         "macro_news": macro_news,
+        "inference_policy": normalize_inference_policy(intake.get("inference_policy")),
     }
 
 
@@ -797,6 +883,31 @@ def _build_local_codeable_rules(intake: dict) -> List[dict]:
     return rules
 
 
+def _declares_filter_policy(text: str) -> bool:
+    normalized = _normalize(text)
+    if not normalized:
+        return False
+    markers = (
+        "trend",
+        "direction",
+        "alignment",
+        "bias",
+        "volatility",
+        "volatil",
+        "session",
+        "context",
+        "macro",
+        "news",
+        "regime",
+        "no additional filter",
+        "no extra filter",
+        "nessun filtro",
+        "senza filtri",
+        "trade any regime",
+    )
+    return any(marker in normalized for marker in markers)
+
+
 def _mentions_max_open_positions(text: str) -> bool:
     text = _normalize(text)
     return bool(
@@ -804,8 +915,11 @@ def _mentions_max_open_positions(text: str) -> bool:
             r"\b(max|massimo|al massimo|solo)\s+\d+\s+(trade|trades|posizion\w+|operazion\w+)\s+(apert\w+|contemporane\w+)\b",
             text,
         )
+        or re.search(r"\b(max|only)\s+\d+\s+trade\s+open\s+at\s+a\s+time\b", text)
         or re.search(r"\b\d+\s+trade\s+apert\w+\b", text)
+        or re.search(r"\b\d+\s+trade\s+open\s+at\s+a\s+time\b", text)
         or re.search(r"\buna\s+sola\s+posizion\w+\b", text)
+        or re.search(r"\bsingle\s+(open\s+)?position\b", text)
     )
 
 

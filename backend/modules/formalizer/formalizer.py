@@ -13,9 +13,11 @@ from modules.common.llm_client import invoke_json
 from modules.common.strategy_validation import (
     STATUS_INVALID,
     STATUS_VALID,
+    build_authorized_default_assumptions,
     build_formalization_result,
     empty_usage,
     normalize_claude_access,
+    normalize_inference_policy,
     validate_formal_spec_payload,
     validate_resolutions_for_formalization,
 )
@@ -30,6 +32,10 @@ formal_spec, state_machine, parameters, non_optimizable, assumptions.
 Regole:
 - nessuna regola soggettiva
 - condizioni in forma binaria e implementabile
+- non comprimere la strategia in una forma troppo semplice se l'input descrive più filtri, vincoli o eccezioni
+- usa i trade examples e i missing inputs forniti per rendere la specifica più completa
+- se inference_policy.allow_non_critical_assumptions = true, puoi solo completare gap non critici e devi elencare ogni completamento in assumptions
+- se inference_policy.allow_non_critical_assumptions = false, non introdurre assunzioni operative extra
 - testi brevi
 - nessun markdown"""
 
@@ -77,7 +83,7 @@ class StrategyFormalizer:
         )
         data = self._validate_formalization_structure(local_candidate, session_payload)
         payload_validation = validate_formal_spec_payload(data)
-        if payload_validation["is_valid"]:
+        if payload_validation["is_valid"] and not self._should_force_llm_review(session_payload, readiness["selected_resolutions"], missing_inputs):
             return build_formalization_result(
                 status=STATUS_VALID,
                 message="Specifica formale pronta per il backtest e per la generazione del bot.",
@@ -128,6 +134,24 @@ class StrategyFormalizer:
             usage=llm_result["usage"],
             validation={"ready_for_generation": True},
         )
+
+    def _should_force_llm_review(self, session_payload: dict, selected_resolutions: list, missing_inputs: dict | None = None) -> bool:
+        intake = session_payload.get("intake", {}) or {}
+        inference_policy = normalize_inference_policy(intake.get("inference_policy"))
+        rich_context_fields = (
+            "valid_trade_examples",
+            "invalid_trade_examples",
+            "trend_filter",
+            "volatility_filter",
+            "context_filter",
+            "news_management",
+            "additional_notes",
+        )
+        rich_context = any(str(intake.get(field) or "").strip() for field in rich_context_fields)
+        has_manual_resolutions = bool(selected_resolutions)
+        has_missing_inputs = bool(missing_inputs)
+        has_authorized_assumptions = bool(inference_policy.get("allow_non_critical_assumptions"))
+        return rich_context or has_manual_resolutions or has_missing_inputs or has_authorized_assumptions
 
     def _build_local_formalization(self, session_payload: dict, selected_resolutions: list) -> dict:
         parsed = session_payload.get("parsed", {}) or {}
@@ -483,6 +507,7 @@ class StrategyFormalizer:
     def _build_payload(self, session_payload: dict, selected_resolutions: list, missing_inputs: dict = None) -> dict:
         parsed = session_payload.get("parsed", {})
         intake = session_payload.get("intake", {})
+        inference_policy = normalize_inference_policy(intake.get("inference_policy"))
         return {
             "task": "formalize_strategy",
             "strategy": {
@@ -501,11 +526,20 @@ class StrategyFormalizer:
                     "trading_hours_end": intake.get("trading_hours_end"),
                     "trading_days": intake.get("trading_days", []),
                     "macro_news": normalize_macro_news_config(intake.get("macro_news") or intake.get("fundamental_filters")),
+                    "valid_trade_examples": intake.get("valid_trade_examples"),
+                    "invalid_trade_examples": intake.get("invalid_trade_examples"),
                     "additional_notes": intake.get("additional_notes"),
+                    "inference_policy": inference_policy,
                 },
                 "parsed_strategy": parsed.get("structured_strategy", {}),
                 "codeable_rules": parsed.get("codeable_rules", []),
                 "selected_resolutions": selected_resolutions,
                 "provided_missing_inputs": missing_inputs or {},
+                "authorized_default_assumptions": build_authorized_default_assumptions(intake),
+                "output_standard": {
+                    "detail_level": "institutional_grade",
+                    "preserve_user_constraints": True,
+                    "prefer_complete_formal_spec": True,
+                },
             },
         }

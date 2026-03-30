@@ -50,6 +50,10 @@ const DEFAULT_FORM: StrategyIntake = {
     api_key: '',
     provider: 'anthropic',
   },
+  inference_policy: {
+    allow_non_critical_assumptions: false,
+    operator_notes: '',
+  },
   macro_news: DEFAULT_FUNDAMENTAL_FILTERS,
 }
 
@@ -226,6 +230,9 @@ export default function StepIntake({ projectId, onComplete }: Props) {
     if (!form.invalidation.trim()) return 'Describe the invalidation logic.'
     if (!form.stop_loss.trim()) return 'Describe the stop loss logic.'
     if (!form.take_profit.trim()) return 'Describe the take profit logic.'
+    if ((form.long_entry || '').trim().length < 80) return 'Make the long setup more complete. Include context, trigger and execution condition.'
+    if ((form.valid_trade_examples || '').trim().length < 60) return 'Add 2–3 valid trade examples before continuing.'
+    if ((form.invalid_trade_examples || '').trim().length < 40) return 'Add rejected trade examples or explicitly describe what should be filtered out.'
     return null
   }
 
@@ -617,7 +624,7 @@ export default function StepIntake({ projectId, onComplete }: Props) {
                     value={form.valid_trade_examples}
                     onChange={(e) => set('valid_trade_examples', e.target.value)}
                     className={`${textareaCls} h-32`}
-                    placeholder="Describe 2–3 concrete trades that perfectly matched the strategy."
+                    placeholder="Describe 2–3 concrete trades that perfectly matched the strategy, including context, trigger, stop and target."
                   />
                 </Field>
                 <Field label="Examples of invalid trades">
@@ -625,7 +632,7 @@ export default function StepIntake({ projectId, onComplete }: Props) {
                     value={form.invalid_trade_examples}
                     onChange={(e) => set('invalid_trade_examples', e.target.value)}
                     className={`${textareaCls} h-24`}
-                    placeholder="Describe situations that looked tradable but should be rejected."
+                    placeholder="Describe situations that looked tradable but must be rejected, and explain why."
                   />
                 </Field>
                 <Field label="Additional notes">
@@ -636,6 +643,55 @@ export default function StepIntake({ projectId, onComplete }: Props) {
                     placeholder="Anything else that matters for execution or interpretation."
                   />
                 </Field>
+              </Section>
+
+              <Section title="Assumption policy">
+                <div className="space-y-4">
+                  <div className="rounded border border-slate-800 bg-slate-950/60 px-4 py-3 text-xs leading-relaxed text-slate-500">
+                    The platform should not invent critical logic. You can, however, authorize conservative completion of non-critical gaps so the outputs stay complete without overriding your stated rules.
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => set('inference_policy', { ...(form.inference_policy || { operator_notes: '' }), allow_non_critical_assumptions: false })}
+                      className={`border px-4 py-4 text-left transition-colors ${
+                        !form.inference_policy?.allow_non_critical_assumptions
+                          ? 'border-slate-500 bg-slate-900 text-slate-100'
+                          : 'border-slate-800 bg-transparent text-slate-400 hover:border-slate-700 hover:text-slate-100'
+                      }`}
+                    >
+                      <div className="text-sm font-medium">Strict interpretation only</div>
+                      <div className="mt-1 text-xs text-slate-500">Block incomplete logic instead of completing it.</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => set('inference_policy', { ...(form.inference_policy || { operator_notes: '' }), allow_non_critical_assumptions: true })}
+                      className={`border px-4 py-4 text-left transition-colors ${
+                        form.inference_policy?.allow_non_critical_assumptions
+                          ? 'border-cyan-900/70 bg-cyan-950/10 text-slate-100'
+                          : 'border-slate-800 bg-transparent text-slate-400 hover:border-slate-700 hover:text-slate-100'
+                      }`}
+                    >
+                      <div className="text-sm font-medium">Authorize conservative completion</div>
+                      <div className="mt-1 text-xs text-slate-500">Allow non-critical operational assumptions, but force them to be listed explicitly.</div>
+                    </button>
+                  </div>
+                  {form.inference_policy?.allow_non_critical_assumptions && (
+                    <Field label="Authorization notes">
+                      <textarea
+                        value={form.inference_policy?.operator_notes || ''}
+                        onChange={(e) =>
+                          set('inference_policy', {
+                            ...(form.inference_policy || { allow_non_critical_assumptions: true }),
+                            operator_notes: e.target.value,
+                          })
+                        }
+                        className={`${textareaCls} h-24`}
+                        placeholder="Optional: specify what the platform may assume conservatively and what it must never infer."
+                      />
+                    </Field>
+                  )}
+                </div>
               </Section>
 
               <StrategyReadinessAudit preflight={preflight} loading={preflightLoading} />

@@ -77,8 +77,14 @@ export interface StrategyIntake {
   invalid_trade_examples?: string
   additional_notes?: string
   claude_access?: ClaudeAccessConfig
+  inference_policy?: InferencePolicyConfig
   macro_news?: MacroNewsConfig
   fundamental_filters?: FundamentalFilterConfig
+}
+
+export interface InferencePolicyConfig {
+  allow_non_critical_assumptions: boolean
+  operator_notes?: string
 }
 
 export interface ClaudeAccessConfig {

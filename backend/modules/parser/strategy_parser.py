@@ -12,12 +12,14 @@ from modules.common.anthropic_client import get_anthropic_model
 from modules.common.llm_client import invoke_json
 from modules.common.strategy_validation import (
     STATUS_VALID,
+    build_authorized_default_assumptions,
     build_ambiguity,
     build_parse_result,
     build_required_input,
     count_blocking_issues,
     extract_llm_parse_issues,
     normalize_claude_access,
+    normalize_inference_policy,
     validate_strategy_intake,
 )
 
@@ -28,10 +30,13 @@ Start your response with { and end with }.
 Restituisci SOLO JSON con chiavi:
 structured_strategy, ambiguities, required_inputs, codeable_rules, bias_warnings, assumptions.
 Regole:
+- non semplificare troppo la strategia: estrai il massimo livello di dettaglio implementabile dai campi utente, dagli esempi validi/non validi e dalle note operative
 - usa solo condizioni misurabili
-- non inventare valori mancanti
+- se inference_policy.allow_non_critical_assumptions = false, non inferire valori mancanti oltre ai default tecnici già dichiarati
+- se inference_policy.allow_non_critical_assumptions = true, puoi completare solo gap non critici e ogni completamento deve comparire esplicitamente in assumptions
 - se qualcosa è ancora soggettivo, aggiungilo in ambiguities con alternative corte e binarie
 - required_inputs solo per dati impossibili da inferire
+- usa gli esempi di trade per ricostruire trigger, filtri, invalidazioni e casi da rifiutare
 - testo breve, niente markdown, niente spiegazioni extra"""
 
 
@@ -291,6 +296,7 @@ class StrategyParser:
         return normalized
 
     def _build_payload(self, intake: dict) -> dict:
+        inference_policy = normalize_inference_policy(intake.get("inference_policy"))
         return {
             "task": "review_strategy_for_algo_trading",
             "strategy": {
@@ -323,8 +329,19 @@ class StrategyParser:
                     "context": intake.get("context_filter"),
                     "news": intake.get("news_management"),
                 },
+                "trade_examples": {
+                    "valid": intake.get("valid_trade_examples"),
+                    "invalid": intake.get("invalid_trade_examples"),
+                },
                 "macro_news": intake.get("macro_news") or intake.get("fundamental_filters") or {},
                 "notes": intake.get("additional_notes"),
+                "inference_policy": inference_policy,
+                "authorized_default_assumptions": build_authorized_default_assumptions(intake),
+                "output_standard": {
+                    "detail_level": "institutional_grade",
+                    "preserve_user_constraints": True,
+                    "prefer_completeness_over_generic_summaries": True,
+                },
             },
         }
 

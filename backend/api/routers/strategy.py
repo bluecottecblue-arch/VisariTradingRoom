@@ -65,6 +65,7 @@ class StrategyIntakeRequest(BaseModel):
     invalid_trade_examples: Optional[str] = None
     additional_notes: Optional[str] = None
     claude_access: Optional[dict[str, Any]] = None
+    inference_policy: Optional[dict[str, Any]] = None
     macro_news: Optional[dict[str, Any]] = None
 
 
