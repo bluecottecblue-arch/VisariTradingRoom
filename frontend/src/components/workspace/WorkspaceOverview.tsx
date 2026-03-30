@@ -232,7 +232,7 @@ export default function WorkspaceOverview({
         </div>
       )}
 
-      <section className="grid items-start gap-5 xl:grid-cols-2">
+      <section className="grid items-stretch gap-5 xl:grid-cols-2">
         <div className="min-w-0 border border-slate-800/90 bg-[linear-gradient(135deg,rgba(8,47,73,0.28),rgba(15,23,42,0.88)_38%,rgba(2,6,23,0.96))] px-5 py-5 lg:px-6">
           <div className="text-[10px] uppercase tracking-[0.22em] text-cyan-300">Operazioni rapide</div>
           <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-50 lg:text-[2rem]">

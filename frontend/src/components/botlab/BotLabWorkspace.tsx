@@ -79,6 +79,7 @@ export default function BotLabWorkspace() {
   const [loadingAnalyze, setLoadingAnalyze] = useState(false)
   const [loadingModify, setLoadingModify] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [uploadToast, setUploadToast] = useState<string | null>(null)
   const [exportSaveFailed, setExportSaveFailed] = useState(false)
   const [tab, setTab] = useState<'overview' | 'code' | 'modify' | 'compare'>('overview')
   const [config, setConfig] = useState(DEFAULT_BACKTEST_CONFIG)
@@ -153,21 +154,34 @@ export default function BotLabWorkspace() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!uploadToast) return
+    const timeout = window.setTimeout(() => setUploadToast(null), 3000)
+    return () => window.clearTimeout(timeout)
+  }, [uploadToast])
+
+  const showUploadToast = (message: string) => {
+    setUploadToast(message)
+  }
+
   const handleFileSelected = async (file?: File | null) => {
     if (!file) return
     
     const maxBytes = 2 * 1024 * 1024 // 2MB
     if (file.size === 0) {
-      setError('The selected file is empty.')
+      setError(null)
+      showUploadToast('Caricamento fallito. Il file è vuoto. Usa .mq5, .txt o .py.')
       return
     }
     if (file.size > maxBytes) {
-      setError(`File is too large (${(file.size / 1024 / 1024).toFixed(2)}MB). Maximum allowed is 2MB.`)
+      setError(null)
+      showUploadToast('Caricamento fallito. Dimensione massima 2 MB. Usa .mq5, .txt o .py.')
       return
     }
     const ext = file.name.split('.').pop()?.toLowerCase()
     if (!ext || !['mq5', 'txt', 'py'].includes(ext)) {
-      setError(`Unsupported file type (.${ext}). Only .mq5, .txt, and .py are supported.`)
+      setError(null)
+      showUploadToast('Caricamento fallito. Formati supportati: .mq5, .txt, .py.')
       return
     }
 
@@ -178,7 +192,8 @@ export default function BotLabWorkspace() {
       setCode(text)
       resetWorkspaceState()
     } catch {
-      setError('Failed to read the file contents.')
+      setError(null)
+      showUploadToast('Caricamento fallito. Riprova con un file .mq5, .txt o .py.')
     }
   }
 
@@ -305,114 +320,15 @@ export default function BotLabWorkspace() {
 
   return (
     <div className="space-y-8">
-      <section className="relative overflow-hidden border border-slate-800/90 bg-[linear-gradient(135deg,rgba(8,47,73,0.22),rgba(15,23,42,0.84)_32%,rgba(2,6,23,0.97))] px-6 py-8 lg:px-8 lg:py-9">
-        <div className="absolute inset-y-0 right-0 hidden w-1/3 bg-[radial-gradient(circle_at_top_right,rgba(56,189,248,0.16),transparent_55%)] lg:block" />
-        <div className="relative grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-          <div className="space-y-5">
-            <div>
-              <div className="text-[11px] uppercase tracking-[0.28em] text-cyan-300">Bot Lab</div>
-              <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-50 lg:text-5xl">
-                Analizza, migliora e rivalida bot di trading esistenti
-              </h1>
-              <p className="mt-4 max-w-3xl text-sm leading-relaxed text-slate-400 lg:text-base">
-                Carica un bot MT5 o un codice strategico esistente, ispeziona la logica in locale, applica revisioni controllate in linguaggio naturale e confronta la versione aggiornata prima dell'export.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-3 text-[11px] uppercase tracking-[0.16em] text-slate-500">
-              <span className="border border-slate-800 px-3 py-1.5">Analisi locale del codice</span>
-              <span className="border border-slate-800 px-3 py-1.5">Revisioni strutturate</span>
-              <span className="border border-slate-800 px-3 py-1.5">Pronto per review e backtest</span>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="border border-slate-800/90 bg-slate-950/55 px-4 py-4">
-                <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Supported input</div>
-                <div className="mt-2 text-sm text-slate-300">`.mq5`, `.txt`, `.py`, or pasted code.</div>
-              </div>
-              <div className="border border-slate-800/90 bg-slate-950/55 px-4 py-4">
-                <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Trader outcome</div>
-                <div className="mt-2 text-sm text-slate-300">Understand, improve, compare and export with confidence.</div>
-              </div>
-              <div className="border border-slate-800/90 bg-slate-950/55 px-4 py-4">
-                <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">AI usage</div>
-                <div className="mt-2 text-sm text-slate-300">Only used for guided modifications. Initial analysis stays local.</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-4 border border-slate-800/90 bg-slate-950/70 px-5 py-5">
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">AI Engine access for revisions</div>
-              <span className="border border-slate-800 px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] text-slate-500">
-                {claudeSource === 'account' ? 'account key' : 'personal key'}
-              </span>
-            </div>
-            <div className="text-sm leading-relaxed text-slate-400">
-              Use the AI Service key assigned to your account, or provide your own personal key only for this revision session.
-            </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => accountClaudeAvailable && setClaudeSource('account')}
-                disabled={!accountClaudeAvailable}
-                className={`border px-4 py-4 text-left transition-colors ${
-                  claudeSource === 'account'
-                    ? 'border-cyan-900/70 bg-cyan-950/10 text-slate-100'
-                    : 'border-slate-800 bg-transparent text-slate-400 hover:border-slate-700 hover:text-slate-100'
-                } ${!accountClaudeAvailable ? 'cursor-not-allowed opacity-50' : ''}`}
-              >
-                <div className="text-sm font-medium">Use my assigned AI key</div>
-                <div className="mt-1 text-xs text-slate-500">
-                  {accountClaudeAvailable ? 'Available on this account.' : 'No account key assigned yet.'}
-                </div>
-              </button>
-              <button
-                type="button"
-                onClick={() => setClaudeSource('personal')}
-                className={`border px-4 py-4 text-left transition-colors ${
-                  claudeSource === 'personal'
-                    ? 'border-cyan-900/70 bg-cyan-950/10 text-slate-100'
-                    : 'border-slate-800 bg-transparent text-slate-400 hover:border-slate-700 hover:text-slate-100'
-                }`}
-              >
-                <div className="text-sm font-medium">Use my personal AI key</div>
-                <div className="mt-1 text-xs text-slate-500">Scoped to the current revision request.</div>
-              </button>
-            </div>
-            {claudeSource === 'personal' ? (
-              <div className="grid gap-4 md:grid-cols-2">
-                <select
-                  value={aiProvider}
-                  onChange={(e) => setAiProvider(e.target.value)}
-                  className={inputCls}
-                >
-                  <option value="anthropic">Anthropic (Claude)</option>
-                  <option value="openai">OpenAI (GPT-4o)</option>
-                  <option value="google">Google (Gemini)</option>
-                </select>
-                <input
-                  type="password"
-                  value={claudeApiKey}
-                  onChange={(e) => setClaudeApiKey(e.target.value)}
-                  className={inputCls}
-                  placeholder={aiProvider === 'openai' ? 'sk-proj-...' : aiProvider === 'google' ? 'AIza...' : 'sk-ant-...'}
-                />
-              </div>
-            ) : (
-              <div className="border border-slate-800 bg-slate-950/70 px-4 py-3 text-xs text-slate-500">
-                {accountClaudeAvailable
-                  ? 'Guided revisions will use the AI provider and key assigned to this user.'
-                  : 'Ask the admin to assign an AI API key to this account, or switch to your own personal key.'}
-              </div>
-            )}
-          </div>
+      {uploadToast && (
+        <div className="fixed right-6 top-20 z-50 border border-rose-900/70 bg-slate-950/95 px-4 py-3 text-sm text-slate-100 shadow-2xl">
+          {uploadToast}
         </div>
-      </section>
+      )}
 
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
         <div className="space-y-6">
-          <Section title="1. Upload bot">
+          <Section title="Carica bot">
             <div
               onDragOver={(event) => {
                 event.preventDefault()
@@ -429,10 +345,9 @@ export default function BotLabWorkspace() {
               }`}
             >
               <div className="space-y-2">
-                <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Drag and drop upload</div>
-                <div className="text-lg font-semibold text-slate-50">Drop a trading bot or strategy code file here</div>
+                <div className="text-lg font-semibold text-slate-50">Carica o trascina un file bot</div>
                 <div className="text-sm text-slate-400">
-                  Supported formats: `.mq5`, `.txt`, `.py`. The first analysis pass is local and does not consume Claude tokens.
+                  Formati: .mq5, .txt, .py. Analisi iniziale locale.
                 </div>
               </div>
               <div className="mt-5">
@@ -447,7 +362,7 @@ export default function BotLabWorkspace() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              <Field label="File name">
+              <Field label="Nome file">
                 <input
                   value={filename}
                   onChange={(e) => setFilename(e.target.value)}
@@ -456,11 +371,11 @@ export default function BotLabWorkspace() {
                   placeholder="expert_advisor.mq5"
                 />
               </Field>
-              <Field label="Bot origin">
+              <Field label="Origine bot">
                 <div className="flex gap-2">
                   {[
-                    { id: 'user' as const, label: 'Trader-owned bot' },
-                    { id: 'visari' as const, label: 'Built by Visari' },
+                    { id: 'user' as const, label: 'Bot del trader' },
+                    { id: 'visari' as const, label: 'Creato da Visari' },
                   ].map((option) => (
                     <button
                       key={option.id}
@@ -479,16 +394,16 @@ export default function BotLabWorkspace() {
                 </div>
               </Field>
             </div>
-            <Field label="Or paste the source code">
+            <Field label="Oppure incolla il codice">
               <textarea
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 disabled={uiLocked}
                 className={`${textareaCls} h-64`}
-                placeholder="Paste the bot source code here..."
+                placeholder="Incolla qui il codice del bot..."
               />
             </Field>
-            <Field label="What do you want to do?">
+            <Field label="Obiettivo">
               <select value={actionFocus} onChange={(e) => setActionFocus(e.target.value)} disabled={uiLocked} className={inputCls}>
                 {ACTIONS.map((action) => (
                   <option key={action} value={action}>{action}</option>
@@ -501,7 +416,7 @@ export default function BotLabWorkspace() {
                 disabled={loadingAnalyze || loadingModify}
                 className="flex-1 border border-slate-200 bg-slate-100 px-4 py-3 font-semibold text-slate-950 disabled:opacity-50"
               >
-                {loadingAnalyze ? 'Running local analysis...' : 'Analyze Bot'}
+                {loadingAnalyze ? 'Analisi in corso...' : 'Analizza'}
               </button>
               <button
                 onClick={() => {
@@ -512,13 +427,13 @@ export default function BotLabWorkspace() {
                 }}
                 className="border border-slate-800 px-4 py-3 text-slate-300"
               >
-                Reset
+                Pulisci
               </button>
             </div>
           </Section>
 
           <div className="mt-8 border-t border-slate-800/80 pt-6">
-            <Accordion title="2. Advanced Configuration & Backtest (Optional)" defaultOpen={false}>
+            <Accordion title="Configurazione avanzata" defaultOpen={false}>
               <div className="space-y-8 py-2">
                 <FundamentalFiltersCard
                   value={config.fundamental_filters}
@@ -585,12 +500,70 @@ export default function BotLabWorkspace() {
         </div>
 
         <div className="space-y-6">
-          <Section title="Desk preview">
+          <section className="space-y-4 border border-slate-800/90 bg-slate-950/70 px-5 py-5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">AI key</div>
+              <span className="border border-slate-800 px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] text-slate-500">
+                {claudeSource === 'account'
+                  ? accountClaudeAvailable
+                    ? 'assegnata'
+                    : 'non assegnata'
+                  : 'personale'}
+              </span>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => accountClaudeAvailable && setClaudeSource('account')}
+                disabled={!accountClaudeAvailable}
+                className={`border px-4 py-4 text-left transition-colors ${
+                  claudeSource === 'account'
+                    ? 'border-cyan-900/70 bg-cyan-950/10 text-slate-100'
+                    : 'border-slate-800 bg-transparent text-slate-400 hover:border-slate-700 hover:text-slate-100'
+                } ${!accountClaudeAvailable ? 'cursor-not-allowed opacity-50' : ''}`}
+              >
+                <div className="text-sm font-medium">Key account</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setClaudeSource('personal')}
+                className={`border px-4 py-4 text-left transition-colors ${
+                  claudeSource === 'personal'
+                    ? 'border-cyan-900/70 bg-cyan-950/10 text-slate-100'
+                    : 'border-slate-800 bg-transparent text-slate-400 hover:border-slate-700 hover:text-slate-100'
+                }`}
+              >
+                <div className="text-sm font-medium">Key personale</div>
+              </button>
+            </div>
+            {claudeSource === 'personal' && (
+              <div className="grid gap-4 md:grid-cols-2">
+                <select
+                  value={aiProvider}
+                  onChange={(e) => setAiProvider(e.target.value)}
+                  className={inputCls}
+                >
+                  <option value="anthropic">Anthropic (Claude)</option>
+                  <option value="openai">OpenAI (GPT-4o)</option>
+                  <option value="google">Google (Gemini)</option>
+                </select>
+                <input
+                  type="password"
+                  value={claudeApiKey}
+                  onChange={(e) => setClaudeApiKey(e.target.value)}
+                  className={inputCls}
+                  placeholder={aiProvider === 'openai' ? 'sk-proj-...' : aiProvider === 'google' ? 'AIza...' : 'sk-ant-...'}
+                />
+              </div>
+            )}
+          </section>
+
+          <Section title="Anteprima desk">
             <div className="space-y-4 border border-slate-800/90 bg-slate-950/70 px-5 py-5">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Current upload</div>
-                  <div className="mt-2 text-lg font-semibold text-slate-50">{filename || 'No file selected'}</div>
+                  <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">File corrente</div>
+                  <div className="mt-2 text-lg font-semibold text-slate-50">{filename || 'Nessun file selezionato'}</div>
                 </div>
                 <span className="border border-slate-800 px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] text-slate-500">
                   {analysis ? analysis.file_info.language : 'pending'}
@@ -599,43 +572,35 @@ export default function BotLabWorkspace() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="border border-slate-900 bg-slate-950/60 px-4 py-3">
-                  <div className="text-[10px] uppercase tracking-[0.16em] text-slate-600">Lines detected</div>
+                  <div className="text-[10px] uppercase tracking-[0.16em] text-slate-600">Righe</div>
                   <div className="mt-2 text-xl font-semibold text-slate-50">{codeLineCount || 0}</div>
                 </div>
                 <div className="border border-slate-900 bg-slate-950/60 px-4 py-3">
-                  <div className="text-[10px] uppercase tracking-[0.16em] text-slate-600">Action</div>
+                  <div className="text-[10px] uppercase tracking-[0.16em] text-slate-600">Obiettivo</div>
                   <div className="mt-2 text-sm font-semibold text-slate-50">{actionFocus}</div>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Preview</div>
+                <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Anteprima</div>
                 <div className="border border-slate-900 bg-slate-950 px-4 py-4 text-xs leading-relaxed text-slate-400">
-                  <pre className="overflow-x-auto whitespace-pre-wrap break-words">{previewSnippet || 'No code loaded yet.'}</pre>
+                  <pre className="overflow-x-auto whitespace-pre-wrap break-words">{previewSnippet || 'Nessun codice caricato.'}</pre>
                 </div>
               </div>
 
-              <div className="grid gap-2 text-sm text-slate-400">
-                <div>Bot Health Check</div>
-                <div>Plain-language explanation</div>
-                <div>Controlled revision flow</div>
-                <div>Compare original vs revised logic</div>
-                <div>Backtest review before export</div>
-              </div>
+              <ul className="list-disc space-y-2 pl-5 text-sm text-slate-400 marker:text-slate-600">
+                <li>Bot Health Check</li>
+                <li>Spiegazione chiara</li>
+                <li>Flusso di revisione controllato</li>
+                <li>Confronto tra logica originale e rivista</li>
+                <li>Backtest prima dell’export</li>
+              </ul>
             </div>
           </Section>
 
-          {!analysis && !loadingAnalyze && (
-            <EmptyState
-              icon="BOT LAB"
-              title="Bot Lab ready"
-              description="Upload a bot file or paste code to unlock local analysis, guided revision and controlled backtest review."
-            />
-          )}
-
           {loadingAnalyze && (
             <div className="border border-slate-800 bg-slate-950/70 p-6">
-              <Spinner label="Running local bot analysis..." />
+              <Spinner label="Analisi locale in corso..." />
             </div>
           )}
 
