@@ -10,7 +10,7 @@ from db.database import AsyncSessionLocal, InMemorySessionStore, is_db_available
 
 try:
     import greenlet  # noqa: F401
-    from sqlalchemy import select
+    from sqlalchemy import delete, select
     from db.models import JobRun, Project, ProjectArtifact, ProjectVersion
 except Exception:  # pragma: no cover
     JobRun = Project = ProjectArtifact = ProjectVersion = None  # type: ignore
@@ -198,6 +198,43 @@ class ProjectStore:
         project.update(filtered)
         project["updated_at"] = _utc_now()
         InMemorySessionStore.save(cls._MEMORY_ROOT, "state", state)
+
+    @classmethod
+    async def delete_project(cls, owner_username: str, project_id: str) -> bool:
+        if is_db_available():
+            try:
+                async with AsyncSessionLocal() as db:  # type: ignore[arg-type]
+                    row = (
+                        await db.execute(
+                            select(Project).where(
+                                Project.id == project_id,
+                                Project.owner_username == owner_username,
+                            )
+                        )
+                    ).scalar_one_or_none()
+                    if not row:
+                        return False
+
+                    await db.execute(delete(ProjectVersion).where(ProjectVersion.project_id == project_id))
+                    await db.execute(delete(ProjectArtifact).where(ProjectArtifact.project_id == project_id))
+                    await db.execute(delete(JobRun).where(JobRun.project_id == project_id))
+                    await db.delete(row)
+                    await db.commit()
+                    return True
+            except Exception:
+                pass  # fall through to in-memory
+
+        state = cls._memory_state()
+        project = state["projects"].get(project_id)
+        if not project or project.get("owner_username") != owner_username:
+            return False
+
+        state["projects"].pop(project_id, None)
+        state["versions"].pop(project_id, None)
+        state["artifacts"].pop(project_id, None)
+        state["jobs"].pop(project_id, None)
+        InMemorySessionStore.save(cls._MEMORY_ROOT, "state", state)
+        return True
 
     @classmethod
     async def add_version(

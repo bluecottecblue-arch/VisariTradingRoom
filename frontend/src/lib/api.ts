@@ -157,6 +157,11 @@ export const projectApi = {
       method: 'PATCH',
       body: JSON.stringify(payload),
     }),
+
+  remove: (projectId: string) =>
+    request(`/api/projects/${projectId}`, {
+      method: 'DELETE',
+    }),
 }
 
 export const dashboardApi = {

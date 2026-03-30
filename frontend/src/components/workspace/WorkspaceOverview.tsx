@@ -1,28 +1,30 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 import ProjectMemoryPanel from '@/components/workspace/ProjectMemoryPanel'
+import { formatError } from '@/lib/api'
 import type { ProjectDetail, ProjectSummary } from '@/types'
 
 type WorkspaceMode = 'strategy' | 'botlab'
 
 const PIPELINE = [
-  { id: 'strategy', label: 'Strategy', detail: 'Market, timeframe, entry logic' },
-  { id: 'parse', label: 'Parse', detail: 'Objective codifiability review' },
-  { id: 'formalize', label: 'Formalize', detail: 'Structured trading specification' },
-  { id: 'backtest', label: 'Backtest', detail: 'Historical execution and OOS review' },
-  { id: 'validation', label: 'Validation', detail: 'Risk, robustness, macro filters' },
-  { id: 'export', label: 'Bot Export', detail: 'MT5 package and deployment notes' },
-]
+  { id: 'strategy', label: 'Strategia', detail: 'Definizione di mercato, timeframe e logica operativa' },
+  { id: 'parse', label: 'Analisi', detail: 'Controllo di chiarezza e codificabilita' },
+  { id: 'formalize', label: 'Specifica', detail: 'Regole strutturate pronte per il motore' },
+  { id: 'backtest', label: 'Backtest', detail: 'Test storico con controllo OOS e rischio' },
+  { id: 'validation', label: 'Valutazione', detail: 'Verdetto, robustezza e limiti del sistema' },
+  { id: 'export', label: 'Export bot', detail: 'Pacchetto finale per MT5 e guida operativa' },
+] as const
 
 type PipelineStepId = (typeof PIPELINE)[number]['id']
 
 function pipelineTone(status: 'complete' | 'running' | 'current' | 'locked') {
   if (status === 'complete') return 'border-emerald-900/70 bg-emerald-950/12 text-emerald-300'
   if (status === 'running') return 'border-cyan-900/70 bg-cyan-950/14 text-cyan-300'
-  if (status === 'current') return 'border-slate-700 bg-slate-900/80 text-slate-200'
-  return 'border-slate-900 bg-slate-950/60 text-slate-600'
+  if (status === 'current') return 'border-cyan-700/70 bg-cyan-950/16 text-slate-100'
+  return 'border-slate-900 bg-slate-950/60 text-slate-500'
 }
 
 function statusTone(status?: string | null) {
@@ -39,6 +41,21 @@ function statusTone(status?: string | null) {
   return 'border-slate-800 bg-slate-950/60 text-slate-400'
 }
 
+function normalizeMode(mode?: string | null): WorkspaceMode {
+  return mode === 'botlab' ? 'botlab' : 'strategy'
+}
+
+function modeLabel(mode?: string | null) {
+  return normalizeMode(mode) === 'strategy' ? 'Strategia' : 'Bot Lab'
+}
+
+function stepStatusLabel(status: 'complete' | 'running' | 'current' | 'locked') {
+  if (status === 'complete') return 'Completato'
+  if (status === 'running') return 'In corso'
+  if (status === 'current') return 'Pronto adesso'
+  return 'Bloccato'
+}
+
 export default function WorkspaceOverview({
   workspaceMode,
   setWorkspaceMode,
@@ -46,6 +63,8 @@ export default function WorkspaceOverview({
   currentProjectId,
   setCurrentProjectId,
   createProject,
+  renameProject,
+  deleteProject,
   currentProject,
 }: {
   workspaceMode: WorkspaceMode
@@ -53,10 +72,15 @@ export default function WorkspaceOverview({
   projects: ProjectSummary[]
   currentProjectId: string | null
   setCurrentProjectId: (projectId: string) => void
-  createProject: (mode: WorkspaceMode) => Promise<void>
+  createProject: (mode: WorkspaceMode) => Promise<ProjectSummary | null>
+  renameProject: (projectId: string, title: string) => Promise<void>
+  deleteProject: (projectId: string) => Promise<void>
   currentProject: ProjectDetail | null
 }) {
   const router = useRouter()
+  const [pendingKey, setPendingKey] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
+
   const filteredProjects = projects.filter((project) => project.mode === workspaceMode)
   const completedKinds = new Set((currentProject?.versions || []).map((item) => item.version_kind))
   const hasVerdict = Boolean(currentProject?.latest_verdict)
@@ -108,200 +132,352 @@ export default function WorkspaceOverview({
 
     return { ...step, status: statusByStep[step.id] }
   })
-  const currentPipelineIndex = pipelineState.findIndex((step) => step.status === 'running' || step.status === 'current')
-  const stepActiveIndex = currentPipelineIndex === -1 ? PIPELINE.length - 1 : currentPipelineIndex
 
-  const handleStrategyClick = () => {
-    // Navigate to the builder page
-    const url = currentProjectId ? `/builder?project_id=${currentProjectId}` : '/builder'
-    router.push(url)
+  const currentPipelineStep =
+    pipelineState.find((step) => step.status === 'running' || step.status === 'current') ||
+    pipelineState[pipelineState.length - 1]
+
+  const scrollToBotLab = () => {
+    requestAnimationFrame(() => {
+      document.getElementById('bot-lab-workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
   }
 
-  const handleBotLabClick = () => {
+  const openProject = (project: ProjectSummary) => {
+    setActionError(null)
+    setWorkspaceMode(normalizeMode(project.mode))
+    setCurrentProjectId(project.project_id)
+    if (normalizeMode(project.mode) === 'strategy') {
+      router.push(`/builder?project_id=${project.project_id}`)
+      return
+    }
+    scrollToBotLab()
+  }
+
+  const openDesk = (projectId?: string | null) => {
+    router.push(projectId ? `/dashboard?project_id=${projectId}` : '/dashboard')
+  }
+
+  const handleCreateStrategy = async () => {
+    setPendingKey('create-strategy')
+    setActionError(null)
+    try {
+      const project = await createProject('strategy')
+      if (project) {
+        router.push(`/builder?project_id=${project.project_id}`)
+      }
+    } catch (error) {
+      setActionError(formatError(error))
+    } finally {
+      setPendingKey(null)
+    }
+  }
+
+  const handleOpenBotLab = () => {
+    setActionError(null)
     setWorkspaceMode('botlab')
+    scrollToBotLab()
+  }
+
+  const handleCreateBotLabProject = async () => {
+    setPendingKey('create-botlab')
+    setActionError(null)
+    try {
+      const project = await createProject('botlab')
+      if (project) {
+        setWorkspaceMode('botlab')
+        setCurrentProjectId(project.project_id)
+        scrollToBotLab()
+      }
+    } catch (error) {
+      setActionError(formatError(error))
+    } finally {
+      setPendingKey(null)
+    }
+  }
+
+  const handleRenameProject = async (project: ProjectSummary | ProjectDetail | null) => {
+    if (!project) return
+    const nextTitle = window.prompt('Nuovo nome del progetto', project.title)
+    if (!nextTitle || nextTitle.trim() === project.title.trim()) return
+    setPendingKey(`rename-${project.project_id}`)
+    setActionError(null)
+    try {
+      await renameProject(project.project_id, nextTitle.trim())
+    } catch (error) {
+      setActionError(formatError(error))
+    } finally {
+      setPendingKey(null)
+    }
+  }
+
+  const handleDeleteProject = async (project: ProjectSummary | ProjectDetail | null) => {
+    if (!project) return
+    const confirmed = window.confirm(`Eliminare definitivamente il progetto "${project.title}"?`)
+    if (!confirmed) return
+    setPendingKey(`delete-${project.project_id}`)
+    setActionError(null)
+    try {
+      await deleteProject(project.project_id)
+    } catch (error) {
+      setActionError(formatError(error))
+    } finally {
+      setPendingKey(null)
+    }
   }
 
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden border border-slate-800/90 bg-[linear-gradient(135deg,rgba(8,47,73,0.28),rgba(15,23,42,0.86)_35%,rgba(2,6,23,0.96))] px-6 py-7 lg:px-8 lg:py-8">
-        <div className="absolute inset-y-0 right-0 hidden w-1/3 bg-[radial-gradient(circle_at_top_right,rgba(56,189,248,0.18),transparent_55%)] lg:block" />
-        <div className="relative grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-          <div className="space-y-5">
-            <div className="space-y-2">
-              <div className="text-[11px] uppercase tracking-[0.28em] text-cyan-300">Visari Trading Room</div>
-              <h1 className="max-w-3xl text-4xl font-semibold leading-tight tracking-tight text-slate-50 lg:text-[2.85rem]">
-                Choose a workflow
-              </h1>
-              <p className="max-w-xl text-sm leading-relaxed text-slate-400 lg:text-base">
-                Start a new strategy or work on an existing MT5 bot.
-              </p>
-            </div>
+      {actionError && (
+        <div className="border border-rose-900/70 bg-rose-950/10 px-4 py-3 text-sm text-rose-200">
+          {actionError}
+        </div>
+      )}
 
-            <div className="grid gap-3 lg:grid-cols-[1fr_1fr_auto]">
+      <section className="grid gap-5 xl:grid-cols-[1.08fr_0.92fr]">
+        <div className="border border-slate-800/90 bg-[linear-gradient(135deg,rgba(8,47,73,0.28),rgba(15,23,42,0.88)_38%,rgba(2,6,23,0.96))] px-6 py-6 lg:px-7">
+          <div className="text-[10px] uppercase tracking-[0.22em] text-cyan-300">Operazioni rapide</div>
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-50 lg:text-4xl">
+            Cosa vuoi fare adesso?
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm text-slate-400">
+            Avvia una nuova strategia da zero oppure apri il Bot Lab per analizzare un algoritmo gia pronto.
+          </p>
+
+          <div className="mt-5 grid gap-3 lg:grid-cols-[1.15fr_0.85fr]">
+            <button
+              onClick={handleCreateStrategy}
+              disabled={pendingKey !== null}
+              className="group border border-cyan-700/70 bg-cyan-500 px-5 py-5 text-left text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              <div className="text-[11px] uppercase tracking-[0.18em] text-slate-950/75">Nuovo bot da zero</div>
+              <div className="mt-2 text-2xl font-semibold text-slate-950">Crea nuova strategia</div>
+              <div className="mt-2 text-sm text-slate-950/75">
+                Apre subito lo Strategy Builder sul nuovo progetto.
+              </div>
+            </button>
+
+            <div className="grid gap-3">
               <button
-                onClick={handleStrategyClick}
-                className="border border-cyan-900/70 bg-cyan-950/12 px-5 py-4 text-left transition-colors hover:border-cyan-700/70 hover:bg-cyan-950/18"
+                onClick={handleOpenBotLab}
+                className="border border-slate-800 bg-slate-950/70 px-5 py-4 text-left transition hover:border-slate-600"
               >
-                <div className="text-[10px] uppercase tracking-[0.18em] text-cyan-300">Create Strategy</div>
-                <div className="mt-2 text-lg font-semibold text-slate-50">Start from trading logic</div>
+                <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Algoritmi esistenti</div>
+                <div className="mt-2 text-lg font-semibold text-slate-50">Apri Bot Lab</div>
+                <div className="mt-1 text-sm text-slate-400">Carica, analizza o migliora un bot gia fatto.</div>
               </button>
               <button
-                onClick={handleBotLabClick}
-                className="border border-slate-800 bg-slate-950/65 px-5 py-4 text-left transition-colors hover:border-slate-600"
+                onClick={handleCreateBotLabProject}
+                disabled={pendingKey !== null}
+                className="border border-slate-800 bg-slate-950/40 px-5 py-4 text-left transition hover:border-slate-600 disabled:cursor-not-allowed disabled:opacity-70"
               >
-                <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Analyze Existing Bot</div>
-                <div className="mt-2 text-lg font-semibold text-slate-50">Open Bot Lab</div>
+                <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Tracciamento</div>
+                <div className="mt-2 text-lg font-semibold text-slate-50">Nuovo progetto Bot Lab</div>
+                <div className="mt-1 text-sm text-slate-400">Crea un progetto dedicato per upload, modifiche e confronto.</div>
               </button>
-              <a
-                href="#workflow-visual"
-                className="flex items-center justify-center border border-slate-800 bg-slate-950/40 px-5 py-3 text-sm font-semibold text-slate-300 hover:border-slate-600 hover:text-slate-100"
-              >
-                View Pipeline
-              </a>
             </div>
+          </div>
+        </div>
 
-            <div className="flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.16em] text-slate-500">
-              <span className="border border-slate-800 px-2.5 py-1">Structured validation</span>
-              <span className="border border-slate-800 px-2.5 py-1">OOS review</span>
-              <span className="border border-slate-800 px-2.5 py-1">MT5 export</span>
+        <div className="border border-slate-800/90 bg-slate-950/75 px-5 py-5 lg:px-6">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Progetto selezionato</div>
+              <div className="mt-2 text-2xl font-semibold text-slate-50">
+                {currentProject?.title || 'Nessun progetto selezionato'}
+              </div>
+              <div className="mt-1 text-sm text-slate-400">
+                {currentProject
+                  ? `${modeLabel(currentProject.mode)} · fase attuale: ${normalizeMode(currentProject.mode) === 'strategy' ? currentPipelineStep.label : 'Bot Lab'}`
+                  : 'Seleziona un progetto oppure crea una nuova strategia.'}
+              </div>
+            </div>
+            <span className={`inline-flex items-center gap-2 border px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] ${statusTone(currentProject?.latest_verdict || currentProject?.status)}`}>
+              {String(currentProject?.latest_verdict || currentProject?.status || 'nuovo').replaceAll('_', ' ')}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            <div className="border border-slate-900 bg-slate-950/70 px-4 py-3">
+              <div className="text-[10px] uppercase tracking-[0.18em] text-slate-600">Fase</div>
+              <div className="mt-2 text-lg font-semibold text-slate-50">
+                {currentProject ? (normalizeMode(currentProject.mode) === 'strategy' ? currentPipelineStep.label : 'Bot Lab') : '—'}
+              </div>
+            </div>
+            <div className="border border-slate-900 bg-slate-950/70 px-4 py-3">
+              <div className="text-[10px] uppercase tracking-[0.18em] text-slate-600">Deliverable</div>
+              <div className="mt-2 text-lg font-semibold text-slate-50">{projectArtifacts.length}</div>
+            </div>
+            <div className="border border-slate-900 bg-slate-950/70 px-4 py-3">
+              <div className="text-[10px] uppercase tracking-[0.18em] text-slate-600">Progetti</div>
+              <div className="mt-2 text-lg font-semibold text-slate-50">{filteredProjects.length}</div>
             </div>
           </div>
 
-          <div className="grid gap-4">
-            <div className="border border-slate-800/90 bg-slate-950/65 px-5 py-5">
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Current project</div>
-                <span className={`inline-flex items-center gap-2 border px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] ${statusTone(currentProject?.latest_verdict || currentProject?.status)}`}>
-                  {(currentProject?.latest_verdict || currentProject?.status || 'new').replaceAll('_', ' ')}
-                </span>
-              </div>
-              <div className="mt-4 text-2xl font-semibold text-slate-50">{currentProject?.title || 'No active project selected'}</div>
-              <div className="mt-1 text-sm text-slate-500">
-                {workspaceMode === 'strategy' ? pipelineState[stepActiveIndex]?.label || 'Start from intake' : 'Bot Lab'}
-              </div>
-              <div className="mt-4 grid grid-cols-3 gap-3 text-sm">
-                <div className="border border-slate-900 bg-slate-950/70 px-4 py-3">
-                  <div className="text-[10px] uppercase tracking-[0.18em] text-slate-600">Projects</div>
-                  <div className="mt-2 text-xl font-semibold text-slate-50">{filteredProjects.length}</div>
-                </div>
-                <div className="border border-slate-900 bg-slate-950/70 px-4 py-3">
-                  <div className="text-[10px] uppercase tracking-[0.18em] text-slate-600">Stage</div>
-                  <div className="mt-2 text-xl font-semibold text-slate-50">
-                    {workspaceMode === 'strategy' ? pipelineState[stepActiveIndex]?.label || '—' : 'Bot Lab'}
-                  </div>
-                </div>
-                <div className="border border-slate-900 bg-slate-950/70 px-4 py-3">
-                  <div className="text-[10px] uppercase tracking-[0.18em] text-slate-600">Deliverables</div>
-                  <div className="mt-2 text-xl font-semibold text-slate-50">{projectArtifacts.length}</div>
-                </div>
-              </div>
-              <div className="mt-4 flex gap-3">
-                <button
-                  onClick={() => createProject(workspaceMode)}
-                  className="border border-slate-800 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-300 hover:border-slate-600 hover:text-slate-100"
-                >
-                  New Project
-                </button>
-                <Link href="/dashboard" className="border border-slate-800 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-300 hover:border-slate-600 hover:text-slate-100">
-                  Algo Desk
-                </Link>
-              </div>
-            </div>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <button
+              onClick={() => {
+                if (!currentProject) return
+                openProject(currentProject)
+              }}
+              disabled={!currentProject || pendingKey !== null}
+              className="border border-cyan-800/70 bg-cyan-950/18 px-4 py-2 text-sm font-semibold text-cyan-200 hover:border-cyan-600 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {normalizeMode(currentProject?.mode) === 'botlab' ? 'Apri Bot Lab' : 'Apri progetto'}
+            </button>
+            <button
+              onClick={() => openDesk(currentProjectId)}
+              disabled={!currentProject}
+              className="border border-slate-800 px-4 py-2 text-sm font-semibold text-slate-300 hover:border-slate-600 hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Apri sul desk
+            </button>
+            <button
+              onClick={() => handleRenameProject(currentProject)}
+              disabled={!currentProject || pendingKey !== null}
+              className="border border-slate-800 px-4 py-2 text-sm text-slate-300 hover:border-slate-600 hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Rinomina
+            </button>
+            <button
+              onClick={() => handleDeleteProject(currentProject)}
+              disabled={!currentProject || pendingKey !== null}
+              className="border border-rose-900/70 px-4 py-2 text-sm text-rose-200 hover:border-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Elimina
+            </button>
           </div>
         </div>
       </section>
 
-      <section className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
-        <div className="border border-slate-800/90 bg-slate-950/75 px-5 py-5">
-          <div className="flex items-center justify-between gap-3">
-            <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Active Projects</div>
-            <button
-              onClick={() => createProject(workspaceMode)}
-              className="border border-slate-800 px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] text-slate-400 hover:border-slate-600 hover:text-slate-100"
-            >
-              New
-            </button>
-          </div>
-          <div className="mt-4 space-y-3">
-            {filteredProjects.slice(0, 4).map((project) => (
+      <section className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
+        <div className="border border-slate-800/90 bg-slate-950/75 px-5 py-5 lg:px-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Progetti</div>
+              <div className="mt-1 text-xl font-semibold text-slate-50">Apri, rinomina o elimina</div>
+            </div>
+            <div className="flex flex-wrap gap-2">
               <button
-                key={project.project_id}
-                onClick={() => setCurrentProjectId(project.project_id)}
-                className={`w-full border px-4 py-4 text-left transition-colors ${
-                  currentProjectId === project.project_id
-                    ? 'border-cyan-900/70 bg-cyan-950/10'
-                    : 'border-slate-900 bg-slate-950/40 hover:border-slate-700'
+                onClick={() => setWorkspaceMode('strategy')}
+                className={`border px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] ${
+                  workspaceMode === 'strategy'
+                    ? 'border-cyan-800/70 bg-cyan-950/15 text-cyan-200'
+                    : 'border-slate-800 text-slate-400 hover:border-slate-600 hover:text-slate-100'
                 }`}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-medium text-slate-100">{project.title}</div>
-                    <div className="mt-1 text-xs text-slate-500">{project.mode} · {project.project_id.slice(0, 8)}</div>
-                  </div>
-                  <span className={`inline-flex items-center gap-2 border px-2 py-1 text-[10px] uppercase tracking-[0.14em] ${statusTone(project.latest_verdict || project.status)}`}>
-                    {(project.latest_verdict || project.status || 'new').replaceAll('_', ' ')}
-                  </span>
-                </div>
+                Strategie
               </button>
-            ))}
+              <button
+                onClick={() => setWorkspaceMode('botlab')}
+                className={`border px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] ${
+                  workspaceMode === 'botlab'
+                    ? 'border-cyan-800/70 bg-cyan-950/15 text-cyan-200'
+                    : 'border-slate-800 text-slate-400 hover:border-slate-600 hover:text-slate-100'
+                }`}
+              >
+                Bot Lab
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-4 space-y-3">
+            {filteredProjects.map((project) => {
+              const isActive = currentProjectId === project.project_id
+              return (
+                <div
+                  key={project.project_id}
+                  className={`border px-4 py-4 ${isActive ? 'border-cyan-900/70 bg-cyan-950/10' : 'border-slate-900 bg-slate-950/40'}`}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <button
+                        onClick={() => {
+                          setWorkspaceMode(normalizeMode(project.mode))
+                          setCurrentProjectId(project.project_id)
+                        }}
+                        className="text-left text-base font-semibold text-slate-50 hover:text-cyan-200"
+                      >
+                        {project.title}
+                      </button>
+                      <div className="mt-1 flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.16em]">
+                        <span className="border border-slate-800 px-2 py-1 text-slate-500">{modeLabel(project.mode)}</span>
+                        <span className={`border px-2 py-1 ${statusTone(project.latest_verdict || project.status)}`}>
+                          {String(project.latest_verdict || project.status || 'nuovo').replaceAll('_', ' ')}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => openProject(project)}
+                        className="border border-cyan-800/70 bg-cyan-950/15 px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-cyan-200 hover:border-cyan-600"
+                      >
+                        Apri
+                      </button>
+                      <button
+                        onClick={() => openDesk(project.project_id)}
+                        className="border border-slate-800 px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-300 hover:border-slate-600 hover:text-slate-100"
+                      >
+                        Desk
+                      </button>
+                      <button
+                        onClick={() => handleRenameProject(project)}
+                        disabled={pendingKey !== null}
+                        className="border border-slate-800 px-3 py-2 text-xs uppercase tracking-[0.16em] text-slate-300 hover:border-slate-600 hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Rinomina
+                      </button>
+                      <button
+                        onClick={() => handleDeleteProject(project)}
+                        disabled={pendingKey !== null}
+                        className="border border-rose-900/70 px-3 py-2 text-xs uppercase tracking-[0.16em] text-rose-200 hover:border-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Elimina
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+
             {filteredProjects.length === 0 && (
               <div className="border border-dashed border-slate-800 px-4 py-8 text-sm text-slate-500">
-                No projects yet in this workspace.
+                Nessun progetto presente in questa sezione.
               </div>
             )}
           </div>
         </div>
-        <section id="workflow-visual" className="border border-slate-800/90 bg-slate-950/75 px-5 py-5 lg:px-6">
+
+        <section className="border border-slate-800/90 bg-slate-950/75 px-5 py-5 lg:px-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Pipeline</div>
-              <div className="mt-2 text-xl font-semibold text-slate-50">Current workflow</div>
+              <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Flusso</div>
+              <div className="mt-1 text-xl font-semibold text-slate-50">Pipeline di lavoro</div>
             </div>
-            <Link href="/dashboard" className="border border-slate-800 px-3 py-2 text-xs uppercase tracking-[0.16em] text-slate-400 hover:border-slate-600 hover:text-slate-100">
-              Command Center
+            <Link href={currentProjectId ? `/dashboard?project_id=${currentProjectId}` : '/dashboard'} className="border border-slate-800 px-3 py-2 text-xs uppercase tracking-[0.16em] text-slate-300 hover:border-slate-600 hover:text-slate-100">
+              Apri desk
             </Link>
           </div>
 
-          <div className="mt-5 grid gap-3 xl:grid-cols-6">
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
             {pipelineState.map((step, index) => {
-              const active = index === stepActiveIndex && (step.status === 'running' || step.status === 'current')
-              const done = step.status === 'complete'
-              const locked = step.status === 'locked'
-              const running = step.status === 'running'
+              const active = step.status === 'running' || step.status === 'current'
               return (
-                <div key={step.label} className={`relative border px-4 py-4 ${pipelineTone(step.status)}`}>
+                <div key={step.label} className={`border px-4 py-4 ${pipelineTone(step.status)}`}>
                   <div className="flex items-center justify-between gap-3">
-                    <div className={`h-8 w-8 border flex items-center justify-center text-xs font-semibold ${
-                      running
-                        ? 'border-cyan-800 bg-cyan-950/30 text-cyan-300'
-                        : active
-                          ? 'border-slate-600 bg-slate-900/80 text-slate-200'
-                          : done
-                            ? 'border-emerald-900/70 bg-emerald-950/15 text-emerald-300'
-                            : locked
-                              ? 'border-slate-900 text-slate-700'
-                              : 'border-slate-800 text-slate-500'
-                    }`}>
-                      {done ? '✓' : `0${index + 1}`}
+                    <div className="flex h-9 w-9 items-center justify-center border border-current/30 text-sm font-semibold">
+                      {step.status === 'complete' ? '✓' : `0${index + 1}`}
                     </div>
-                    <span className={`text-[10px] uppercase tracking-[0.16em] ${
-                      running
-                        ? 'text-cyan-300'
-                        : active
-                          ? 'text-slate-200'
-                          : done
-                            ? 'text-emerald-300'
-                            : locked
-                              ? 'text-slate-700'
-                              : 'text-slate-600'
-                    }`}>
-                      {running ? 'running' : active ? 'current' : done ? 'done' : locked ? 'locked' : 'ready'}
+                    <span className="text-[10px] uppercase tracking-[0.16em]">
+                      {stepStatusLabel(step.status)}
                     </span>
                   </div>
-                  <div className="mt-4 text-sm font-semibold text-slate-100">{step.label}</div>
-                  {(active || done || running) ? (
-                    <div className="mt-1 text-xs leading-relaxed text-slate-500">{step.detail}</div>
-                  ) : null}
+                  <div className="mt-4 text-lg font-semibold text-slate-100">{step.label}</div>
+                  {active ? (
+                    <div className="mt-2 text-sm leading-relaxed text-slate-400">{step.detail}</div>
+                  ) : (
+                    <div className="mt-2 text-xs text-slate-500">{stepStatusLabel(step.status)}</div>
+                  )}
                 </div>
               )
             })}

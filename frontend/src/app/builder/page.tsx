@@ -13,12 +13,12 @@ import { projectApi } from "@/lib/api";
 import type { ProjectDetail } from "@/types";
 
 const STEPS = [
-  { id: 1, label: "Strategy Design", description: "Market, timeframe, entries and risk model" },
-  { id: 2, label: "Structured Review", description: "Resolve blockers before formalization" },
-  { id: 3, label: "Formal Specification", description: "Codified rules for execution" },
-  { id: 4, label: "Validation", description: "Backtest, regime, stability and risk review" },
-  { id: 5, label: "Bot Export", description: "MT5 delivery package" },
-  { id: 6, label: "Deployment Guide", description: "Install and supervise the system" },
+  { id: 1, label: "Progettazione strategia", description: "Mercato, timeframe, ingressi e modello di rischio" },
+  { id: 2, label: "Revisione strutturata", description: "Risolvi i blocchi prima della formalizzazione" },
+  { id: 3, label: "Specifica formale", description: "Regole codificate pronte per l'esecuzione" },
+  { id: 4, label: "Validazione", description: "Backtest, regime, stabilita e controllo rischio" },
+  { id: 5, label: "Export bot", description: "Pacchetto finale per MT5" },
+  { id: 6, label: "Guida deploy", description: "Installa e supervisiona il sistema" },
 ];
 
 export default function BuilderPage() {
@@ -79,7 +79,7 @@ export default function BuilderPage() {
             onClick={() => router.push("/")}
             className="text-slate-400 hover:text-slate-100 transition-colors flex items-center gap-2 text-sm"
           >
-            ← Home
+            ← Dashboard
           </button>
           <div className="h-4 w-[1px] bg-slate-800" />
           <div className="flex flex-col">
@@ -95,7 +95,7 @@ export default function BuilderPage() {
             onClick={restart}
             className="text-xs text-slate-500 hover:text-rose-400 transition-colors"
           >
-            Reset Session
+            Azzera sessione
           </button>
           <AuthToolbar />
         </div>
@@ -136,12 +136,12 @@ export default function BuilderPage() {
                       </span>
                       {active && (
                         <span className="border border-cyan-900/70 bg-cyan-950/15 px-2 py-0.5 text-[9px] uppercase tracking-[0.16em] text-cyan-300">
-                          Current
+                          Attuale
                         </span>
                       )}
                       {locked && (
                         <span className="border border-slate-800 px-2 py-0.5 text-[9px] uppercase tracking-[0.16em] text-slate-600">
-                          Locked
+                          Bloccato
                         </span>
                       )}
                     </div>
@@ -152,7 +152,7 @@ export default function BuilderPage() {
                     )}
                     {locked && (
                       <span className="text-[10px] text-slate-700 leading-tight mt-1">
-                        Complete the current stage to unlock this step.
+                        Completa lo step attuale per sbloccare questo passaggio.
                       </span>
                     )}
                   </div>
@@ -162,9 +162,9 @@ export default function BuilderPage() {
           </div>
 
           <div className="mt-12 p-4 bg-slate-900/40 border border-slate-800 rounded-lg">
-            <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Validated pipeline</h4>
+            <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Pipeline validata</h4>
             <p className="text-[10px] text-slate-600 leading-relaxed">
-              Future steps stay locked until the current stage is completed. This keeps the workflow controlled, auditable, and easier to supervise.
+              Gli step futuri restano bloccati finche non completi quello attuale. In questo modo il flusso resta controllato e supervisionabile.
             </p>
           </div>
         </aside>
@@ -173,14 +173,14 @@ export default function BuilderPage() {
         <main className="flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top_right,rgba(8,47,73,0.1),transparent_70%)]">
           <div className="max-w-4xl mx-auto px-6 py-12">
             <div className="mb-8 border border-slate-800/90 bg-slate-950/55 px-5 py-5">
-              <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Structured strategy engineering</div>
+              <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Ingegneria strategica strutturata</div>
               <div className="mt-2 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                 <div>
                   <div className="text-2xl font-semibold text-slate-50">{STEPS[currentStep - 1].label}</div>
                   <div className="mt-1 text-sm text-slate-400">{STEPS[currentStep - 1].description}</div>
                 </div>
                 <div className="text-xs text-slate-500">
-                  Step {currentStep} of {STEPS.length} · Institutional-grade validation layer
+                  Step {currentStep} di {STEPS.length} · livello di validazione istituzionale
                 </div>
               </div>
             </div>
@@ -188,15 +188,15 @@ export default function BuilderPage() {
             {!stepReady && (
               <div className="border border-slate-800 bg-slate-950/60 p-12 text-center rounded-xl backdrop-blur-sm">
                 <div className="text-4xl mb-6">🔄</div>
-                <h3 className="text-xl font-bold text-slate-200 mb-2">Session not synchronized</h3>
+                <h3 className="text-xl font-bold text-slate-200 mb-2">Sessione non sincronizzata</h3>
                 <p className="text-slate-500 mb-8 max-w-md mx-auto">
-                  The current workflow session expired or the page was refreshed mid-process. Restart from strategy intake to restore a controlled validation path.
+                  La sessione del workflow e scaduta oppure la pagina e stata aggiornata a meta processo. Riparti dall'intake per ripristinare un flusso ordinato.
                 </p>
                 <button 
                   onClick={restart} 
                   className="bg-cyan-600 hover:bg-cyan-500 text-slate-50 px-8 py-3 rounded font-bold transition-all"
                 >
-                  Restart workflow →
+                  Riavvia workflow →
                 </button>
               </div>
             )}

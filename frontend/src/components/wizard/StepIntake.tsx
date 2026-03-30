@@ -11,15 +11,15 @@ import type { ParseResult, PreflightResult, StrategyIntake } from '@/types'
 const TIMEFRAMES = ['M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D1', 'W1']
 const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
 const DAY_LABELS: Record<string, string> = {
-  MON: 'Mon', TUE: 'Tue', WED: 'Wed', THU: 'Thu',
-  FRI: 'Fri', SAT: 'Sat', SUN: 'Sun',
+  MON: 'Lun', TUE: 'Mar', WED: 'Mer', THU: 'Gio',
+  FRI: 'Ven', SAT: 'Sab', SUN: 'Dom',
 }
 const FORM_STEPS = [
-  { id: 1, label: 'Market & access', detail: 'Instrument, timeframes and Claude access' },
-  { id: 2, label: 'Entry logic', detail: 'Long, short and invalidation rules' },
-  { id: 3, label: 'Exit & risk', detail: 'Stop, target and sizing constraints' },
-  { id: 4, label: 'Filters', detail: 'Sessions, trend, volatility and macro/news' },
-  { id: 5, label: 'Examples & review', detail: 'Concrete trades and final preflight' },
+  { id: 1, label: 'Mercato e accesso AI', detail: 'Strumento, timeframe e chiave AI' },
+  { id: 2, label: 'Logica di ingresso', detail: 'Setup long, short e invalidazione' },
+  { id: 3, label: 'Uscite e rischio', detail: 'Stop, target e sizing' },
+  { id: 4, label: 'Filtri', detail: 'Sessioni, trend, volatilita e macro/news' },
+  { id: 5, label: 'Esempi e revisione', detail: 'Trade concreti e preflight finale' },
 ]
 
 const DEFAULT_FORM: StrategyIntake = {
@@ -66,9 +66,9 @@ function QualityHint({ value }: { value: string }) {
   return (
     <div className="mt-2 flex items-center justify-between text-xs">
       <span className={value.length < 50 ? 'text-amber-400' : 'text-cyan-300'}>
-        {value.length < 50 ? 'Add more detail to improve codifiability.' : 'Good level of detail.'}
+        {value.length < 50 ? 'Aggiungi piu dettaglio per aumentare la codificabilita.' : 'Livello di dettaglio buono.'}
       </span>
-      <span className="text-slate-600">{value.length} chars</span>
+      <span className="text-slate-600">{value.length} caratteri</span>
     </div>
   )
 }
@@ -218,21 +218,21 @@ export default function StepIntake({ projectId, onComplete }: Props) {
   }
 
   const validate = () => {
-    if (!form.name.trim()) return 'Give the strategy a name.'
-    if (!form.market.trim()) return 'Select the market or instrument.'
+    if (!form.name.trim()) return 'Inserisci un nome per la strategia.'
+    if (!form.market.trim()) return 'Seleziona il mercato o lo strumento.'
     if (form.claude_access?.credential_source === 'account' && !accountClaudeAvailable) {
-      return 'This account has no AI API key assigned yet. Switch to your personal key or ask admin to assign one.'
+      return "Questo account non ha ancora una chiave AI assegnata. Usa la tua chiave personale oppure chiedi all'admin di assegnarne una."
     }
     if (form.claude_access?.credential_source !== 'account' && !(form.claude_access?.api_key || '').trim()) {
-      return 'Insert your personal AI API key to continue.'
+      return 'Inserisci la tua chiave AI personale per continuare.'
     }
-    if (!form.long_entry.trim()) return 'Describe the long setup.'
-    if (!form.invalidation.trim()) return 'Describe the invalidation logic.'
-    if (!form.stop_loss.trim()) return 'Describe the stop loss logic.'
-    if (!form.take_profit.trim()) return 'Describe the take profit logic.'
-    if ((form.long_entry || '').trim().length < 80) return 'Make the long setup more complete. Include context, trigger and execution condition.'
-    if ((form.valid_trade_examples || '').trim().length < 60) return 'Add 2–3 valid trade examples before continuing.'
-    if ((form.invalid_trade_examples || '').trim().length < 40) return 'Add rejected trade examples or explicitly describe what should be filtered out.'
+    if (!form.long_entry.trim()) return 'Descrivi il setup long.'
+    if (!form.invalidation.trim()) return "Descrivi la logica di invalidazione."
+    if (!form.stop_loss.trim()) return 'Descrivi la logica dello stop loss.'
+    if (!form.take_profit.trim()) return 'Descrivi la logica del take profit.'
+    if ((form.long_entry || '').trim().length < 80) return 'Rendi il setup long piu completo. Includi contesto, trigger e condizione di esecuzione.'
+    if ((form.valid_trade_examples || '').trim().length < 60) return 'Aggiungi 2-3 esempi di trade validi prima di continuare.'
+    if ((form.invalid_trade_examples || '').trim().length < 40) return 'Aggiungi esempi di trade da scartare o descrivi esplicitamente cosa filtrare.'
     return null
   }
 
@@ -283,30 +283,30 @@ export default function StepIntake({ projectId, onComplete }: Props) {
     <div className="space-y-8">
       <div className="space-y-5 border border-slate-800/90 bg-[linear-gradient(135deg,rgba(8,47,73,0.18),rgba(15,23,42,0.82)_36%,rgba(2,6,23,0.96))] px-6 py-7">
         <div className="space-y-2">
-          <div className="text-[11px] uppercase tracking-[0.24em] text-cyan-300">Create Strategy</div>
+          <div className="text-[11px] uppercase tracking-[0.24em] text-cyan-300">Crea strategia</div>
           <h1 className="text-4xl font-semibold tracking-tight text-slate-50">
-            Structured strategy intake for serious trading systems
+            Compila la strategia in modo strutturato
           </h1>
           <p className="max-w-3xl text-sm leading-relaxed text-slate-400">
-            Define the market, the setup, the risk framework and the macro filters in a guided builder. Preflight keeps running in the background so you only trigger paid AI steps when the strategy is specific enough.
+            Definisci mercato, setup, rischio e filtri macro in un builder guidato. Il preflight gira in background cosi attivi gli step AI a pagamento solo quando la strategia e abbastanza precisa.
           </p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
           <div className="border border-slate-800/90 bg-slate-950/55 px-4 py-4">
-            <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Strategy</div>
-            <div className="mt-2 text-lg font-semibold text-slate-50">{form.name || 'Unnamed strategy'}</div>
-            <div className="mt-1 text-sm text-slate-500">{form.market || 'Market not selected'}</div>
+            <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Strategia</div>
+            <div className="mt-2 text-lg font-semibold text-slate-50">{form.name || 'Strategia senza nome'}</div>
+            <div className="mt-1 text-sm text-slate-500">{form.market || 'Mercato non selezionato'}</div>
           </div>
           <div className="border border-slate-800/90 bg-slate-950/55 px-4 py-4">
-            <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Execution frame</div>
+            <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Timeframe</div>
             <div className="mt-2 text-lg font-semibold text-slate-50">{form.analysis_timeframe} / {form.execution_timeframe}</div>
-            <div className="mt-1 text-sm text-slate-500">Context and trigger horizon</div>
+            <div className="mt-1 text-sm text-slate-500">Contesto e trigger operativo</div>
           </div>
           <div className="border border-slate-800/90 bg-slate-950/55 px-4 py-4">
-            <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Readiness</div>
-            <div className="mt-2 text-lg font-semibold text-slate-50">{preflight ? `${Math.round(preflight.completeness_score * 100)}%` : 'Waiting'}</div>
-            <div className="mt-1 text-sm text-slate-500">{preflight ? preflight.status.replaceAll('_', ' ') : 'Fill the critical fields to unlock preflight.'}</div>
+            <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Prontezza</div>
+            <div className="mt-2 text-lg font-semibold text-slate-50">{preflight ? `${Math.round(preflight.completeness_score * 100)}%` : 'In attesa'}</div>
+            <div className="mt-1 text-sm text-slate-500">{preflight ? preflight.status.replaceAll('_', ' ') : 'Compila i campi critici per sbloccare il preflight.'}</div>
           </div>
         </div>
       </div>
@@ -329,10 +329,10 @@ export default function StepIntake({ projectId, onComplete }: Props) {
                     : 'border-slate-900 bg-slate-950/30 text-slate-500 hover:border-slate-700'
                 }`}
               >
-                <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center justify-between gap-3">
                   <span className="text-sm font-medium">{step.label}</span>
                   <span className={`text-[10px] uppercase tracking-[0.16em] ${completed ? 'text-cyan-400' : 'text-slate-600'}`}>
-                    {completed ? '✓ done' : `Step ${step.id} of 5`}
+                    {completed ? '✓ fatto' : `Step ${step.id} di 5`}
                   </span>
                 </div>
                 <div className="mt-1 text-xs text-slate-500">{step.detail}</div>
@@ -344,13 +344,13 @@ export default function StepIntake({ projectId, onComplete }: Props) {
         <div className="space-y-8">
           {formStep === 1 && (
             <>
-              <Section title="AI Engine access">
+              <Section title="Accesso motore AI">
                 <div className="space-y-4">
                   <div className="text-xs text-stone-500">
-                    Strategy analysis, formalization and bot generation require an AI API key. You can use the key assigned to your account by admin or provide your own personal key for this run.
+                    Analisi strategia, formalizzazione e generazione bot richiedono una chiave AI. Puoi usare la chiave assegnata al tuo account oppure la tua chiave personale per questo workflow.
                   </div>
                   <div className="rounded border border-stone-800 bg-stone-900/60 px-4 py-3 text-xs text-stone-500">
-                    No global shared key is exposed to users. Every workflow uses either your personal key or the key assigned to your account.
+                    Nessuna chiave condivisa globale viene esposta agli utenti. Ogni workflow usa o la tua chiave personale o quella assegnata al tuo account.
                   </div>
                   <div className="grid gap-3 md:grid-cols-2">
                     <button
@@ -363,9 +363,9 @@ export default function StepIntake({ projectId, onComplete }: Props) {
                           : 'border-slate-800 bg-transparent text-slate-400 hover:border-slate-700 hover:text-slate-100'
                       } ${!accountClaudeAvailable ? 'cursor-not-allowed opacity-50' : ''}`}
                     >
-                      <div className="text-sm font-medium">Use my assigned AI key</div>
+                      <div className="text-sm font-medium">Usa la chiave assegnata al mio account</div>
                       <div className="mt-1 text-xs text-slate-500">
-                        {accountClaudeAvailable ? 'Available on this account.' : 'No account key configured.'}
+                        {accountClaudeAvailable ? 'Disponibile su questo account.' : 'Nessuna chiave configurata sull’account.'}
                       </div>
                     </button>
                     <button
@@ -377,13 +377,13 @@ export default function StepIntake({ projectId, onComplete }: Props) {
                           : 'border-slate-800 bg-transparent text-slate-400 hover:border-slate-700 hover:text-slate-100'
                       }`}
                     >
-                      <div className="text-sm font-medium">Use my personal AI key</div>
-                      <div className="mt-1 text-xs text-slate-500">Used only for this strategy workflow.</div>
+                      <div className="text-sm font-medium">Usa la mia chiave AI personale</div>
+                      <div className="mt-1 text-xs text-slate-500">Viene usata solo per questo workflow.</div>
                     </button>
                   </div>
                   {form.claude_access?.credential_source === 'personal' ? (
                     <div className="grid gap-4 md:grid-cols-2">
-                      <Field label="AI Provider">
+                      <Field label="Provider AI">
                         <select
                           value={form.claude_access.provider || 'anthropic'}
                           onChange={(e) => set('claude_access', { ...form.claude_access!, provider: e.target.value })}
@@ -394,7 +394,7 @@ export default function StepIntake({ projectId, onComplete }: Props) {
                           <option value="google">Google (Gemini)</option>
                         </select>
                       </Field>
-                      <Field label={`${form.claude_access.provider === 'openai' ? 'OpenAI' : form.claude_access.provider === 'google' ? 'Google Gemini' : 'Claude'} API key`} required>
+                      <Field label={`Chiave API ${form.claude_access.provider === 'openai' ? 'OpenAI' : form.claude_access.provider === 'google' ? 'Google Gemini' : 'Claude'}`} required>
                         <input
                           type="password"
                           value={form.claude_access?.api_key || ''}
@@ -407,31 +407,31 @@ export default function StepIntake({ projectId, onComplete }: Props) {
                   ) : (
                     <div className="rounded border border-slate-800 bg-slate-950/60 px-4 py-3 text-xs text-slate-500">
                       {accountClaudeAvailable
-                        ? 'This run will use the AI provider and key already assigned to your account.'
-                        : 'Switch to personal key or ask admin to assign a key to your account.'}
+                        ? 'Questo workflow usera il provider AI e la chiave gia assegnati al tuo account.'
+                        : 'Passa alla chiave personale oppure chiedi all’admin di assegnarne una al tuo account.'}
                     </div>
                   )}
                 </div>
               </Section>
 
-              <Section title="Market & timeframes">
+              <Section title="Mercato e timeframe">
                 <div className="grid gap-4 md:grid-cols-2">
-                  <Field label="Strategy name" required>
+                  <Field label="Nome strategia" required>
                     <input value={form.name} onChange={(e) => set('name', e.target.value)} className={inputCls} placeholder="London Breakout Pullback" />
                   </Field>
-                  <Field label="Market / instrument" required>
+                  <Field label="Mercato / strumento" required>
                     <input value={form.market} onChange={(e) => set('market', e.target.value)} className={inputCls} placeholder="EURUSD" />
                   </Field>
                 </div>
                 <div className="mt-4">
-                  <Accordion title="Advanced Context & Timeframes" defaultOpen={true}>
+                  <Accordion title="Contesto avanzato e timeframe" defaultOpen={true}>
                     <div className="grid gap-4 md:grid-cols-2">
-                      <Field label="Analysis timeframe">
+                      <Field label="Timeframe analisi">
                         <select value={form.analysis_timeframe} onChange={(e) => set('analysis_timeframe', e.target.value)} className={inputCls}>
                           {TIMEFRAMES.map((tf) => <option key={tf}>{tf}</option>)}
                         </select>
                       </Field>
-                      <Field label="Execution timeframe">
+                      <Field label="Timeframe esecuzione">
                         <select value={form.execution_timeframe} onChange={(e) => set('execution_timeframe', e.target.value)} className={inputCls}>
                           {TIMEFRAMES.map((tf) => <option key={tf}>{tf}</option>)}
                         </select>
@@ -444,30 +444,30 @@ export default function StepIntake({ projectId, onComplete }: Props) {
           )}
 
           {formStep === 2 && (
-            <Section title="Entry rules">
-              <Field label="Long setup" required tooltip="Describe the exact conditions that must be true before a long trade is allowed.">
+            <Section title="Regole di ingresso">
+              <Field label="Setup long" required tooltip="Descrivi le condizioni esatte che devono essere vere prima di consentire un trade long.">
                 <textarea
                   value={form.long_entry}
                   onChange={(e) => set('long_entry', e.target.value)}
                   className={`${textareaCls} h-36`}
-                  placeholder="Example: On H4 price must be above EMA200. Wait for a pullback into EMA20, then enter on M15 after the first bullish close if RSI(14) is rising and no high-impact news window is active."
+                  placeholder="Esempio: Su H4 il prezzo deve stare sopra EMA200. Aspetta un pullback su EMA20, poi entra su M15 dopo la prima chiusura rialzista se RSI(14) sale e non c'e una finestra news ad alto impatto."
                 />
                 <QualityHint value={form.long_entry} />
               </Field>
-              <Field label="Short setup" tooltip="Optional. Leave blank if the strategy is long only.">
+              <Field label="Setup short" tooltip="Opzionale. Lascia vuoto se la strategia e solo long.">
                 <textarea
                   value={form.short_entry}
                   onChange={(e) => set('short_entry', e.target.value)}
                   className={`${textareaCls} h-28`}
-                  placeholder="Optional short-side logic"
+                  placeholder="Logica short opzionale"
                 />
               </Field>
-              <Field label="Invalidation logic" required tooltip="What cancels the setup before entry?">
+              <Field label="Logica di invalidazione" required tooltip="Cosa invalida il setup prima dell'ingresso?">
                 <textarea
                   value={form.invalidation}
                   onChange={(e) => set('invalidation', e.target.value)}
                   className={`${textareaCls} h-28`}
-                  placeholder="Example: If price closes beyond the rejection candle high or more than one hour passes without the trigger, the setup is invalidated."
+                  placeholder="Esempio: Se il prezzo chiude oltre il massimo della candela di rigetto o passa piu di un'ora senza trigger, il setup e invalidato."
                 />
                 <QualityHint value={form.invalidation} />
               </Field>
@@ -475,38 +475,38 @@ export default function StepIntake({ projectId, onComplete }: Props) {
           )}
 
           {formStep === 3 && (
-            <Section title="Exit & risk management">
-              <Field label="Stop loss logic" required>
+            <Section title="Uscite e gestione del rischio">
+              <Field label="Logica stop loss" required>
                 <textarea
                   value={form.stop_loss}
                   onChange={(e) => set('stop_loss', e.target.value)}
                   className={`${textareaCls} h-28`}
-                  placeholder="Example: Below the setup candle low plus a small buffer, or below the nearest H4 support."
+                  placeholder="Esempio: Sotto il minimo della candela di setup piu un piccolo buffer, oppure sotto il supporto H4 piu vicino."
                 />
                 <QualityHint value={form.stop_loss} />
               </Field>
-              <Field label="Take profit logic" required>
+              <Field label="Logica take profit" required>
                 <textarea
                   value={form.take_profit}
                   onChange={(e) => set('take_profit', e.target.value)}
                   className={`${textareaCls} h-28`}
-                  placeholder="Example: Fixed 2R target, next structural resistance, or partials plus runner."
+                  placeholder="Esempio: Target fisso a 2R, prossima resistenza strutturale, oppure parziali piu runner."
                 />
               </Field>
               <div className="mt-4">
-                <Accordion title="Trailing Stop (Optional)" defaultOpen={true}>
-                  <Field label="Trailing stop logic">
+                <Accordion title="Trailing stop (opzionale)" defaultOpen={true}>
+                  <Field label="Logica trailing stop">
                     <input
                       value={form.trailing_stop}
                       onChange={(e) => set('trailing_stop', e.target.value)}
                       className={inputCls}
-                      placeholder="Breakeven at 1R, then trail by ATR or swing structure"
+                      placeholder="Breakeven a 1R, poi trailing su ATR o swing structure"
                     />
                   </Field>
                 </Accordion>
               </div>
               <div className="grid gap-4 md:grid-cols-2 mt-8">
-                <Field label="Risk per trade (%)">
+                <Field label="Rischio per trade (%)">
                   <input
                     type="number"
                     min={0.1}
@@ -517,7 +517,7 @@ export default function StepIntake({ projectId, onComplete }: Props) {
                     className={inputCls}
                   />
                 </Field>
-                <Field label="Max trades per day">
+                <Field label="Trade massimi al giorno">
                   <input
                     type="number"
                     min={1}

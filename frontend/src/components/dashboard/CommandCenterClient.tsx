@@ -291,11 +291,11 @@ function KeyValueGrid({
   )
 }
 
-export default function CommandCenterClient() {
+export default function CommandCenterClient({ initialProjectId = null }: { initialProjectId?: string | null }) {
   const [dashboard, setDashboard] = useState<CommandCenterDashboard | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(initialProjectId)
   const [timeframe, setTimeframe] = useState('30D')
   const [source, setSource] = useState<DataSource>('auto')
   const [activeTab, setActiveTab] = useState<DeskTab>('performance')
@@ -348,17 +348,17 @@ export default function CommandCenterClient() {
             </div>
             <div>
               <h1 className="text-3xl font-semibold tracking-tight text-slate-50 lg:text-4xl">
-                Algorithmic Trading Command Center
+                Desk algoritmi
               </h1>
               <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-400">
-                Supervise strategy health, risk exposure, execution status and macro context from a single institutional-grade control room.
+                Controlla salute strategica, rischio, stato operativo e contesto macro in un'unica control room.
               </p>
             </div>
             <div className="flex flex-wrap gap-3 text-xs text-slate-500">
-              <span>Project: {dashboard?.selected_project_title || 'Desk preview'}</span>
-              <span>Market Session: {dashboard?.header.market_session || '—'}</span>
-              <span>Desk Mode: {dashboard?.header.desk_mode || '—'}</span>
-              <span>Clock: {dashboard ? formatClock(dashboard.header.current_time) : '—'}</span>
+              <span>Progetto: {dashboard?.selected_project_title || 'Anteprima desk'}</span>
+              <span>Sessione mercato: {dashboard?.header.market_session || '—'}</span>
+              <span>Modalita desk: {dashboard?.header.desk_mode || '—'}</span>
+              <span>Ora: {dashboard ? formatClock(dashboard.header.current_time) : '—'}</span>
             </div>
           </div>
           <div className="space-y-4">
@@ -370,19 +370,19 @@ export default function CommandCenterClient() {
                 onClick={() => setReloadToken((value) => value + 1)}
                 className="border border-slate-800 px-3 py-2 text-xs uppercase tracking-[0.16em] text-slate-400 hover:border-slate-600 hover:text-slate-100"
               >
-                Refresh
+                Aggiorna
               </button>
               <AuthToolbar />
             </div>
             <div className="grid gap-3 md:grid-cols-3">
               <label className="space-y-2">
-                <span className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Project</span>
+                <span className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Progetto</span>
                 <select
                   value={selectedProjectId || ''}
                   onChange={(event) => setSelectedProjectId(event.target.value || null)}
                   className="w-full border border-slate-800 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-slate-600"
                 >
-                  <option value="">Desk preview</option>
+                  <option value="">Anteprima desk</option>
                   {(dashboard?.available_projects || []).map((project) => (
                     <option key={project.project_id} value={project.project_id}>
                       {project.title}
@@ -403,15 +403,15 @@ export default function CommandCenterClient() {
                 </select>
               </label>
               <label className="space-y-2">
-                <span className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Data Source</span>
+                <span className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Sorgente dati</span>
                 <select
                   value={source}
                   onChange={(event) => setSource(event.target.value as DataSource)}
                   className="w-full border border-slate-800 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-slate-600"
                 >
-                  <option value="auto">Auto / best available</option>
-                  <option value="real">Real payload only</option>
-                  <option value="demo">Professional demo feed</option>
+                  <option value="auto">Auto / migliore disponibile</option>
+                  <option value="real">Solo dati reali</option>
+                  <option value="demo">Demo professionale</option>
                 </select>
               </label>
             </div>
@@ -424,7 +424,7 @@ export default function CommandCenterClient() {
 
         {!loading && error && (
           <div className="border border-rose-900/80 bg-rose-950/10 px-6 py-8 text-sm text-rose-200">
-            Failed to load the command center: {error}
+            Impossibile caricare il desk algoritmi: {error}
           </div>
         )}
 

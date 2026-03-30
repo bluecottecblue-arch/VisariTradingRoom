@@ -78,3 +78,23 @@ async def update_project(
         "ok": True,
         "project": updated,
     }
+
+
+@router.delete("/{project_id}")
+async def delete_project(
+    project_id: str,
+    context: AuthContext = Depends(require_authenticated),
+):
+    project = await ProjectStore.get_project(context.username, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Progetto non trovato")
+
+    deleted = await ProjectStore.delete_project(context.username, project_id)
+    if not deleted:
+        raise HTTPException(status_code=500, detail="Impossibile eliminare il progetto")
+
+    return {
+        "ok": True,
+        "deleted": True,
+        "project_id": project_id,
+    }
