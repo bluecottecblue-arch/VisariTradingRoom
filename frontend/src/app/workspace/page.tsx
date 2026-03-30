@@ -152,36 +152,38 @@ export default function WorkspacePage() {
 
           <div className="flex-1 px-6 py-8 lg:px-12 overflow-y-auto">
             <div className="max-w-7xl mx-auto space-y-12">
-              <WorkspaceOverview
-                workspaceMode={workspaceMode}
-                setWorkspaceMode={setWorkspaceMode}
-                projects={projects}
-                currentProjectId={currentProjectId}
-                setCurrentProjectId={setCurrentProjectId}
-                createProject={async (mode) => {
-                   const label = mode === "strategy" ? "Nuova strategia" : "Nuovo progetto Bot Lab"
-                   const res = await projectApi.create(label, mode) as { project?: ProjectSummary }
-                   if (!res.project) return null
-                   setWorkspaceMode(mode)
-                   await loadProjects(res.project.project_id)
-                   return res.project
-                }}
-                renameProject={async (projectId, title) => {
-                  await projectApi.update(projectId, { title })
-                  await loadProjects(projectId)
-                }}
-                deleteProject={async (projectId) => {
-                  await projectApi.remove(projectId)
-                  await loadProjects(currentProjectId === projectId ? null : currentProjectId)
-                  if (currentProjectId === projectId) {
-                    setCurrentProject(null)
-                  }
-                }}
-                currentProject={currentProject}
-              />
+              {workspaceMode === "strategy" && (
+                <WorkspaceOverview
+                  workspaceMode={workspaceMode}
+                  setWorkspaceMode={setWorkspaceMode}
+                  projects={projects}
+                  currentProjectId={currentProjectId}
+                  setCurrentProjectId={setCurrentProjectId}
+                  createProject={async (mode) => {
+                    const label = mode === "strategy" ? "Nuova strategia" : "Nuovo progetto Bot Lab"
+                    const res = await projectApi.create(label, mode) as { project?: ProjectSummary }
+                    if (!res.project) return null
+                    setWorkspaceMode(mode)
+                    await loadProjects(res.project.project_id)
+                    return res.project
+                  }}
+                  renameProject={async (projectId, title) => {
+                    await projectApi.update(projectId, { title })
+                    await loadProjects(projectId)
+                  }}
+                  deleteProject={async (projectId) => {
+                    await projectApi.remove(projectId)
+                    await loadProjects(currentProjectId === projectId ? null : currentProjectId)
+                    if (currentProjectId === projectId) {
+                      setCurrentProject(null)
+                    }
+                  }}
+                  currentProject={currentProject}
+                />
+              )}
 
               {workspaceMode === "botlab" && (
-                <div id="bot-lab-workspace" className="pt-8 border-t border-slate-800">
+                <div id="bot-lab-workspace" className={workspaceMode === "botlab" ? "" : "pt-8 border-t border-slate-800"}>
                   <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Bot Lab</div>
