@@ -7,7 +7,7 @@ type LoginPageProps = {
 }
 
 export default function LoginPage({ searchParams }: LoginPageProps) {
-  const nextPath = searchParams?.next || '/'
+  const nextPath = searchParams?.next || '/workspace'
   return (
     <LoginForm
       endpoint="/api/auth/login"

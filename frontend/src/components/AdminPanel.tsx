@@ -207,7 +207,7 @@ export default function AdminPanel() {
             </p>
           </div>
           <div className="flex gap-3 text-sm">
-            <Link href="/" className="border border-slate-800 px-4 py-2 hover:border-slate-600">
+            <Link href="/workspace" className="border border-slate-800 px-4 py-2 hover:border-slate-600">
               Vai all&apos;app
             </Link>
             <Link href="/login" className="border border-slate-800 px-4 py-2 hover:border-slate-600">

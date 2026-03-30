@@ -76,7 +76,7 @@ export default function BuilderPage() {
       <header className="border-b border-slate-800 px-6 py-4 flex items-center justify-between bg-slate-950/50 backdrop-blur-md sticky top-0 z-50">
         <div className="flex items-center gap-6">
           <button 
-            onClick={() => router.push("/")}
+            onClick={() => router.push("/workspace")}
             className="text-slate-400 hover:text-slate-100 transition-colors flex items-center gap-2 text-sm"
           >
             ← Dashboard

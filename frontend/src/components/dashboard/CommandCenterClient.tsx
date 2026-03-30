@@ -363,7 +363,7 @@ export default function CommandCenterClient({ initialProjectId = null }: { initi
           </div>
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-end gap-3">
-              <Link href="/" className="border border-slate-800 px-3 py-2 text-xs uppercase tracking-[0.16em] text-slate-400 hover:border-slate-600 hover:text-slate-100">
+              <Link href="/workspace" className="border border-slate-800 px-3 py-2 text-xs uppercase tracking-[0.16em] text-slate-400 hover:border-slate-600 hover:text-slate-100">
                 Workspace
               </Link>
               <button

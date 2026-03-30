@@ -3,6 +3,7 @@ import { SESSION_COOKIE_NAME, SESSION_ROLE_COOKIE_NAME } from '@/lib/auth'
 
 function isPublicPath(pathname: string): boolean {
   return (
+    pathname === '/' ||
     pathname === '/login' ||
     pathname === '/admin/login' ||
     pathname.startsWith('/api/auth/') ||
