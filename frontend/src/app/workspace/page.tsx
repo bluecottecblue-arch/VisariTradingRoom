@@ -78,7 +78,7 @@ export default function WorkspacePage() {
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
       <div className="flex flex-1 min-h-screen">
         <aside className="hidden w-80 shrink-0 border-r border-slate-800 bg-slate-950 xl:flex xl:flex-col sticky top-0 h-screen">
-          <div className="border-b border-slate-800 px-6 py-6">
+          <div className="border-b border-slate-800 px-6 py-6 md:pl-14">
             <div className="text-[11px] uppercase tracking-[0.28em] text-amber-300">Visari Trading Room</div>
             <div className="mt-3 text-2xl font-semibold text-slate-50">Area operativa</div>
           </div>
@@ -141,7 +141,7 @@ export default function WorkspacePage() {
 
         <main className="flex-1 flex flex-col min-h-screen">
           <header className="border-b border-slate-800 px-6 py-4 lg:px-8 flex items-center justify-between sticky top-0 bg-slate-950 z-40">
-            <div>
+            <div className="md:pl-10">
               <div className="text-[10px] uppercase tracking-widest text-slate-500">Visari Trading Room</div>
               <div className="text-xl font-bold bg-gradient-to-r from-slate-100 to-slate-400 bg-clip-text text-transparent">
                 {workspaceMode === "strategy" ? "Strategie" : "Bot Lab"}

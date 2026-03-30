@@ -340,7 +340,7 @@ export default function CommandCenterClient({ initialProjectId = null }: { initi
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(14,116,144,0.16),transparent_25%),radial-gradient(circle_at_top_right,rgba(15,23,42,0.36),transparent_34%),linear-gradient(180deg,#020617_0%,#020617_100%)] text-slate-100">
       <div className="border-b border-slate-800/90 bg-slate-950/80 backdrop-blur">
         <div className="mx-auto flex max-w-[1680px] flex-col gap-5 px-6 py-5 lg:flex-row lg:items-end lg:justify-between lg:px-8">
-          <div className="space-y-4">
+          <div className="space-y-4 md:pl-10">
             <div className="flex flex-wrap items-center gap-3">
               <div className="text-[11px] uppercase tracking-[0.28em] text-cyan-300">Visari Trading Room</div>
               <StatusPill label={dashboard?.header.status || 'Command Center'} tone={dashboard?.header.status_tone || 'neutral'} />

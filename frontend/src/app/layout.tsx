@@ -15,14 +15,14 @@ export default function RootLayout({
   return (
     <html lang="it" className="bg-stone-950">
       <body className="bg-stone-950 text-stone-100 antialiased">
-        <div className="pointer-events-none fixed left-4 top-4 z-50 hidden md:block">
+        <div className="pointer-events-none fixed left-3 top-3 z-50 hidden md:block">
           <Image
             src="/visari-mark.png"
             alt=""
             aria-hidden="true"
-            width={34}
-            height={30}
-            className="opacity-70 mix-blend-screen"
+            width={26}
+            height={22}
+            className="opacity-60 mix-blend-screen"
             priority
           />
         </div>

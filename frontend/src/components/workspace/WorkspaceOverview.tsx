@@ -235,7 +235,7 @@ export default function WorkspaceOverview({
       )}
 
       <section className="grid items-start gap-5 xl:grid-cols-[0.98fr_1.02fr]">
-        <div className="border border-slate-800/90 bg-[linear-gradient(135deg,rgba(8,47,73,0.28),rgba(15,23,42,0.88)_38%,rgba(2,6,23,0.96))] px-5 py-5 lg:px-6">
+        <div className="min-w-0 border border-slate-800/90 bg-[linear-gradient(135deg,rgba(8,47,73,0.28),rgba(15,23,42,0.88)_38%,rgba(2,6,23,0.96))] px-5 py-5 lg:px-6">
           <div className="text-[10px] uppercase tracking-[0.22em] text-cyan-300">Operazioni rapide</div>
           <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-50 lg:text-[2rem]">
             Iniziamo!
@@ -269,7 +269,7 @@ export default function WorkspaceOverview({
           </div>
         </div>
 
-        <div className="border border-slate-800/90 bg-slate-950/75 px-5 py-5 lg:px-6">
+        <div className="min-w-0 border border-slate-800/90 bg-slate-950/75 px-5 py-5 lg:px-6">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Progetto selezionato</div>
@@ -311,28 +311,28 @@ export default function WorkspaceOverview({
                 openProject(currentProject)
               }}
               disabled={!currentProject || pendingKey !== null}
-              className="w-full border border-cyan-800/70 bg-cyan-950/18 px-4 py-2 text-center text-sm font-semibold text-cyan-200 hover:border-cyan-600 disabled:cursor-not-allowed disabled:opacity-50"
+              className="min-h-[42px] w-full border border-cyan-800/70 bg-cyan-950/18 px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.12em] text-cyan-200 hover:border-cyan-600 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {normalizeMode(currentProject?.mode) === 'botlab' ? 'Apri Bot Lab' : 'Apri progetto'}
+              {normalizeMode(currentProject?.mode) === 'botlab' ? 'Apri Bot Lab' : 'Apri builder'}
             </button>
             <button
               onClick={() => openDesk(currentProjectId)}
               disabled={!currentProject}
-              className="w-full border border-slate-800 px-4 py-2 text-center text-sm font-semibold text-slate-300 hover:border-slate-600 hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+              className="min-h-[42px] w-full border border-slate-800 px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.12em] text-slate-300 hover:border-slate-600 hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Apri sul desk
+              Apri desk
             </button>
             <button
               onClick={() => handleRenameProject(currentProject)}
               disabled={!currentProject || pendingKey !== null}
-              className="w-full border border-slate-800 px-4 py-2 text-center text-sm text-slate-300 hover:border-slate-600 hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+              className="min-h-[42px] w-full border border-slate-800 px-3 py-2 text-center text-xs uppercase tracking-[0.12em] text-slate-300 hover:border-slate-600 hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Rinomina
             </button>
             <button
               onClick={() => handleDeleteProject(currentProject)}
               disabled={!currentProject || pendingKey !== null}
-              className="w-full border border-rose-900/70 px-4 py-2 text-center text-sm text-rose-200 hover:border-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="min-h-[42px] w-full border border-rose-900/70 px-3 py-2 text-center text-xs uppercase tracking-[0.12em] text-rose-200 hover:border-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Elimina
             </button>
@@ -340,8 +340,8 @@ export default function WorkspaceOverview({
         </div>
       </section>
 
-      <section className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
-        <div className="border border-slate-800/90 bg-slate-950/75 px-5 py-5 lg:px-6">
+      <section className="grid items-start gap-5 xl:grid-cols-[1.05fr_0.95fr]">
+        <div className="min-w-0 border border-slate-800/90 bg-slate-950/75 px-5 py-5 lg:px-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Progetti</div>
@@ -438,7 +438,7 @@ export default function WorkspaceOverview({
           </div>
         </div>
 
-        <section className="border border-slate-800/90 bg-slate-950/75 px-5 py-5 lg:px-6">
+        <section className="min-w-0 border border-slate-800/90 bg-slate-950/75 px-5 py-5 lg:px-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Flusso</div>
@@ -449,19 +449,21 @@ export default function WorkspaceOverview({
             </Link>
           </div>
 
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <div className="mt-4 grid auto-rows-fr gap-3 sm:grid-cols-2">
             {pipelineState.map((step, index) => {
               return (
-                <div key={step.label} className={`min-h-[120px] border px-4 py-3 ${pipelineTone(step.status)}`}>
-                  <div className="flex items-center justify-between gap-3">
+                <div key={step.label} className={`min-w-0 min-h-[108px] border px-4 py-3 ${pipelineTone(step.status)}`}>
+                  <div className="flex items-start gap-3">
                     <div className="flex h-8 w-8 items-center justify-center border border-current/30 text-sm font-semibold">
                       {step.status === 'complete' ? '✓' : `0${index + 1}`}
                     </div>
-                    <span className="text-[10px] uppercase tracking-[0.16em]">
+                    <span className="pt-1 text-[9px] uppercase leading-[1.35] tracking-[0.16em]">
                       {stepStatusLabel(step.status)}
                     </span>
                   </div>
-                  <div className="mt-5 text-[1.7rem] font-semibold leading-none text-slate-100">{step.label}</div>
+                  <div className="mt-4 max-w-[10ch] text-[1.2rem] font-semibold leading-[1.05] tracking-tight text-slate-100 sm:text-[1.35rem]">
+                    {step.label}
+                  </div>
                 </div>
               )
             })}
