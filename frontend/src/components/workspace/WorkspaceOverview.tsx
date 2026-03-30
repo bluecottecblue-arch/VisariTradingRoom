@@ -244,38 +244,36 @@ export default function WorkspaceOverview({
             Avvia una nuova strategia da zero oppure apri il Bot Lab per analizzare un algoritmo gia pronto.
           </p>
 
-          <div className="mt-5 grid gap-3 lg:grid-cols-[1.15fr_0.85fr]">
+          <div className="mt-5 grid gap-3 lg:grid-cols-3">
             <button
               onClick={handleCreateStrategy}
               disabled={pendingKey !== null}
-              className="group border border-cyan-700/70 bg-cyan-500 px-5 py-5 text-left text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-70"
+              className="group flex min-h-[185px] flex-col justify-between border border-cyan-700/70 bg-cyan-500 px-5 py-5 text-left text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-70"
             >
               <div className="text-[11px] uppercase tracking-[0.18em] text-slate-950/75">Nuovo bot da zero</div>
-              <div className="mt-2 text-2xl font-semibold text-slate-950">Crea nuova strategia</div>
-              <div className="mt-2 text-sm text-slate-950/75">
+              <div className="mt-3 text-[1.85rem] font-semibold leading-tight text-slate-950">Crea nuova strategia</div>
+              <div className="mt-3 text-sm text-slate-950/75">
                 Apre subito lo Strategy Builder sul nuovo progetto.
               </div>
             </button>
 
-            <div className="grid gap-3">
-              <button
-                onClick={handleOpenBotLab}
-                className="border border-slate-800 bg-slate-950/70 px-5 py-4 text-left transition hover:border-slate-600"
-              >
-                <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Algoritmi esistenti</div>
-                <div className="mt-2 text-lg font-semibold text-slate-50">Apri Bot Lab</div>
-                <div className="mt-1 text-sm text-slate-400">Carica, analizza o migliora un bot gia fatto.</div>
-              </button>
-              <button
-                onClick={handleCreateBotLabProject}
-                disabled={pendingKey !== null}
-                className="border border-slate-800 bg-slate-950/40 px-5 py-4 text-left transition hover:border-slate-600 disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Tracciamento</div>
-                <div className="mt-2 text-lg font-semibold text-slate-50">Nuovo progetto Bot Lab</div>
-                <div className="mt-1 text-sm text-slate-400">Crea un progetto dedicato per upload, modifiche e confronto.</div>
-              </button>
-            </div>
+            <button
+              onClick={handleOpenBotLab}
+              className="flex min-h-[185px] flex-col justify-between border border-slate-800 bg-slate-950/70 px-5 py-5 text-left transition hover:border-slate-600"
+            >
+              <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Algoritmi esistenti</div>
+              <div className="mt-3 text-xl font-semibold leading-tight text-slate-50">Apri Bot Lab</div>
+              <div className="mt-3 text-sm text-slate-400">Carica, analizza o migliora un bot gia fatto.</div>
+            </button>
+            <button
+              onClick={handleCreateBotLabProject}
+              disabled={pendingKey !== null}
+              className="flex min-h-[185px] flex-col justify-between border border-slate-800 bg-slate-950/40 px-5 py-5 text-left transition hover:border-slate-600 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Tracciamento</div>
+              <div className="mt-3 text-xl font-semibold leading-tight text-slate-50">Nuovo progetto Bot Lab</div>
+              <div className="mt-3 text-sm text-slate-400">Crea un progetto dedicato per upload, modifiche e confronto.</div>
+            </button>
           </div>
         </div>
 

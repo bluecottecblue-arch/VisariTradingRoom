@@ -22,7 +22,7 @@ export async function middleware(request: NextRequest) {
   const token = request.cookies.get(SESSION_COOKIE_NAME)?.value
   const role = request.cookies.get(SESSION_ROLE_COOKIE_NAME)?.value
 
-  if (!token) {
+  if (!token || !role || !['user', 'admin'].includes(role)) {
     const loginUrl = request.nextUrl.clone()
     loginUrl.pathname = pathname.startsWith('/admin') ? '/admin/login' : '/login'
     loginUrl.searchParams.set('next', pathname)

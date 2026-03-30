@@ -11,12 +11,12 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
   return (
     <LoginForm
       endpoint="/api/auth/login"
-      title="Client Access"
-      description="Access your strategy workspace, Bot Lab, validated backtests and MT5 delivery pipeline."
-      submitLabel="Enter Platform"
+      title="Accesso cliente"
+      description="Accedi alla tua area strategie, al Bot Lab, ai backtest validati e ai deliverable MT5."
+      submitLabel="Entra in piattaforma"
       nextPath={nextPath}
       secondaryHref="/admin/login"
-      secondaryLabel="Admin access"
+      secondaryLabel="Accesso admin"
     />
   )
 }
