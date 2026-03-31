@@ -370,6 +370,7 @@ export default function BotLabWorkspace() {
                 <input
                   type="file"
                   accept=".mq5,.txt,.py"
+                  aria-label="Carica file bot"
                   onChange={(e) => handleFileSelected(e.target.files?.[0] || null)}
                   disabled={uiLocked}
                   className="block w-full text-sm text-slate-400 file:mr-4 file:border file:border-slate-700 file:bg-slate-900 file:px-4 file:py-2 file:text-slate-200 disabled:opacity-50"
