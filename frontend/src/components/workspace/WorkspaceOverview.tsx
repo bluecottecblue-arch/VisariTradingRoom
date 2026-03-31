@@ -226,6 +226,16 @@ export default function WorkspaceOverview({
 
   return (
     <div className="space-y-6">
+      <section className="relative overflow-hidden border border-slate-800/90 bg-[linear-gradient(135deg,rgba(8,47,73,0.22),rgba(15,23,42,0.84)_32%,rgba(2,6,23,0.97))] px-6 py-7 lg:px-8 lg:py-8">
+        <div className="absolute inset-y-0 right-0 hidden w-1/3 bg-[radial-gradient(circle_at_top_right,rgba(56,189,248,0.16),transparent_55%)] lg:block" />
+        <div className="relative">
+          <div className="text-[11px] uppercase tracking-[0.28em] text-cyan-300">Strategie</div>
+          <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-50 lg:text-5xl">
+            Da strategia a bot MT5, senza codice.
+          </h1>
+        </div>
+      </section>
+
       {actionError && (
         <div className="border border-rose-900/70 bg-rose-950/10 px-4 py-3 text-sm text-rose-200">
           {actionError}
