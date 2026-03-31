@@ -481,7 +481,13 @@ export default function CommandCenterClient({ initialProjectId = null }: { initi
     }
   }, [selectedProjectId, timeframe, source, dateFrom, dateTo, reloadToken])
 
-  const topInsights = useMemo(() => dashboard?.insight_boxes.slice(0, 4) || [], [dashboard])
+  const topInsights = useMemo(
+    () =>
+      (dashboard?.insight_boxes || [])
+        .filter((item) => item.label.trim().toLowerCase() !== 'salute strategia')
+        .slice(0, 4),
+    [dashboard],
+  )
   const deskBadges = useMemo(() => (dashboard ? buildDeskBadges(dashboard) : []), [dashboard])
   const supervisoryAlerts = useMemo(() => (dashboard ? buildSupervisoryAlerts(dashboard) : []), [dashboard])
   const driftMonitor = useMemo(() => (dashboard ? buildDriftMonitor(dashboard) : null), [dashboard])
