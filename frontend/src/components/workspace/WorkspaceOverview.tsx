@@ -177,23 +177,6 @@ export default function WorkspaceOverview({
     scrollToBotLab()
   }
 
-  const handleCreateBotLabProject = async () => {
-    setPendingKey('create-botlab')
-    setActionError(null)
-    try {
-      const project = await createProject('botlab')
-      if (project) {
-        setWorkspaceMode('botlab')
-        setCurrentProjectId(project.project_id)
-        scrollToBotLab()
-      }
-    } catch (error) {
-      setActionError(formatError(error))
-    } finally {
-      setPendingKey(null)
-    }
-  }
-
   const handleRenameProject = async (project: ProjectSummary | ProjectDetail | null) => {
     if (!project) return
     const nextTitle = window.prompt('Nuovo nome del progetto', project.title)
@@ -268,11 +251,10 @@ export default function WorkspaceOverview({
               Apri Bot Lab
             </button>
             <button
-              onClick={handleCreateBotLabProject}
-              disabled={pendingKey !== null}
+              onClick={() => openDesk(currentProjectId)}
               className="w-full border border-slate-800 bg-slate-950/40 px-4 py-3 text-sm font-semibold text-slate-100 transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-600 hover:shadow-[0_10px_28px_rgba(15,23,42,0.45)] disabled:cursor-not-allowed disabled:opacity-70"
             >
-              Nuovo progetto Bot Lab
+              Apri Desk algoritmi
             </button>
           </div>
         </div>
