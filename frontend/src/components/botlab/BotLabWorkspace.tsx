@@ -689,14 +689,6 @@ export default function BotLabWorkspace() {
             </div>
           </Section>
 
-          {!analysis && !loadingAnalyze && (
-            <EmptyState
-              icon="BOT LAB"
-              title="Bot Lab ready"
-              description="Upload a bot file or paste code to unlock local analysis, guided revision and controlled backtest review."
-            />
-          )}
-
           {loadingAnalyze && (
             <div className="border border-slate-800 bg-slate-950/70 p-6">
               <Spinner label="Analisi locale in corso..." />
