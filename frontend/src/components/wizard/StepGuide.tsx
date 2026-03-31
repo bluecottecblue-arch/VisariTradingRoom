@@ -312,6 +312,26 @@ export default function StepGuide({ botResult, onBack }: Props) {
               ))}
             </div>
           </div>
+
+          <div className="border border-slate-800 bg-slate-950/70 p-5">
+            <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Governance layer</div>
+            <div className="mt-2 text-sm leading-relaxed text-slate-400">{launchPack.governanceSummary}</div>
+            <div className="mt-3 space-y-2">
+              {launchPack.controls.slice(0, 3).map((item, index) => (
+                <div key={index} className="text-sm leading-relaxed text-slate-300">• {item}</div>
+              ))}
+            </div>
+          </div>
+
+          <div className="border border-slate-800 bg-slate-950/70 p-5">
+            <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Stop conditions</div>
+            <div className="mt-3 space-y-2">
+              {launchPack.pauseTriggers.slice(0, 4).map((item, index) => (
+                <div key={index} className="text-sm leading-relaxed text-amber-200">• {item}</div>
+              ))}
+            </div>
+            <div className="mt-3 text-xs text-slate-500">Cadence: {launchPack.reviewCadence}</div>
+          </div>
         </div>
       )}
 
@@ -361,7 +381,7 @@ export default function StepGuide({ botResult, onBack }: Props) {
             {activeStep < MT5_STEPS.length ? (
               <button
                 onClick={() => setActiveStep((s) => s + 1)}
-                className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-sm rounded transition-colors"
+                className="px-4 py-2 bg-amber-500 hover:-translate-y-0.5 hover:bg-amber-400 text-stone-950 font-bold text-sm rounded transition-all duration-200"
               >
                 Passo successivo →
               </button>

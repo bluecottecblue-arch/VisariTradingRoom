@@ -77,6 +77,34 @@ def _build_launch_pack(*, readiness: dict, research_summary: Optional[dict], mac
         if item.get("required")
     )
 
+    governance_summary = (
+        "Nessun deploy: resta in ricerca fino alla chiusura dei blocker."
+        if mode == "RESEARCH_ONLY"
+        else "Deploy solo controllato: size ridotta, feed verificato e review umana ricorrente."
+    )
+    controls = [
+        "Mantieni il bot in demo/paper finché il comportamento non replica la validazione."
+        if mode not in {"LIMITED_LIVE", "CONTROLLED_LIVE"}
+        else "Avvia con size ridotta e un solo simbolo.",
+        "Controlla Journal MT5 e trade log a fine sessione.",
+        "Verifica ogni giorno spread, sessione, runtime input e provider attivi.",
+        "Nessuna escalation di capitale senza coerenza tra validazione e comportamento operativo.",
+    ]
+    if macro_enabled:
+        controls.append("Conferma API key macro e whitelist WebRequest prima della sessione.")
+
+    pause_triggers = [
+        "Entry inattese o uscite mancanti.",
+        "Errori runtime o Journal anomalo.",
+        "Drawdown giornaliero oltre soglia operativa.",
+        "Deviazione evidente dal profilo validato.",
+    ]
+    review_cadence = (
+        "Review giornaliera + confronto settimanale con il profilo validato."
+        if mode in {"LIMITED_LIVE", "CONTROLLED_LIVE"}
+        else "Review a fine sessione fino a stabilità confermata."
+    )
+
     return {
         "mode": mode,
         "summary": summary,
@@ -89,6 +117,10 @@ def _build_launch_pack(*, readiness: dict, research_summary: Optional[dict], mac
             "MQL5 Bot",
             "Deployment Guide",
         ],
+        "governance_summary": governance_summary,
+        "controls": controls[:5],
+        "pause_triggers": pause_triggers,
+        "review_cadence": review_cadence,
     }
 
 
@@ -378,7 +410,16 @@ def build_setup_text(manifest: dict) -> str:
         for item in launch_pack.get("operator_brief") or []:
             lines.append(f"- {item}")
 
-    lines.extend(["", "6. Requisiti runtime"])
+    if launch_pack.get("governance_summary"):
+        lines.extend(["", "6. Deployment governance"])
+        lines.append(f"- Summary: {launch_pack.get('governance_summary')}")
+        for item in launch_pack.get("controls") or []:
+            lines.append(f"- Control: {item}")
+        for item in launch_pack.get("pause_triggers") or []:
+            lines.append(f"- Pause trigger: {item}")
+        lines.append(f"- Review cadence: {launch_pack.get('review_cadence')}")
+
+    lines.extend(["", "7. Requisiti runtime"])
     for item in readiness.get("runtime_requirements") or []:
         required = "required" if item.get("required") else "optional"
         lines.append(f"- {item.get('label')}: {item.get('value')} [{required}]")
@@ -387,7 +428,7 @@ def build_setup_text(manifest: dict) -> str:
         lines.extend(
             [
                 "",
-                "7. Macro news live",
+                "8. Macro news live",
                 f"- Provider hint: {macro.get('provider_hint') or 'N/A'}",
             ]
         )
@@ -395,29 +436,29 @@ def build_setup_text(manifest: dict) -> str:
             lines.append(f"- WebRequest URL da consentire in MT5: {macro.get('webrequest_url')}")
         lines.append("- Inserisci sempre la tua API key macro negli input dell'EA al runtime.")
     else:
-        lines.extend(["", "7. Macro news live", "- Non attivo in questa build."])
+        lines.extend(["", "8. Macro news live", "- Non attivo in questa build."])
 
     warnings = list(readiness.get("warnings") or []) + list(macro.get("warnings") or [])
-    lines.extend(["", "8. Warning"])
+    lines.extend(["", "9. Warning"])
     if warnings:
         for item in warnings:
             lines.append(f"- {item}")
     else:
         lines.append("- Nessun warning operativo aggiuntivo.")
 
-    lines.extend(["", "9. Checklist MT5"])
+    lines.extend(["", "10. Checklist MT5"])
     for item in readiness.get("mt5_checklist") or []:
         lines.append(f"- {item}")
 
     if launch_pack.get("deliverables"):
-        lines.extend(["", "10. Deliverable inclusi"])
+        lines.extend(["", "11. Deliverable inclusi"])
         for item in launch_pack.get("deliverables") or []:
             lines.append(f"- {item}")
 
     lines.extend(
         [
             "",
-            "11. Next action",
+            "12. Next action",
             f"- {readiness.get('recommended_next_action') or 'Compila, configura e valida in demo.'}",
             "",
         ]

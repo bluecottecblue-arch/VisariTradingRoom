@@ -332,7 +332,7 @@ export default function BotLabWorkspace() {
           <div>
             <div className="text-[11px] uppercase tracking-[0.28em] text-cyan-300">Bot Lab</div>
             <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-50 lg:text-5xl">
-              Analizza, migliora e rivalida bot di trading esistenti
+              Analizza, migliora e governa algoritmi MT5 esistenti
             </h1>
           </div>
 
@@ -428,7 +428,7 @@ export default function BotLabWorkspace() {
               <button
                 onClick={analyze}
                 disabled={loadingAnalyze || loadingModify}
-                className="flex-1 border border-slate-200 bg-slate-100 px-4 py-3 font-semibold text-slate-950 disabled:opacity-50"
+                className="flex-1 border border-slate-200 bg-slate-100 px-4 py-3 font-semibold text-slate-950 transition-all duration-200 hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_10px_28px_rgba(255,255,255,0.08)] disabled:opacity-50"
               >
                 {loadingAnalyze ? 'Analisi in corso...' : 'Analizza'}
               </button>
@@ -733,7 +733,7 @@ export default function BotLabWorkspace() {
                 <button
                   onClick={modify}
                   disabled={loadingAnalyze || loadingModify}
-                  className="border border-slate-200 bg-slate-100 px-4 py-3 font-semibold text-slate-950 disabled:opacity-50"
+                  className="border border-slate-200 bg-slate-100 px-4 py-3 font-semibold text-slate-950 transition-all duration-200 hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_10px_28px_rgba(255,255,255,0.08)] disabled:opacity-50"
                 >
                   {loadingModify ? 'Building revised version...' : 'Improve Bot'}
                 </button>

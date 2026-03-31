@@ -267,7 +267,7 @@ export function NavButtons({
         <button
           onClick={onNext}
           disabled={disabled || loading}
-          className="flex-1 border border-cyan-800/70 bg-cyan-400/90 py-3 font-semibold text-slate-950 transition-colors hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex-1 border border-cyan-800/70 bg-cyan-400/90 py-3 font-semibold text-slate-950 transition-all duration-200 hover:-translate-y-0.5 hover:bg-cyan-300 hover:shadow-[0_10px_28px_rgba(34,211,238,0.18)] disabled:cursor-not-allowed disabled:opacity-40"
         >
           {loading ? (
             <span className="flex items-center justify-center gap-2">
@@ -325,4 +325,3 @@ export function Accordion({
     </div>
   )
 }
-

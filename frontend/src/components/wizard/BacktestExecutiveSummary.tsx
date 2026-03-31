@@ -1,6 +1,7 @@
 'use client'
 
 import { Alert } from '@/components/ui'
+import { deriveLiveDriftMonitor } from '@/lib/launchReadiness'
 import type { BacktestResult, DashboardTone, FinalVerdict } from '@/types'
 
 type Tone = DashboardTone
@@ -224,6 +225,7 @@ export default function BacktestExecutiveSummary({ results }: Props) {
   const suggestions = buildSuggestedImprovements(results)
   const badges = buildStatusBadges(results)
   const distribution = stats.distribution_diagnostics
+  const driftMonitor = deriveLiveDriftMonitor(results)
   const stabilityScore = clampScore(
     ((1 - robustness.parameter_fragility_score) * 0.45 +
       (stats.subperiod_stability.stability_score || 0) * 0.35 +
@@ -347,6 +349,35 @@ export default function BacktestExecutiveSummary({ results }: Props) {
           ))}
         </div>
       </SectionCard>
+
+      {driftMonitor && (
+        <section className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+          <SectionCard title="Live Drift Monitor" subtitle="What to watch after deployment">
+            <div className={`border px-4 py-4 ${driftMonitor.toneClass}`}>
+              <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">{driftMonitor.status}</div>
+              <div className="mt-2 text-sm leading-relaxed text-slate-300">{driftMonitor.summary}</div>
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                {driftMonitor.metrics.map((item) => (
+                  <div key={item.label} className="border border-slate-900/80 bg-slate-950/50 px-3 py-3">
+                    <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">{item.label}</div>
+                    <div className="mt-2 text-sm font-semibold text-slate-100">{item.value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </SectionCard>
+
+          <SectionCard title="Drift Triggers" subtitle="Pause before the edge degrades">
+            <div className="space-y-3">
+              {driftMonitor.watchItems.map((item, index) => (
+                <div key={index} className="border border-slate-900/80 bg-slate-950/60 px-4 py-3 text-sm text-slate-300">
+                  {item}
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+        </section>
+      )}
 
       <SectionCard title="Deliverables" subtitle="What the platform packages for execution and handoff">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">

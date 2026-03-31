@@ -159,6 +159,115 @@ function buildSupervisoryAlerts(dashboard: CommandCenterDashboard) {
   return alerts
 }
 
+function buildDriftMonitor(dashboard: CommandCenterDashboard) {
+  const equity = dashboard.charts.equity_curve || []
+  const drawdown = dashboard.charts.drawdown_curve || []
+  const recentAnchor = equity.length >= 6 ? equity[equity.length - 6].value : equity[0]?.value || 0
+  const latestEquity = equity[equity.length - 1]?.value || 0
+  const recentReturn = recentAnchor ? ((latestEquity / recentAnchor) - 1) * 100 : 0
+  const latestDrawdown = drawdown[drawdown.length - 1]?.value || 0
+
+  if (dashboard.source_mode === 'mock') {
+    return {
+      status: 'ADAPTER READY',
+      tone: 'warning' as DashboardTone,
+      summary: 'Il layer è pronto a confrontare live feed e profilo validato appena colleghi telemetria broker o statement.',
+      metrics: [
+        { label: 'Feed', value: dashboard.tech_panel.data_feed_status },
+        { label: 'Export', value: dashboard.tech_panel.export_status },
+        { label: 'Regime', value: dashboard.market_panel.regime },
+        { label: 'Rischio', value: `${dashboard.risk_panel.risk_usage_pct.toFixed(0)}%` },
+      ],
+      watchItems: [
+        'Collega un feed reale o uno statement importer.',
+        'Confronta PnL live, drawdown e frequenza trade con la validazione.',
+        'Interrompi subito se il bot si comporta fuori profilo.',
+      ],
+    }
+  }
+
+  let status = 'TRACKING'
+  let tone: DashboardTone = 'positive'
+  let summary = 'Traiettoria sotto controllo: il comportamento recente resta coerente con il profilo validato.'
+
+  if (recentReturn < -1.5 || latestDrawdown <= -6 || dashboard.risk_panel.daily_loss_used_pct >= 80) {
+    status = 'DRIFTING'
+    tone = 'negative'
+    summary = 'Il profilo operativo sta degenerando: serve confronto immediato con la validazione prima di mantenere il bot attivo.'
+  } else if (
+    recentReturn < 0 ||
+    dashboard.market_panel.news_risk_active ||
+    String(dashboard.market_panel.volatility).toLowerCase().includes('high') ||
+    dashboard.risk_panel.risk_usage_pct >= 70
+  ) {
+    status = 'WATCH'
+    tone = 'warning'
+    summary = 'Il bot richiede sorveglianza: regime, volatilità o pressione rischio possono spostare il profilo oltre il range validato.'
+  }
+
+  return {
+    status,
+    tone,
+    summary,
+    metrics: [
+      { label: 'Ultime 5 barre', value: `${recentReturn >= 0 ? '+' : ''}${recentReturn.toFixed(2)}%` },
+      { label: 'DD attuale', value: `${latestDrawdown.toFixed(2)}%` },
+      { label: 'Regime', value: dashboard.market_panel.regime },
+      { label: 'Loss guard', value: `${dashboard.risk_panel.daily_loss_used_pct.toFixed(0)}%` },
+    ],
+    watchItems: [
+      'Confronta il PnL recente con il range atteso del backtest.',
+      'Sorveglia drawdown, frequenza trade e qualità esecuzione.',
+      'Metti in pausa se il regime cambia o il risk usage resta elevato.',
+    ],
+  }
+}
+
+function buildDeploymentGovernance(dashboard: CommandCenterDashboard) {
+  const exportReady = dashboard.tech_panel.export_status.toLowerCase().includes('ready')
+  const macroArmed = dashboard.market_panel.macro_filter_status.toLowerCase() !== 'inactive'
+  const providerReady = !dashboard.tech_panel.provider_status.toLowerCase().includes('no ')
+  const jobsClear = dashboard.tech_panel.jobs_running === 0
+  const controls = [
+    exportReady ? 'Pacchetto export pronto.' : 'Pacchetto export non ancora chiuso.',
+    `Kill switch ${dashboard.risk_panel.kill_switch_status.toLowerCase()}.`,
+    macroArmed ? 'Filtro macro attivo sul runtime.' : 'Filtro macro non attivo sul runtime.',
+    jobsClear ? 'Pipeline ferma e verificabile.' : 'Chiudi i job attivi prima del deploy.',
+  ]
+  const pauseTriggers = [
+    'Errori Journal o warning runtime persistenti.',
+    'Drawdown oltre soglia o daily loss guard vicino al limite.',
+    'Cambio regime con edge non confermato.',
+    'Mismatch evidente tra segnali live e logica validata.',
+  ]
+
+  let stage = 'CONTROLLED'
+  let tone: DashboardTone = 'positive'
+  let summary = 'La governance controlla quando il bot può restare attivo, quando va osservato e quando va fermato.'
+
+  if (!exportReady || !providerReady || !jobsClear) {
+    stage = 'PRE-LIVE'
+    tone = 'warning'
+    summary = 'Il bot non è ancora in uno stato pulito di handoff operativo. Completa setup, export e feed prima del deploy.'
+  }
+  if (dashboard.risk_panel.kill_switch_status !== 'NOMINAL' || dashboard.risk_panel.daily_loss_used_pct >= 80) {
+    stage = 'RESTRICTED'
+    tone = 'negative'
+    summary = 'Il bot deve operare solo con presidio stretto o restare fermo finché il profilo di rischio non rientra.'
+  }
+
+  return {
+    stage,
+    tone,
+    summary,
+    cadence: stage === 'CONTROLLED'
+      ? 'Review giornaliera + confronto settimanale con il profilo validato.'
+      : 'Review intraday finché i controlli non rientrano.',
+    controls,
+    pauseTriggers,
+  }
+}
+
 function DashboardKpiTile({ item }: { item: DashboardKpi }) {
   return (
     <div className={`${panelCls} px-4 py-4`}>
@@ -335,6 +444,8 @@ export default function CommandCenterClient({ initialProjectId = null }: { initi
   const topInsights = useMemo(() => dashboard?.insight_boxes.slice(0, 4) || [], [dashboard])
   const deskBadges = useMemo(() => (dashboard ? buildDeskBadges(dashboard) : []), [dashboard])
   const supervisoryAlerts = useMemo(() => (dashboard ? buildSupervisoryAlerts(dashboard) : []), [dashboard])
+  const driftMonitor = useMemo(() => (dashboard ? buildDriftMonitor(dashboard) : null), [dashboard])
+  const governanceLayer = useMemo(() => (dashboard ? buildDeploymentGovernance(dashboard) : null), [dashboard])
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(14,116,144,0.16),transparent_25%),radial-gradient(circle_at_top_right,rgba(15,23,42,0.36),transparent_34%),linear-gradient(180deg,#020617_0%,#020617_100%)] text-slate-100">
@@ -351,7 +462,7 @@ export default function CommandCenterClient({ initialProjectId = null }: { initi
                 Desk algoritmi
               </h1>
               <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-400">
-                Controlla salute strategica, rischio, stato operativo e contesto macro in un'unica control room.
+                Governa ricerca, rischio, drift operativo e deploy in un'unica control room.
               </p>
             </div>
             <div className="flex flex-wrap gap-3 text-xs text-slate-500">
@@ -535,7 +646,7 @@ export default function CommandCenterClient({ initialProjectId = null }: { initi
 
               <div className="p-4">
                 {activeTab === 'performance' && (
-                  <div className="grid gap-4 xl:grid-cols-[0.8fr_1.2fr]">
+                  <div className="grid gap-4 xl:grid-cols-2">
                     <PanelFrame title="What Changed Today" eyebrow="Operational delta">
                       <div className="space-y-3">
                         {(dashboard.recent_changes || []).map((item, index) => (
@@ -557,6 +668,43 @@ export default function CommandCenterClient({ initialProjectId = null }: { initi
                         ]}
                       />
                     </PanelFrame>
+                    {driftMonitor && (
+                      <PanelFrame title="Drift Monitor" eyebrow="Backtest-to-live control">
+                        <div className={`border px-4 py-4 ${toneBorder(driftMonitor.tone)}`}>
+                          <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">{driftMonitor.status}</div>
+                          <div className="mt-2 text-sm leading-relaxed text-slate-300">{driftMonitor.summary}</div>
+                        </div>
+                        <div className="mt-4 grid gap-3 md:grid-cols-2">
+                          {driftMonitor.metrics.map((item) => (
+                            <div key={item.label} className="border border-slate-900/80 bg-slate-950/60 px-4 py-3">
+                              <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">{item.label}</div>
+                              <div className="mt-2 text-sm font-semibold text-slate-100">{item.value}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </PanelFrame>
+                    )}
+                    {governanceLayer && (
+                      <PanelFrame title="Deployment Governance" eyebrow="Production control layer">
+                        <div className={`border px-4 py-4 ${toneBorder(governanceLayer.tone)}`}>
+                          <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">{governanceLayer.stage}</div>
+                          <div className="mt-2 text-sm leading-relaxed text-slate-300">{governanceLayer.summary}</div>
+                          <div className="mt-3 text-xs text-slate-500">{governanceLayer.cadence}</div>
+                        </div>
+                        <div className="mt-4 grid gap-4 md:grid-cols-2">
+                          <div className="space-y-2">
+                            {governanceLayer.controls.map((item, index) => (
+                              <div key={index} className="border border-slate-900/80 bg-slate-950/60 px-4 py-3 text-sm text-slate-300">{item}</div>
+                            ))}
+                          </div>
+                          <div className="space-y-2">
+                            {governanceLayer.pauseTriggers.map((item, index) => (
+                              <div key={index} className="border border-amber-900/50 bg-amber-950/10 px-4 py-3 text-sm text-amber-200">{item}</div>
+                            ))}
+                          </div>
+                        </div>
+                      </PanelFrame>
+                    )}
                   </div>
                 )}
 

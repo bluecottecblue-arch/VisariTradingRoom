@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { strategyApi, exportApi, formatError } from '@/lib/api'
-import { deriveLaunchReadinessPack } from '@/lib/launchReadiness'
+import { deriveLaunchReadinessPack, deriveLiveDriftMonitor } from '@/lib/launchReadiness'
 import { Alert, Spinner, TabBar, CodeBlock, NavButtons, MetricCard } from '@/components/ui'
 import type { BacktestResult, BotResult, FormalSpec } from '@/types'
 
@@ -185,6 +185,7 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
   // Result state
   const generationSucceeded = result?.status === 'VALID' && result.download_ready && result.code_validation?.is_valid
   const launchPack = deriveLaunchReadinessPack(result, backtestResult)
+  const driftMonitor = deriveLiveDriftMonitor(backtestResult)
 
   return (
     <div className="space-y-6">
@@ -272,6 +273,42 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
                     <div key={index} className="text-sm text-slate-300">• {item}</div>
                   ))}
                 </div>
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
+                <div className="space-y-3 border border-slate-800 bg-slate-950 p-4">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Deployment governance</div>
+                  <div className="text-sm leading-relaxed text-slate-300">{launchPack.governanceSummary}</div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="space-y-2">
+                      {launchPack.controls.map((item, index) => (
+                        <div key={index} className="text-sm text-slate-300">• {item}</div>
+                      ))}
+                    </div>
+                    <div className="space-y-2">
+                      {launchPack.pauseTriggers.map((item, index) => (
+                        <div key={index} className="text-sm text-amber-200">• {item}</div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="text-xs text-slate-500">Cadence: {launchPack.reviewCadence}</div>
+                </div>
+
+                {driftMonitor && (
+                  <div className={`space-y-3 border p-4 ${driftMonitor.toneClass}`}>
+                    <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Live drift monitor</div>
+                    <div className="text-lg font-semibold text-slate-100">{driftMonitor.status}</div>
+                    <div className="text-sm leading-relaxed text-slate-300">{driftMonitor.summary}</div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {driftMonitor.metrics.map((item) => (
+                        <div key={item.label} className="border border-black/10 bg-slate-950/40 px-3 py-3">
+                          <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">{item.label}</div>
+                          <div className="mt-2 text-sm font-semibold text-slate-100">{item.value}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -367,7 +404,7 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
         <button
           onClick={downloadBot}
           disabled={!generationSucceeded}
-          className="border border-slate-200 bg-slate-100 py-3 font-semibold text-slate-950 transition-colors hover:bg-white disabled:opacity-40"
+          className="border border-slate-200 bg-slate-100 py-3 font-semibold text-slate-950 transition-all duration-200 hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_10px_28px_rgba(255,255,255,0.08)] disabled:opacity-40"
         >
           Download .mq5
         </button>
