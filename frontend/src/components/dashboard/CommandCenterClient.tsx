@@ -585,7 +585,7 @@ export default function CommandCenterClient({ initialProjectId = null }: { initi
                 </button>
               </div>
             </div>
-            <div className="mt-3 grid gap-3 md:grid-cols-[0.9fr_0.9fr_1.2fr]">
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
               <label className="space-y-2">
                 <span className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
                   {source === 'live' ? 'Inizio live' : 'Data inizio'}
@@ -613,17 +613,6 @@ export default function CommandCenterClient({ initialProjectId = null }: { initi
                   <div className="w-full border border-slate-900 bg-slate-950/70 px-3 py-2.5 text-sm text-slate-500">Adesso</div>
                 </div>
               )}
-              <div className="border border-slate-800 bg-slate-950/70 px-4 py-3">
-                <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Periodo in esame</div>
-                <div className="mt-2 text-sm font-semibold text-slate-100">
-                  {dashboard?.data_window.label || (source === 'live' ? (dateFrom ? `da ${dateFrom}` : 'live corrente') : timeframe)}
-                </div>
-                <div className="mt-2 text-xs leading-relaxed text-slate-500">
-                  {dashboard?.data_window.note || (source === 'live'
-                    ? 'Live: il desk legge gli snapshot del monitor dalla data iniziale in avanti.'
-                    : 'Storico: il desk usa il backtest collegato al progetto nella finestra selezionata.')}
-                </div>
-              </div>
             </div>
           </div>
         </div>
