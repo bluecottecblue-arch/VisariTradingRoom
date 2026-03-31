@@ -223,7 +223,23 @@ class MQL5Generator:
             normalized = self._ensure_macro_inputs(normalized)
             normalized = self._ensure_macro_state(normalized)
             normalized = self._apply_canonical_macro_runtime(normalized)
+        normalized = self._ensure_visari_signature(normalized)
         return normalized.strip()
+
+    def _ensure_visari_signature(self, code: str) -> str:
+        normalized = (code or "").strip()
+        if not normalized:
+            return normalized
+        if "Visari Trading Room" in normalized or "VisariTradingRoom" in normalized:
+            return normalized
+        signature = "// Built with Visari Trading Room"
+        if normalized.startswith("#property"):
+            first_line_end = normalized.find("\n")
+            if first_line_end != -1:
+                head = normalized[: first_line_end + 1]
+                tail = normalized[first_line_end + 1 :]
+                return f"{head}{signature}\n{tail}".strip()
+        return f"{signature}\n{normalized}".strip()
 
     def _ensure_macro_inputs(self, code: str) -> str:
         if "MacroNewsImpact" in code:

@@ -204,7 +204,7 @@ function buildDriftMonitor(dashboard: CommandCenterDashboard) {
     return {
       status: 'ADAPTER PRONTO',
       tone: 'warning' as DashboardTone,
-      summary: 'Il layer è pronto a confrontare live feed e profilo validato appena colleghi telemetria broker o statement.',
+      summary: 'Il layer è pronto a passare dal profilo validato al monitor automatico non appena il progetto dispone di dati reali o live.',
       metrics: [
         { label: 'Feed', value: dashboard.tech_panel.data_feed_status },
         { label: 'Export', value: dashboard.tech_panel.export_status },
@@ -212,7 +212,7 @@ function buildDriftMonitor(dashboard: CommandCenterDashboard) {
         { label: 'Rischio', value: `${dashboard.risk_panel.risk_usage_pct.toFixed(0)}%` },
       ],
       watchItems: [
-        'Collega un feed reale o uno statement importer.',
+        'Attiva il monitor live dal progetto quando sei fuori dalla sola revisione.',
         'Confronta PnL live, drawdown e frequenza trade con la validazione.',
         'Interrompi subito se il bot si comporta fuori profilo.',
       ],
@@ -284,7 +284,7 @@ function buildDeploymentGovernance(dashboard: CommandCenterDashboard) {
   if (!exportReady || !providerReady || !jobsClear) {
     stage = 'PRE-LANCIO'
     tone = 'warning'
-    summary = 'Il bot non è ancora in uno stato pulito di handoff operativo. Completa setup, export e feed prima del deploy.'
+    summary = 'Il bot non è ancora in uno stato pulito di handoff operativo. Chiudi export, controlli e monitor prima del deploy.'
   }
   if (dashboard.risk_panel.kill_switch_status !== 'NOMINAL' || dashboard.risk_panel.daily_loss_used_pct >= 80) {
     stage = 'LIMITATO'
@@ -296,7 +296,7 @@ function buildDeploymentGovernance(dashboard: CommandCenterDashboard) {
     stage,
     tone,
     summary,
-    cadence: stage === 'CONTROLLED'
+    cadence: stage === 'CONTROLLATO'
       ? 'Review giornaliera + confronto settimanale con il profilo validato.'
       : 'Review intraday finché i controlli non rientrano.',
     controls,
@@ -859,33 +859,25 @@ export default function CommandCenterClient({ initialProjectId = null }: { initi
                         />
                         {dashboard.live_monitor && (
                           <div className="mt-4 space-y-3 border-t border-slate-800/80 pt-4">
-                            <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Collegamento live</div>
-                            <div className="grid gap-3 md:grid-cols-2">
+                            <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Monitor live</div>
+                            <div className="grid gap-3 md:grid-cols-3">
                               <div className="border border-slate-900/80 bg-slate-950/60 px-4 py-3">
                                 <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Stato</div>
                                 <div className="mt-2 text-sm font-semibold text-slate-100">
-                                  {dashboard.live_monitor.connected ? 'Connesso' : 'Pronto'}
+                                  {dashboard.live_monitor.connected ? 'Attivo' : 'Automatico'}
                                 </div>
                               </div>
                               <div className="border border-slate-900/80 bg-slate-950/60 px-4 py-3">
-                                <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Primo ingest</div>
+                                <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Primo dato</div>
                                 <div className="mt-2 text-sm font-semibold text-slate-100">
                                   {dashboard.live_monitor.first_ingest_at ? formatClock(dashboard.live_monitor.first_ingest_at) : '—'}
                                 </div>
                               </div>
                               <div className="border border-slate-900/80 bg-slate-950/60 px-4 py-3">
-                                <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Ultimo ingest</div>
+                                <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Ultimo dato</div>
                                 <div className="mt-2 text-sm font-semibold text-slate-100">
                                   {dashboard.live_monitor.last_ingest_at ? formatClock(dashboard.live_monitor.last_ingest_at) : '—'}
                                 </div>
-                              </div>
-                              <div className="border border-slate-900/80 bg-slate-950/60 px-4 py-3">
-                                <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Endpoint</div>
-                                <div className="mt-2 break-all font-mono text-xs text-slate-300">{dashboard.live_monitor.ingest_path}</div>
-                              </div>
-                              <div className="border border-slate-900/80 bg-slate-950/60 px-4 py-3">
-                                <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Token progetto</div>
-                                <div className="mt-2 break-all font-mono text-xs text-slate-300">{dashboard.live_monitor.monitor_token || '—'}</div>
                               </div>
                             </div>
                           </div>

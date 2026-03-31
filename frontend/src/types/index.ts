@@ -763,12 +763,10 @@ export interface CommandCenterDashboard {
   alerts: DashboardAlert[]
   live_monitor?: {
     project_id?: string | null
-    monitor_token?: string | null
-    ingest_path: string
     last_ingest_at?: string | null
     first_ingest_at?: string | null
     connected: boolean
-    sample_fields: string[]
+    mode?: string | null
   } | null
 }
 
