@@ -282,6 +282,7 @@ class DashboardService:
                 date_from=date_from,
                 date_to=date_to,
                 forced=True,
+                source_hint="demo",
             )
             payload["live_monitor"] = live_monitor_config
             return payload
@@ -330,6 +331,7 @@ class DashboardService:
                 date_from=date_from,
                 date_to=date_to,
                 forced=True,
+                source_hint="live",
             )
             payload["live_monitor"] = live_monitor_config
             return payload
@@ -370,6 +372,7 @@ class DashboardService:
             date_from=date_from,
             date_to=date_to,
             forced=(source in {"real", "live"}),
+            source_hint=source,
         )
         payload["live_monitor"] = live_monitor_config
         return payload
@@ -505,6 +508,7 @@ class DashboardService:
                 date_from=date_from,
                 date_to=date_to,
                 forced=True,
+                source_hint="real",
             )
 
         raw_start = cfg_snapshot.get("date_oos_start") or cfg_snapshot.get("date_from")
@@ -1191,12 +1195,9 @@ class DashboardService:
         date_from: Optional[str],
         date_to: Optional[str],
         forced: bool,
+        source_hint: str = "auto",
     ) -> dict[str, Any]:
         now = _utc_now()
-        seed_source = (selected_project or {}).get("project_id") or (selected_project or {}).get("title") or "control-room-demo"
-        seed = int(hashlib.sha256(str(seed_source).encode("utf-8")).hexdigest()[:8], 16)
-        rng = random.Random(seed)
-
         fallback_start = now - timedelta(days=120)
         window_start, window_end = _resolve_window(
             timeframe,
@@ -1205,13 +1206,31 @@ class DashboardService:
             fallback_start=fallback_start,
             fallback_end=now,
         )
+        seed_source = "|".join(
+            [
+                str((selected_project or {}).get("project_id") or (selected_project or {}).get("title") or "control-room-demo"),
+                str(source_hint),
+                str(timeframe),
+                window_start.date().isoformat(),
+                window_end.date().isoformat(),
+            ]
+        )
+        seed = int(hashlib.sha256(str(seed_source).encode("utf-8")).hexdigest()[:8], 16)
+        rng = random.Random(seed)
+
         total_seconds = max(3600.0, (window_end - window_start).total_seconds())
         point_count = 48 if total_seconds <= 7 * 86400 else 72 if total_seconds <= 30 * 86400 else 96
+        profile_drift = {
+            "demo": 0.0009,
+            "auto": 0.0007,
+            "real": 0.0004,
+            "live": 0.0002,
+        }.get(source_hint, 0.0007)
         base = 100000 + rng.randint(-6000, 6000)
         equity_values: list[float] = []
         current = float(base)
         for index in range(point_count):
-            drift = rng.uniform(-0.009, 0.015)
+            drift = rng.uniform(-0.009, 0.015) + profile_drift
             if index and index % 17 == 0:
                 drift -= rng.uniform(0.01, 0.024)
             current *= 1 + drift
@@ -1223,13 +1242,31 @@ class DashboardService:
         current_project_title = (selected_project or {}).get("title") or "Global Macro Trend"
         operating_mode = "PAPER" if selected_project else "DEMO"
         strategy_health_score = rng.randint(64, 88)
+        source_label = {
+            "demo": "Feed demo professionale",
+            "auto": "Feed demo professionale",
+            "real": "Proxy storico",
+            "live": "Proxy live",
+        }.get(source_hint, "Feed demo professionale")
+        connection_status = {
+            "demo": "Bridge mock",
+            "auto": "Bridge mock",
+            "real": "Storico richiesto",
+            "live": "Monitor live richiesto",
+        }.get(source_hint, "Bridge mock")
+        fallback_note = {
+            "demo": "Mock: il desk usa una simulazione coerente con la finestra selezionata finché il progetto non dispone di dati reali.",
+            "auto": "Mock: il desk usa la migliore simulazione disponibile finché il progetto non dispone di dati reali.",
+            "real": "Storico reale non disponibile: il desk usa un proxy coerente con la finestra selezionata.",
+            "live": "Live reale non disponibile: il desk usa un proxy coerente con la finestra selezionata.",
+        }.get(source_hint, "Mock: il desk usa una simulazione coerente con la finestra selezionata finché il progetto non dispone di dati reali.")
         alerts = []
         if forced:
             alerts.append(
                 {
                     "tone": "warning",
-                    "title": "Dati reali non disponibili",
-                    "detail": "Il desk sta mostrando un feed mock professionale perché al progetto selezionato non è ancora associata una run valida.",
+                    "title": "Sorgente non disponibile",
+                    "detail": fallback_note,
                 }
             )
         if min(drawdown_values) < -8:
@@ -1254,7 +1291,7 @@ class DashboardService:
                 "label": _window_label(window_start.date().isoformat(), window_end.date().isoformat(), timeframe),
                 "date_from": window_start.date().isoformat(),
                 "date_to": window_end.date().isoformat(),
-                "note": "Mock: il desk usa una simulazione coerente con la finestra selezionata finché il progetto non dispone di dati reali.",
+                "note": fallback_note,
             },
             "header": {
                 "bot_label": current_project_title,
@@ -1262,12 +1299,12 @@ class DashboardService:
                 "status_tone": "positive" if selected_project else "warning",
                 "current_time": now.isoformat(),
                 "market_session": _market_session(now),
-                "connection_status": "Bridge mock",
+                "connection_status": connection_status,
                 "connection_tone": "warning",
                 "strategy_health_label": _strategy_health_label(strategy_health_score / 100),
                 "strategy_health_score": strategy_health_score,
                 "desk_mode": "Anteprima control room",
-                "source_label": "Feed demo professionale",
+                "source_label": source_label,
             },
             "kpis": [
                 {"id": "equity", "label": "Equity totale", "value": _fmt_currency(equity_values[-1]), "tone": "neutral", "detail": "Equity account simulata"},
