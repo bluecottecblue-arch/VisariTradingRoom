@@ -334,9 +334,6 @@ export default function BotLabWorkspace() {
             <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-50 lg:text-5xl">
               Analizza, migliora e rivalida bot di trading esistenti
             </h1>
-            <p className="mt-4 max-w-3xl text-sm leading-relaxed text-slate-400 lg:text-base">
-              Carica un bot MT5 o un codice strategico esistente, ispeziona la logica in locale, applica revisioni controllate in linguaggio naturale e confronta la versione aggiornata prima dell&apos;export.
-            </p>
           </div>
 
           <div className="flex flex-wrap gap-3 text-[11px] uppercase tracking-[0.16em] text-slate-500">
