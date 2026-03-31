@@ -199,7 +199,7 @@ export default function AdminPanel() {
     <main className="min-h-screen bg-slate-950 px-6 py-8 text-slate-100">
       <div className="mx-auto max-w-5xl space-y-8">
         <header className="flex flex-col gap-4 border-b border-slate-800 pb-6 md:flex-row md:items-end md:justify-between">
-          <div>
+          <div className="md:pl-8">
             <p className="text-[11px] uppercase tracking-[0.28em] text-slate-500">Visari Trading Room</p>
             <h1 className="mt-3 text-3xl font-semibold">Client Access Administration</h1>
             <p className="mt-2 text-sm text-slate-500">

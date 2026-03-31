@@ -63,7 +63,7 @@ export default function LoginForm({
     <main className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.14),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(245,158,11,0.08),transparent_22%),linear-gradient(180deg,#06111f_0%,#030712_100%)] px-6 text-slate-100">
       <div className="grid w-full max-w-6xl overflow-hidden border border-slate-800/90 bg-slate-950/82 shadow-[0_0_0_1px_rgba(15,23,42,0.4),0_24px_80px_rgba(2,6,23,0.65)] lg:grid-cols-[1.1fr_0.9fr]">
         <div className="hidden border-r border-slate-800/90 bg-[linear-gradient(140deg,rgba(8,47,73,0.4),rgba(15,23,42,0.84)_38%,rgba(2,6,23,0.96))] p-10 lg:block">
-          <div className="space-y-6 md:pl-10">
+          <div className="space-y-6 md:pl-4">
             <div>
               <div className="text-[11px] uppercase tracking-[0.28em] text-cyan-300">Visari Trading Room</div>
               <h1 className="mt-4 text-4xl font-semibold leading-tight tracking-tight text-slate-50">
