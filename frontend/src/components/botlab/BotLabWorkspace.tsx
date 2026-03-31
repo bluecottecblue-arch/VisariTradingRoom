@@ -435,12 +435,7 @@ export default function BotLabWorkspace() {
                 dragActive ? 'border-cyan-700/80 bg-cyan-950/10' : 'border-slate-800 bg-slate-950/45'
               }`}
             >
-              <div className="space-y-2">
-                <div className="text-lg font-semibold text-slate-50">Carica o trascina un file bot</div>
-                <div className="text-sm text-slate-400">
-                  Formati: .mq5, .txt, .py. Analisi iniziale locale.
-                </div>
-              </div>
+              <div className="text-lg font-semibold text-slate-50">Carica o trascina un file bot</div>
               <div className="mt-5">
                 <input
                   type="file"
