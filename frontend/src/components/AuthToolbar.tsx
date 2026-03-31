@@ -46,7 +46,7 @@ export default function AuthToolbar() {
         {session.role === 'admin' ? ' · admin' : ''}
       </span>
       <Link href="/dashboard" className="border border-slate-800 px-3 py-1.5 hover:border-slate-600 hover:text-slate-100">
-        Dashboard
+        Desk
       </Link>
       {session.role === 'admin' && (
         <Link href="/admin" className="border border-slate-800 px-3 py-1.5 hover:border-slate-600 hover:text-slate-100">
@@ -57,7 +57,7 @@ export default function AuthToolbar() {
         onClick={logout}
         className="border border-slate-800 px-3 py-1.5 hover:border-slate-600 hover:text-slate-100"
       >
-        Logout
+        Esci
       </button>
     </div>
   )

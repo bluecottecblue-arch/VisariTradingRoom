@@ -738,6 +738,13 @@ export interface CommandCenterDashboard {
   selected_project_title?: string | null
   available_projects: ProjectSummary[]
   timeframe: string
+  data_window: {
+    mode: 'live' | 'real' | 'mock'
+    label: string
+    date_from?: string | null
+    date_to?: string | null
+    note?: string | null
+  }
   header: DashboardHeader
   kpis: DashboardKpi[]
   charts: {
@@ -759,6 +766,7 @@ export interface CommandCenterDashboard {
     monitor_token?: string | null
     ingest_path: string
     last_ingest_at?: string | null
+    first_ingest_at?: string | null
     connected: boolean
     sample_fields: string[]
   } | null

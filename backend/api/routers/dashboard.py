@@ -74,6 +74,8 @@ async def get_command_center(
     project_id: Optional[str] = Query(default=None),
     timeframe: str = Query(default="30D"),
     source: Literal["auto", "live", "real", "demo"] = Query(default="auto"),
+    date_from: Optional[str] = Query(default=None),
+    date_to: Optional[str] = Query(default=None),
     context: AuthContext = Depends(require_authenticated),
 ):
     payload = await DashboardService.get_command_center(
@@ -81,6 +83,8 @@ async def get_command_center(
         project_id=project_id,
         timeframe=timeframe,
         source=source,
+        date_from=date_from,
+        date_to=date_to,
     )
     return {
         "ok": True,

@@ -165,11 +165,19 @@ export const projectApi = {
 }
 
 export const dashboardApi = {
-  commandCenter: (params?: { projectId?: string | null; timeframe?: string; source?: 'auto' | 'live' | 'real' | 'demo' }) => {
+  commandCenter: (params?: {
+    projectId?: string | null
+    timeframe?: string
+    source?: 'auto' | 'live' | 'real' | 'demo'
+    dateFrom?: string
+    dateTo?: string
+  }) => {
     const search = new URLSearchParams()
     if (params?.projectId) search.set('project_id', params.projectId)
     if (params?.timeframe) search.set('timeframe', params.timeframe)
     if (params?.source) search.set('source', params.source)
+    if (params?.dateFrom) search.set('date_from', params.dateFrom)
+    if (params?.dateTo) search.set('date_to', params.dateTo)
     const suffix = search.toString() ? `?${search.toString()}` : ''
     return request(`/api/dashboard/command-center${suffix}`)
   },

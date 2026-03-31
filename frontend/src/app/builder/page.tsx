@@ -79,11 +79,11 @@ export default function BuilderPage() {
             onClick={() => router.push("/workspace")}
             className="text-slate-400 hover:text-slate-100 transition-colors flex items-center gap-2 text-sm"
           >
-            ← Dashboard
+            ← Strategie
           </button>
           <div className="h-4 w-[1px] bg-slate-800" />
           <div className="flex flex-col">
-            <span className="text-[10px] uppercase tracking-[0.2em] text-cyan-500 font-bold">Strategy Builder</span>
+            <span className="text-[10px] uppercase tracking-[0.2em] text-cyan-500 font-bold">Builder strategia</span>
             <span className="text-sm font-semibold text-slate-200">
               {STEPS[currentStep - 1].label}
             </span>
@@ -161,12 +161,12 @@ export default function BuilderPage() {
             })}
           </div>
 
-          <div className="mt-12 p-4 bg-slate-900/40 border border-slate-800 rounded-lg">
-            <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Pipeline validata</h4>
-            <p className="text-[10px] text-slate-600 leading-relaxed">
-              Gli step futuri restano bloccati finche non completi quello attuale. In questo modo il flusso resta controllato e supervisionabile.
-            </p>
-          </div>
+      <div className="mt-12 p-4 bg-slate-900/40 border border-slate-800 rounded-lg">
+        <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Pipeline validata</h4>
+        <p className="text-[10px] text-slate-600 leading-relaxed">
+              Gli step futuri restano bloccati finché non completi quello attuale. In questo modo il flusso resta controllato e supervisionabile.
+        </p>
+      </div>
         </aside>
 
         {/* Main Content Area */}
@@ -180,7 +180,7 @@ export default function BuilderPage() {
                   <div className="mt-1 text-sm text-slate-400">{STEPS[currentStep - 1].description}</div>
                 </div>
                 <div className="text-xs text-slate-500">
-                  Step {currentStep} di {STEPS.length} · livello di validazione istituzionale
+                  Passo {currentStep} di {STEPS.length} · livello di validazione istituzionale
                 </div>
               </div>
             </div>
@@ -190,7 +190,7 @@ export default function BuilderPage() {
                 <div className="text-4xl mb-6">🔄</div>
                 <h3 className="text-xl font-bold text-slate-200 mb-2">Sessione non sincronizzata</h3>
                 <p className="text-slate-500 mb-8 max-w-md mx-auto">
-                  La sessione del workflow e scaduta oppure la pagina e stata aggiornata a meta processo. Riparti dall'intake per ripristinare un flusso ordinato.
+                  La sessione del workflow è scaduta oppure la pagina è stata aggiornata a metà processo. Riparti dall&apos;intake per ripristinare un flusso ordinato.
                 </p>
                 <button 
                   onClick={restart} 

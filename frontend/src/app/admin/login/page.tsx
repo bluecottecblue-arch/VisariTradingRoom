@@ -11,12 +11,12 @@ export default function AdminLoginPage({ searchParams }: AdminLoginPageProps) {
   return (
     <LoginForm
       endpoint="/api/auth/admin/login"
-      title="Login admin"
+      title="Accesso admin"
       description="Accedi con le credenziali admin per gestire gli account cliente."
       submitLabel="Entra nel pannello admin"
       nextPath={nextPath}
       secondaryHref="/login"
-      secondaryLabel="Vai al login cliente"
+      secondaryLabel="Vai all’accesso cliente"
     />
   )
 }

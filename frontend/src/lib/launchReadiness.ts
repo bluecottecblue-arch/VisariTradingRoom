@@ -15,7 +15,7 @@ export interface LaunchReadinessPack {
 }
 
 export interface LiveDriftMonitor {
-  status: 'TRACKING' | 'WATCH' | 'DRIFTING'
+  status: 'IN TRACKING' | 'SORVEGLIA' | 'IN DERIVA'
   toneClass: string
   summary: string
   metrics: Array<{ label: string; value: string }>
@@ -37,43 +37,43 @@ export function deriveLaunchReadinessPack(
     .map((item) => `${item.label}: ${item.value}`)
 
   let mode: LaunchReadinessPack['mode'] = 'DEMO_ONLY'
-  let label = 'Demo-only launch'
+  let label = 'Lancio solo demo'
   let toneClass = 'border-amber-900/70 bg-amber-950/12 text-amber-300'
-  let summary = 'The bot package is usable for controlled installation work, but should still be supervised on demo before any capital is exposed.'
+  let summary = 'Il pacchetto bot è utilizzabile per un’installazione controllata, ma va ancora supervisionato in demo prima di esporre capitale.'
 
   if (readiness.status === 'BLOCKED' || verdict === 'REJECT' || verdict === 'NEEDS_RESEARCH') {
     mode = 'RESEARCH_ONLY'
-    label = 'Research only'
+    label = 'Solo ricerca'
     toneClass = 'border-rose-900/70 bg-rose-950/12 text-rose-300'
-    summary = 'Do not deploy this build. Keep it inside research, close the blockers, and improve the strategy before any execution environment is considered.'
+    summary = 'Non fare deploy di questa build. Tienila in ricerca, chiudi i blocker e migliora la strategia prima di considerare qualsiasi ambiente esecutivo.'
   } else if (verdict === 'PAPER_TRADE_ONLY') {
     mode = 'PAPER_TRADE'
-    label = 'Paper trade candidate'
+    label = 'Candidata paper trade'
     toneClass = 'border-amber-900/70 bg-amber-950/12 text-amber-300'
-    summary = 'The strategy is mature enough for paper trading, but not yet strong enough to justify live capital allocation.'
+    summary = 'La strategia è abbastanza matura per il paper trading, ma non ancora abbastanza forte da giustificare capitale live.'
   } else if (verdict === 'LIMITED_LIVE_TEST' && readiness.status === 'READY_FOR_EXPORT') {
     mode = 'LIMITED_LIVE'
-    label = 'Limited live candidate'
+    label = 'Candidata live limitato'
     toneClass = 'border-cyan-900/70 bg-cyan-950/12 text-cyan-300'
-    summary = 'The package is suitable for a tightly supervised live pilot with reduced size, one broker environment, and strict operator oversight.'
+    summary = 'Il pacchetto è adatto a un pilot live strettamente supervisionato con size ridotta, un solo ambiente broker e presidio operativo forte.'
   } else if (verdict === 'PRODUCTION_CANDIDATE' && readiness.status === 'READY_FOR_EXPORT') {
     mode = 'CONTROLLED_LIVE'
-    label = 'Controlled live candidate'
+    label = 'Candidata live controllato'
     toneClass = 'border-cyan-900/70 bg-cyan-950/12 text-cyan-300'
-    summary = 'The validation and packaging layers support a controlled live rollout, but the bot still requires supervision, broker-specific checks, and staged capital.'
+    summary = 'I layer di validazione e packaging supportano un rollout live controllato, ma il bot richiede ancora supervisione, controlli broker-specifici e capitale graduale.'
   }
 
   const firstWeekProtocol = [
     mode === 'CONTROLLED_LIVE' || mode === 'LIMITED_LIVE'
-      ? 'Start with reduced size and one symbol or strategy slot only.'
-      : 'Keep the bot on demo or paper until behavior matches the validated workflow.',
-    'Review MT5 Journal and trade-by-trade behavior at the end of every session.',
-    'Confirm risk sizing, session windows, spread controls, and macro filters before market open.',
-    'Pause the bot immediately if you see unexpected entries, missing exits, or runtime errors.',
+      ? 'Parti con size ridotta e un solo simbolo o slot strategico.'
+      : 'Mantieni il bot in demo o paper finché il comportamento non replica il workflow validato.',
+    'Rivedi Journal MT5 e comportamento trade-per-trade alla fine di ogni sessione.',
+    'Conferma size di rischio, finestre di sessione, controlli spread e filtri macro prima dell’apertura.',
+    'Metti subito in pausa il bot se vedi ingressi inattesi, uscite mancanti o errori runtime.',
   ]
 
   if ((botResult?.code_validation?.checks || {}).has_api_key_input) {
-    firstWeekProtocol.push('Verify macro/news runtime inputs and WebRequest permissions before the first live session.')
+    firstWeekProtocol.push('Verifica input macro/news e permessi WebRequest prima della prima sessione live.')
   }
 
   const operatorBrief = [
@@ -84,11 +84,11 @@ export function deriveLaunchReadinessPack(
   ].filter(Boolean)
 
   const deliverables = [
-    'Strategy specification',
-    'Validation report',
-    'Risk assessment',
-    'MQL5 bot source',
-    'Deployment guide',
+    'Specifica strategia',
+    'Report validazione',
+    'Valutazione rischio',
+    'Sorgente bot MQL5',
+    'Guida deploy',
   ]
 
   const governanceSummary =
@@ -157,18 +157,18 @@ export function deriveLiveDriftMonitor(
       ? 0
       : ((baselineExpectancy - currentExpectancy) / Math.max(0.01, Math.abs(baselineExpectancy))) * 100
 
-  let status: LiveDriftMonitor['status'] = 'TRACKING'
+  let status: LiveDriftMonitor['status'] = 'IN TRACKING'
   let toneClass = 'border-cyan-900/70 bg-cyan-950/12 text-cyan-300'
   let summary =
-    'Il monitor live deve confermare che execution quality, drawdown e regime restino dentro il profilo validato.'
+    'Il monitor live deve confermare che qualità esecutiva, drawdown e regime restino dentro il profilo validato.'
 
   if (degradationPct >= 35 || dd >= 12 || fragility >= 0.5) {
-    status = 'DRIFTING'
+    status = 'IN DERIVA'
     toneClass = 'border-rose-900/70 bg-rose-950/12 text-rose-300'
     summary =
       'Rischio concreto di degenerazione: serve confronto stretto tra comportamento live e profilo validato prima di aumentare esposizione.'
   } else if (degradationPct >= 15 || regimeDependence >= 0.45 || variance >= 0.55) {
-    status = 'WATCH'
+    status = 'SORVEGLIA'
     toneClass = 'border-amber-900/70 bg-amber-950/12 text-amber-300'
     summary =
       'Il sistema richiede sorveglianza: piccoli cambi di regime o execution cost possono spostare il profilo di rischio.'
@@ -179,7 +179,7 @@ export function deriveLiveDriftMonitor(
     toneClass,
     summary,
     metrics: [
-      { label: 'Expectancy base', value: `${baselineExpectancy.toFixed(2)}R` },
+      { label: 'Expectancy iniziale', value: `${baselineExpectancy.toFixed(2)}R` },
       { label: 'Ultimo blocco', value: `${currentExpectancy.toFixed(2)}R` },
       { label: 'Drift stimato', value: `${Math.max(0, degradationPct).toFixed(0)}%` },
       { label: 'Max DD', value: `${dd.toFixed(1)}%` },
@@ -190,7 +190,7 @@ export function deriveLiveDriftMonitor(
         : 'Confronta il regime corrente con quello che ha generato il risultato migliore.',
       fragility >= 0.45
         ? 'Execution cost e parametri possono degradare il sistema più del previsto.'
-        : 'Mantieni invariati parametri e broker conditions durante la fase iniziale.',
+        : 'Mantieni invariati parametri e condizioni broker durante la fase iniziale.',
       dd >= 10
         ? 'Sorveglia il drawdown giornaliero e interrompi al primo scostamento anomalo.'
         : 'Verifica che drawdown e trade frequency restino coerenti con il profilo validato.',

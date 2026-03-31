@@ -24,7 +24,7 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
 
   const generate = async () => {
     if (generationBlocked) {
-      setError('The strategy spec is not ready for code generation. Go back and complete the missing details first.')
+      setError('La specifica strategica non è pronta per la generazione del codice. Torna indietro e completa prima i dettagli mancanti.')
       return
     }
     setLoading(true)
@@ -67,34 +67,34 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
       <div className="space-y-8">
         <div>
           <h1 className="mb-2 text-3xl font-semibold text-slate-50">
-            Operational Bot Package
+            Pacchetto operativo del bot
           </h1>
           <p className="text-sm leading-relaxed text-slate-400">
-            The platform will produce an exportable MQL5 EA with documentation, deployment readiness and a setup guide for MT5.
+            La piattaforma produrrà un Expert Advisor MQL5 esportabile con documentazione, prontezza al deploy e guida di setup per MT5.
           </p>
         </div>
 
-        <Alert type="info" title="Expected delivery">
+        <Alert type="info" title="Consegna prevista">
           <ul className="space-y-1 mt-1">
-            <li>• Backend-validated `.mq5` source code</li>
-            <li>• Operating documentation</li>
-            <li>• MT5 setup guide and deployment manifest</li>
-            <li>• Explicit checklist for macro runtime, WebRequest and runtime inputs</li>
+            <li>• Codice sorgente `.mq5` validato dal backend</li>
+            <li>• Documentazione operativa</li>
+            <li>• Guida MT5 e manifest di deploy</li>
+            <li>• Checklist esplicita per macro runtime, WebRequest e input runtime</li>
           </ul>
         </Alert>
 
         {generationBlocked && (
-        <Alert type="error" title="Generation blocked before spending tokens">
+        <Alert type="error" title="Generazione bloccata prima di spendere token">
           {formalSpec?.status !== 'VALID'
-            ? 'The formal specification is not in VALID status yet. Complete missing inputs or resolve blockers before generating the bot.'
-            : `The research layer blocked generation with verdict ${verdict?.verdict}.`}
+            ? 'La specifica formale non è ancora in stato VALID. Completa gli input mancanti o risolvi i blocchi prima di generare il bot.'
+            : `Il layer di ricerca ha bloccato la generazione con verdetto ${verdict?.verdict}.`}
         </Alert>
       )}
 
         {backtestResult && (
         <div className="space-y-2 border border-slate-800 bg-slate-950/70 p-4">
             <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-              Research basis for export
+              Base di ricerca per l’export
             </div>
             <div className="flex flex-wrap gap-6 text-sm">
               <div>
@@ -114,7 +114,7 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
                 </span>
               </div>
               <div>
-                <span className="text-slate-500 text-xs">Return OOS </span>
+                <span className="text-slate-500 text-xs">Rendimento OOS </span>
                 <span className={`font-bold ${
                   (backtestResult.out_of_sample.total_return_pct ?? 0) > 0
                     ? 'text-emerald-300'
@@ -124,7 +124,7 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
                 </span>
               </div>
               <div>
-                <span className="text-slate-500 text-xs">Verdict </span>
+                <span className="text-slate-500 text-xs">Verdetto </span>
                 <span className={`font-bold ${
                   verdict?.verdict === 'REJECT' || verdict?.verdict === 'NEEDS_RESEARCH'
                     ? 'text-rose-300'
@@ -157,7 +157,7 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
         <NavButtons
           onBack={onBack}
           onNext={generationBlocked ? undefined : generate}
-          nextLabel={generationBlocked ? 'Generation blocked' : 'Generate MQL5 Expert Advisor'}
+          nextLabel={generationBlocked ? 'Generazione bloccata' : 'Genera Expert Advisor MQL5'}
           loading={loading}
           disabled={generationBlocked}
         />
@@ -170,12 +170,12 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
     return (
       <div className="space-y-8">
         <div>
-          <h1 className="text-2xl font-bold text-amber-400 mb-2">Generating bot package...</h1>
+          <h1 className="text-2xl font-bold text-amber-400 mb-2">Generazione pacchetto bot...</h1>
         </div>
         <div className="p-8 bg-stone-900 border border-stone-700 rounded">
-          <Spinner label="Claude is writing the MQL5 code..." />
+          <Spinner label="Claude sta scrivendo il codice MQL5..." />
           <p className="text-stone-600 text-xs text-center mt-2">
-            30-90 seconds, depending on strategy complexity
+            30-90 secondi, in base alla complessità della strategia
           </p>
         </div>
       </div>
@@ -191,20 +191,20 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
     <div className="space-y-6">
         <div>
           <h1 className="mb-2 text-3xl font-semibold text-slate-50">
-            {generationSucceeded ? 'Export Package Ready' : 'Generation Failed Validation'}
+            {generationSucceeded ? 'Pacchetto export pronto' : 'Generazione non valida'}
           </h1>
           <p className="text-sm text-slate-400">
             {generationSucceeded
-              ? 'The bot passed minimum validation checks. You can now download code, setup guide and the operating manifest.'
+              ? 'Il bot ha superato i controlli minimi di validazione. Ora puoi scaricare codice, guida setup e manifest operativo.'
               : result?.message}
           </p>
         </div>
 
       {!generationSucceeded && (
-        <Alert type="error" title="Download disabled">
+        <Alert type="error" title="Download disabilitato">
           {(result?.code_validation?.errors || []).join(' · ') ||
             error ||
-          'The backend blocked download because the generated code is empty, incomplete or invalid.'}
+          'Il backend ha bloccato il download perché il codice generato è vuoto, incompleto o non valido.'}
         </Alert>
       )}
 
@@ -212,11 +212,11 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
         <div className="space-y-4 border border-slate-800 bg-slate-950/70 p-5">
           <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
             <div>
-              <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Deployment readiness</div>
+              <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Prontezza al deploy</div>
               <div className="mt-1 text-sm text-slate-400">{result.deployment_readiness.summary}</div>
             </div>
             <div className="text-right">
-              <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Status</div>
+              <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Stato</div>
               <div className="mt-1 text-lg font-semibold text-slate-100">
                 {result.deployment_readiness.status} · {result.deployment_readiness.score}/100
               </div>
@@ -224,19 +224,19 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
           </div>
 
           <div className="grid gap-3 md:grid-cols-3">
-            <MetricCard label="Export status" value={result.deployment_readiness.status} />
-            <MetricCard label="Readiness score" value={`${result.deployment_readiness.score}/100`} />
-            <MetricCard label="Macro runtime" value={result.code_validation.checks?.has_api_key_input ? 'enabled' : 'not required'} />
+            <MetricCard label="Stato export" value={result.deployment_readiness.status} />
+            <MetricCard label="Punteggio prontezza" value={`${result.deployment_readiness.score}/100`} />
+            <MetricCard label="Runtime macro" value={result.code_validation.checks?.has_api_key_input ? 'attivo' : 'non richiesto'} />
           </div>
 
           {result.deployment_readiness.live_blockers?.length > 0 && (
-            <Alert type="error" title="Live blockers">
+            <Alert type="error" title="Blocchi live">
               {result.deployment_readiness.live_blockers.join(' · ')}
             </Alert>
           )}
 
           {result.deployment_readiness.warnings?.length > 0 && (
-            <Alert type="warning" title="Operator warnings">
+            <Alert type="warning" title="Avvisi operativi">
               {result.deployment_readiness.warnings.join(' · ')}
             </Alert>
           )}
@@ -245,30 +245,30 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
             <div className="space-y-4 border border-slate-800 bg-slate-950/60 p-4">
               <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
                 <div>
-                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Launch readiness pack</div>
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Pacchetto prontezza lancio</div>
                   <div className="mt-1 text-lg font-semibold text-slate-100">{launchPack.label}</div>
                   <div className="mt-1 max-w-3xl text-sm leading-relaxed text-slate-400">{launchPack.summary}</div>
                 </div>
                 <div className={`border px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] ${launchPack.toneClass}`}>
-                  {launchPack.mode.replaceAll('_', ' ')}
+                  {launchPack.label}
                 </div>
               </div>
 
               <div className="grid gap-4 lg:grid-cols-[1fr_1fr_0.9fr]">
                 <div className="space-y-2 border border-slate-800 bg-slate-950 p-4">
-                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">First-week protocol</div>
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Protocollo prima settimana</div>
                   {launchPack.firstWeekProtocol.map((item, index) => (
                     <div key={index} className="text-sm text-slate-300">• {item}</div>
                   ))}
                 </div>
                 <div className="space-y-2 border border-slate-800 bg-slate-950 p-4">
-                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Operator brief</div>
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Brief operativo</div>
                   {launchPack.operatorBrief.map((item, index) => (
                     <div key={index} className="text-sm text-slate-300">• {item}</div>
                   ))}
                 </div>
                 <div className="space-y-2 border border-slate-800 bg-slate-950 p-4">
-                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Deliverables</div>
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Deliverable</div>
                   {launchPack.deliverables.map((item, index) => (
                     <div key={index} className="text-sm text-slate-300">• {item}</div>
                   ))}
@@ -277,7 +277,7 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
 
               <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
                 <div className="space-y-3 border border-slate-800 bg-slate-950 p-4">
-                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Deployment governance</div>
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Governance deploy</div>
                   <div className="text-sm leading-relaxed text-slate-300">{launchPack.governanceSummary}</div>
                   <div className="grid gap-3 md:grid-cols-2">
                     <div className="space-y-2">
@@ -291,12 +291,12 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
                       ))}
                     </div>
                   </div>
-                  <div className="text-xs text-slate-500">Cadence: {launchPack.reviewCadence}</div>
+                  <div className="text-xs text-slate-500">Cadenza: {launchPack.reviewCadence}</div>
                 </div>
 
                 {driftMonitor && (
                   <div className={`space-y-3 border p-4 ${driftMonitor.toneClass}`}>
-                    <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Live drift monitor</div>
+                    <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Monitor drift live</div>
                     <div className="text-lg font-semibold text-slate-100">{driftMonitor.status}</div>
                     <div className="text-sm leading-relaxed text-slate-300">{driftMonitor.summary}</div>
                     <div className="grid gap-3 sm:grid-cols-2">
@@ -315,13 +315,13 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
 
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="space-y-2 border border-slate-800 bg-slate-950 p-4">
-              <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Setup steps</div>
+              <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Passi setup</div>
               {(result.deployment_readiness.setup_steps || []).map((item, index) => (
                 <div key={index} className="text-sm text-slate-300">• {item}</div>
               ))}
             </div>
             <div className="space-y-2 border border-slate-800 bg-slate-950 p-4">
-              <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Runtime requirements</div>
+              <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Requisiti runtime</div>
               {(result.deployment_readiness.runtime_requirements || []).map((item, index) => (
                 <div key={index} className="text-sm text-slate-300">
                   <span className="font-medium">{item.label}:</span> {item.value}
@@ -334,9 +334,9 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
 
       <TabBar
         tabs={[
-          { id: 'doc', label: 'Documentation' },
-          { id: 'code', label: 'MQL5 Code' },
-          { id: 'limits', label: 'Assumptions & Limits' },
+          { id: 'doc', label: 'Documentazione' },
+          { id: 'code', label: 'Codice MQL5' },
+          { id: 'limits', label: 'Assunzioni e limiti' },
         ]}
         active={tab}
         onChange={setTab}
@@ -346,8 +346,8 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
         <div className="border border-slate-800 bg-slate-950/70 p-5">
           <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-300">
             {generationSucceeded
-              ? result!.documentation || 'Documentation not available.'
-              : 'Documentation is not available because generation was blocked or returned an invalid output.'}
+              ? result!.documentation || 'Documentazione non disponibile.'
+              : 'La documentazione non è disponibile perché la generazione è stata bloccata o ha prodotto un output non valido.'}
           </p>
         </div>
       )}
@@ -361,7 +361,7 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
           />
         ) : (
           <div className="border border-slate-800 bg-slate-950/70 p-5 text-sm text-slate-400">
-            No downloadable code is available because generation was stopped or produced an invalid output.
+            Nessun codice scaricabile disponibile perché la generazione è stata fermata o ha prodotto un output non valido.
           </div>
         )
       )}
@@ -371,10 +371,10 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
           {result!.implementation_assumptions?.length > 0 && (
             <div className="space-y-2 border border-slate-800 bg-slate-950/70 p-4">
               <h3 className="text-sm font-semibold text-slate-200">
-                Implementation assumptions
+                Assunzioni implementative
               </h3>
               <p className="text-xs text-slate-500">
-                Items the code assumes because they were not explicitly specified:
+                Elementi che il codice assume perché non sono stati specificati in modo esplicito:
               </p>
               {result!.implementation_assumptions.map((a, i) => (
                 <div key={i} className="flex gap-2 text-xs text-slate-400">
@@ -387,7 +387,7 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
           {result!.limitations_vs_discretionary?.length > 0 && (
             <div className="space-y-2 border border-amber-900/50 bg-amber-950/10 p-4">
               <h3 className="text-sm font-semibold text-amber-200">
-                What the bot cannot replicate from the discretionary strategy
+                Cosa il bot non può replicare della strategia discrezionale
               </h3>
               {result!.limitations_vs_discretionary.map((l, i) => (
                 <div key={i} className="flex gap-2 text-xs text-amber-200">
@@ -406,14 +406,14 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
           disabled={!generationSucceeded}
           className="border border-slate-200 bg-slate-100 py-3 font-semibold text-slate-950 transition-all duration-200 hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_10px_28px_rgba(255,255,255,0.08)] disabled:opacity-40"
         >
-          Download .mq5
+          Scarica .mq5
         </button>
         <button
           onClick={downloadSetupGuide}
           disabled={!generationSucceeded}
           className="border border-slate-800 py-3 text-slate-200 transition-colors hover:border-slate-600 disabled:opacity-40"
         >
-          Download setup guide
+          Scarica guida setup
         </button>
         <a
           href={exportApi.reportUrl(sessionId)}
@@ -421,14 +421,14 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
           rel="noreferrer"
           className={`border py-3 text-center transition-colors ${generationSucceeded ? 'border-slate-800 text-slate-200 hover:border-slate-600' : 'pointer-events-none border-slate-900 text-slate-700'}`}
         >
-          Research report
+          Report ricerca
         </a>
         <button
           onClick={() => onComplete(result!)}
           disabled={!generationSucceeded}
           className="border border-slate-800 py-3 text-slate-200 transition-colors hover:border-slate-600 disabled:opacity-40"
         >
-          MT5 install guide
+          Guida installazione MT5
         </button>
       </div>
       <button

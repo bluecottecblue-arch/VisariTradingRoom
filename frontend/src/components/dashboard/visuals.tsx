@@ -63,7 +63,7 @@ export function LineChart({
   valueFormatter?: (value: number) => string
 }) {
   const width = 1000
-  const safePoints = points.length ? points : [{ label: 'N/A', timestamp: '', value: 0 }]
+  const safePoints = points.length ? points : [{ label: 'N/D', timestamp: '', value: 0 }]
   const values = safePoints.map((point) => point.value)
   const minValue = Math.min(...values)
   const maxValue = Math.max(...values)
@@ -123,15 +123,15 @@ export function LineChart({
       </div>
       <div className="grid grid-cols-3 gap-3 text-xs text-slate-500">
         <div>
-          <div className="uppercase tracking-[0.14em] text-slate-600">Low</div>
+          <div className="uppercase tracking-[0.14em] text-slate-600">Minimo</div>
           <div className="mt-1 text-slate-300">{valueFormatter ? valueFormatter(minValue) : minValue.toFixed(2)}</div>
         </div>
         <div>
-          <div className="uppercase tracking-[0.14em] text-slate-600">High</div>
+          <div className="uppercase tracking-[0.14em] text-slate-600">Massimo</div>
           <div className="mt-1 text-slate-300">{valueFormatter ? valueFormatter(maxValue) : maxValue.toFixed(2)}</div>
         </div>
         <div className="text-right">
-          <div className="uppercase tracking-[0.14em] text-slate-600">Latest</div>
+          <div className="uppercase tracking-[0.14em] text-slate-600">Ultimo</div>
           <div className="mt-1 text-slate-300">{valueFormatter ? valueFormatter(last.value) : last.value.toFixed(2)}</div>
         </div>
       </div>
@@ -148,7 +148,7 @@ export function BarChart({
   color?: string
   height?: number
 }) {
-  const safeBars = bars.length ? bars : [{ label: 'N/A', value: 0 }]
+  const safeBars = bars.length ? bars : [{ label: 'N/D', value: 0 }]
   const maxValue = Math.max(1, ...safeBars.map((bar) => bar.value))
   return (
     <div className="space-y-3">
@@ -165,7 +165,7 @@ export function BarChart({
           </div>
         ))}
       </div>
-      <div className="text-[11px] uppercase tracking-[0.14em] text-slate-600">Scale height {height}px · max {maxValue}</div>
+      <div className="text-[11px] uppercase tracking-[0.14em] text-slate-600">Scala {height}px · max {maxValue}</div>
     </div>
   )
 }

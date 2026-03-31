@@ -11,10 +11,10 @@ function clampScore(value: number) {
 }
 
 function verdictLabel(verdict: FinalVerdict) {
-  if (verdict === 'PRODUCTION_CANDIDATE') return 'STRONG'
-  if (verdict === 'LIMITED_LIVE_TEST' || verdict === 'PAPER_TRADE_ONLY') return 'VIABLE'
-  if (verdict === 'NEEDS_RESEARCH') return 'NEEDS WORK'
-  return 'REJECT'
+  if (verdict === 'PRODUCTION_CANDIDATE') return 'FORTE'
+  if (verdict === 'LIMITED_LIVE_TEST' || verdict === 'PAPER_TRADE_ONLY') return 'VALIDA'
+  if (verdict === 'NEEDS_RESEARCH') return 'DA RIVEDERE'
+  return 'RIFIUTA'
 }
 
 function verdictTone(verdict: FinalVerdict): Tone {
@@ -41,32 +41,32 @@ function buildWhyEngine(results: BacktestResult) {
 
   const opening =
     oos.expectancy_r > 0 && oos.profit_factor > 1.2
-      ? 'This system shows a repeatable edge in out-of-sample testing and captures directional moves with positive expectancy.'
-      : 'This system does not yet demonstrate a sufficiently repeatable out-of-sample edge to justify automatic deployment.'
+      ? 'Questo sistema mostra un vantaggio ripetibile nei test out-of-sample e cattura movimenti direzionali con expectancy positiva.'
+      : 'Questo sistema non dimostra ancora un edge out-of-sample abbastanza ripetibile da giustificare un deploy automatico.'
 
   const regimeSentence =
     regime.dependence_score >= 0.45
-      ? 'Performance is regime-dependent, with clear sensitivity to trend or volatility shifts.'
-      : 'Performance is comparatively consistent across the observed market regimes.'
+      ? 'La performance dipende dal regime, con sensibilità evidente ai cambi di trend o volatilità.'
+      : 'La performance è relativamente coerente tra i regimi di mercato osservati.'
 
   const fragilitySentence =
     robustness.parameter_fragility_score >= 0.45
-      ? 'Small parameter or cost changes produce material degradation, which makes the system fragile.'
-      : 'Parameter and cost perturbations stay within a controlled range, which improves confidence in implementation stability.'
+      ? 'Piccoli cambi di parametri o costi producono un degrado sostanziale, rendendo il sistema fragile.'
+      : 'Le perturbazioni di parametri e costi restano entro un range controllato, aumentando la fiducia nella stabilità implementativa.'
 
   const distributionSentence =
     distribution.tail_concentration >= 0.35
-      ? 'A meaningful share of performance still depends on a relatively small number of outsized trades.'
-      : 'Trade outcomes are not excessively concentrated in a handful of extreme winners.'
+      ? 'Una quota rilevante della performance dipende ancora da un numero relativamente ridotto di trade eccezionali.'
+      : 'Gli esiti dei trade non sono eccessivamente concentrati in pochi vincitori estremi.'
 
   const riskSentence =
     risk.risk_score < 0.55 || oos.max_drawdown_pct > 15
-      ? 'Risk quality remains the main constraint, with drawdown pressure still too high for comfortable live deployment.'
-      : 'Risk quality remains within a controlled range relative to the observed return profile.'
+      ? 'La qualità del rischio resta il vincolo principale, con una pressione di drawdown ancora troppo alta per un deploy live tranquillo.'
+      : 'La qualità del rischio resta entro un range controllato rispetto al profilo di rendimento osservato.'
 
   const macroSentence =
     macroWarnings.length > 0
-      ? 'Macro and news context is materially relevant and should stay part of the operating rule set.'
+      ? 'Il contesto macro e news è materialmente rilevante e deve restare parte delle regole operative.'
       : ''
 
   return [opening, regimeSentence, fragilitySentence, distributionSentence, riskSentence, macroSentence]
@@ -86,45 +86,45 @@ function buildSuggestedImprovements(results: BacktestResult) {
 
   if (oos.total_trades > 220 && oos.expectancy_r < 0.18) {
     suggestions.push({
-      title: 'Reduce trade frequency',
-      detail: 'The strategy generates a high number of trades relative to its edge per trade. Tightening entry quality should improve signal density.',
+      title: 'Riduci la frequenza dei trade',
+      detail: 'La strategia genera troppi trade rispetto al vantaggio medio per operazione. Migliorare la qualità degli ingressi dovrebbe aumentare la densità del segnale.',
     })
   }
   if (regime.dependence_score > 0.45) {
     suggestions.push({
-      title: 'Add a stronger regime filter',
-      detail: 'Performance changes materially across trend/range or volatility conditions. Add a regime gate before allowing new entries.',
+      title: 'Aggiungi un filtro di regime più forte',
+      detail: 'La performance cambia in modo netto tra trend/range o condizioni di volatilità. Aggiungi un filtro di regime prima di permettere nuovi ingressi.',
     })
   }
   if (robustness.parameter_fragility_score > 0.45 || robustness.cost_robustness_score < 0.55) {
     suggestions.push({
-      title: 'Improve parameter stability',
-      detail: 'The system is too sensitive to small changes in execution costs or parameter perturbations. Simplify the rule set or widen tolerances.',
+      title: 'Migliora la stabilità dei parametri',
+      detail: 'Il sistema è troppo sensibile a piccoli cambi di costi esecutivi o parametri. Semplifica il set di regole o amplia le tolleranze.',
     })
   }
   if (oos.max_drawdown_pct > 12 || risk.metrics.risk_of_ruin_proxy > 0.08) {
     suggestions.push({
-      title: 'Tighten stop-loss and risk budget logic',
-      detail: 'Drawdown pressure is too visible relative to the observed return profile. Reduce risk per trade or improve protective exits.',
+      title: 'Stringi la logica di stop e budget rischio',
+      detail: 'La pressione del drawdown è troppo alta rispetto al profilo di rendimento osservato. Riduci il rischio per trade o migliora le uscite protettive.',
     })
   }
   if (stats.distribution_diagnostics.tail_concentration > 0.35) {
     suggestions.push({
-      title: 'Reduce dependency on a few outsized trades',
-      detail: 'The payoff distribution is too concentrated. Add confirmation filters or scale back weak entries that dilute median trade quality.',
+      title: 'Riduci la dipendenza da pochi trade fuori scala',
+      detail: 'La distribuzione dei payoff è troppo concentrata. Aggiungi filtri di conferma o riduci gli ingressi deboli che abbassano la qualità mediana dei trade.',
     })
   }
   if ((!macroProvider || macroProvider === 'none') && oos.max_consecutive_losses >= 6) {
     suggestions.push({
-      title: 'Avoid high-impact macro events',
-      detail: 'The loss clustering suggests that news or volatility shocks may be distorting entries. Add macro exclusion or post-event waiting rules.',
+      title: 'Evita eventi macro ad alto impatto',
+      detail: 'L’addensamento delle perdite suggerisce che news o shock di volatilità stiano distorcendo gli ingressi. Aggiungi esclusioni macro o regole di attesa post-evento.',
     })
   }
 
   if (!suggestions.length) {
     suggestions.push({
-      title: 'Preserve the current structure and test in narrower live conditions',
-      detail: 'The strategy already clears the main local hurdles. Focus on smaller live validation instead of adding unnecessary complexity.',
+      title: 'Mantieni la struttura attuale e testa in live controllato',
+      detail: 'La strategia supera già i principali ostacoli locali. Concentrati su una validazione live più stretta invece di aggiungere complessità inutile.',
     })
   }
 
@@ -140,19 +140,19 @@ function buildStatusBadges(results: BacktestResult) {
   const macro = results.data_info?.calendar_context
 
   if (verdict === 'PRODUCTION_CANDIDATE' || verdict === 'LIMITED_LIVE_TEST') {
-    badges.push({ label: 'STABLE', tone: 'positive' })
+    badges.push({ label: 'STABILE', tone: 'positive' })
   }
   if (robustness.parameter_fragility_score > 0.45 || robustness.overfit_suspicion_score > 0.55) {
     badges.push({ label: 'FRAGILE', tone: 'warning' })
   }
   if (risk.metrics.risk_of_ruin_proxy > 0.08 || results.out_of_sample.max_drawdown_pct > 12) {
-    badges.push({ label: 'HIGH RISK', tone: 'negative' })
+    badges.push({ label: 'ALTO RISCHIO', tone: 'negative' })
   }
   if ((macro?.events_used || 0) > 0 || (macro?.warnings?.length || 0) > 0) {
-    badges.push({ label: 'MACRO SENSITIVE', tone: 'warning' })
+    badges.push({ label: 'SENSIBILE AL MACRO', tone: 'warning' })
   }
   if (verdict === 'NEEDS_RESEARCH' || regime.dependence_score > 0.45) {
-    badges.push({ label: 'RESEARCH CANDIDATE', tone: 'neutral' })
+    badges.push({ label: 'DA RICERCARE', tone: 'neutral' })
   }
   return badges.slice(0, 4)
 }
@@ -161,6 +161,14 @@ function summaryMetricTone(value: number, thresholdHigh: number, thresholdLow: n
   if (value >= thresholdHigh) return 'positive'
   if (value <= thresholdLow) return 'negative'
   return 'warning'
+}
+
+function confidenceLabel(label: string) {
+  const normalized = label.toUpperCase()
+  if (normalized === 'HIGH_CONFIDENCE') return 'alta confidenza'
+  if (normalized === 'MEDIUM_CONFIDENCE') return 'confidenza media'
+  if (normalized === 'LOW_CONFIDENCE') return 'bassa confidenza'
+  return label.replaceAll('_', ' ').toLowerCase()
 }
 
 function SectionCard({
@@ -237,16 +245,16 @@ export default function BacktestExecutiveSummary({ results }: Props) {
       <section className={`border px-5 py-5 ${toneClasses(verdictTone(decision.verdict))}`}>
         <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
           <div className="max-w-3xl space-y-4">
-            <div className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Strategy Verdict</div>
+            <div className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Verdetto strategia</div>
             <div className="flex flex-wrap items-center gap-3">
               <span className={`inline-flex items-center gap-2 border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] ${toneClasses(verdictTone(decision.verdict))}`}>
                 {verdictLabel(decision.verdict)}
               </span>
-              <div className="text-sm text-slate-400">Research-backed evaluation · {decision.confidence_label.replaceAll('_', ' ')}</div>
+              <div className="text-sm text-slate-400">Valutazione supportata dalla ricerca · {confidenceLabel(decision.confidence_label)}</div>
             </div>
             <div className="space-y-2">
               <div className="text-4xl font-semibold tracking-tight text-slate-50">{healthScore} / 100</div>
-              <div className="text-sm font-medium uppercase tracking-[0.14em] text-slate-500">Strategy Health Score</div>
+              <div className="text-sm font-medium uppercase tracking-[0.14em] text-slate-500">Punteggio salute strategia</div>
             </div>
             <p className="max-w-3xl text-sm leading-relaxed text-slate-300">{whyEngine}</p>
             <div className="flex flex-wrap gap-2">
@@ -261,16 +269,16 @@ export default function BacktestExecutiveSummary({ results }: Props) {
 
           <div className="grid min-w-[260px] gap-3">
             <CompactMetric
-              label="Validated Pipeline"
-              value={decision.generate_bot_allowed ? 'Ready for export gate' : 'Research gate active'}
+              label="Pipeline validata"
+              value={decision.generate_bot_allowed ? 'Pronta per la soglia export' : 'Soglia ricerca attiva'}
               tone={decision.generate_bot_allowed ? 'positive' : 'warning'}
-              detail="Structured strategy engineering with staged validation before bot export."
+              detail="Ingegneria strategica strutturata con validazione a step prima dell’export del bot."
             />
             <CompactMetric
-              label="Institutional-grade validation layer"
-              value={`${oos.total_trades} OOS trades`}
+              label="Layer di validazione istituzionale"
+              value={`${oos.total_trades} trade OOS`}
               tone={summaryMetricTone(oos.total_trades, 120, 40)}
-              detail="Out-of-sample performance remains the primary decision anchor."
+              detail="La performance out-of-sample resta l’ancora principale della decisione."
             />
           </div>
         </div>
@@ -278,34 +286,34 @@ export default function BacktestExecutiveSummary({ results }: Props) {
 
       <section className="grid gap-4 xl:grid-cols-5">
         <CompactMetric label="Sharpe" value={oos.sharpe_ratio.toFixed(2)} tone={summaryMetricTone(oos.sharpe_ratio, 1, 0.35)} />
-        <CompactMetric label="Max Drawdown" value={formatPct(oos.max_drawdown_pct)} tone={summaryMetricTone(-oos.max_drawdown_pct, -6, -18)} />
-        <CompactMetric label="Win Rate" value={formatPct(oos.hit_rate * 100)} tone={summaryMetricTone(oos.hit_rate, 0.5, 0.35)} />
+        <CompactMetric label="Max drawdown" value={formatPct(oos.max_drawdown_pct)} tone={summaryMetricTone(-oos.max_drawdown_pct, -6, -18)} />
+        <CompactMetric label="Win rate" value={formatPct(oos.hit_rate * 100)} tone={summaryMetricTone(oos.hit_rate, 0.5, 0.35)} />
         <CompactMetric label="Expectancy" value={`${oos.expectancy_r.toFixed(2)}R`} tone={summaryMetricTone(oos.expectancy_r, 0.18, 0)} />
-        <CompactMetric label="Profit Factor" value={oos.profit_factor.toFixed(2)} tone={summaryMetricTone(oos.profit_factor, 1.4, 1.0)} />
+        <CompactMetric label="Profit factor" value={oos.profit_factor.toFixed(2)} tone={summaryMetricTone(oos.profit_factor, 1.4, 1.0)} />
       </section>
 
       <section className="grid gap-4 xl:grid-cols-2">
-        <SectionCard title="Risk Overview" subtitle="What can hurt the system fastest">
+        <SectionCard title="Panoramica rischio" subtitle="Cosa può danneggiare il sistema più rapidamente">
           <div className="grid gap-3 md:grid-cols-2">
-            <CompactMetric label="Risk Quality" value={`${clampScore(risk.risk_score * 100)} / 100`} tone={summaryMetricTone(risk.risk_score, 0.7, 0.45)} />
-            <CompactMetric label="Risk of Ruin Proxy" value={formatPct(risk.metrics.risk_of_ruin_proxy * 100)} tone={summaryMetricTone(-risk.metrics.risk_of_ruin_proxy, -3, -12)} />
-            <CompactMetric label="Daily Loss Guard Used" value={formatPct(risk.metrics.worst_daily_return_pct)} tone="warning" detail="Worst single-day return observed in the tested sample." />
-            <CompactMetric label="Variance Pressure" value={`${clampScore(risk.metrics.variance_pressure_score * 100)} / 100`} tone={summaryMetricTone(-risk.metrics.variance_pressure_score, -20, -65)} />
+            <CompactMetric label="Qualità rischio" value={`${clampScore(risk.risk_score * 100)} / 100`} tone={summaryMetricTone(risk.risk_score, 0.7, 0.45)} />
+            <CompactMetric label="Proxy rischio rovina" value={formatPct(risk.metrics.risk_of_ruin_proxy * 100)} tone={summaryMetricTone(-risk.metrics.risk_of_ruin_proxy, -3, -12)} />
+            <CompactMetric label="Perdita giornaliera usata" value={formatPct(risk.metrics.worst_daily_return_pct)} tone="warning" detail="Peggior rendimento osservato in una singola giornata del campione testato." />
+            <CompactMetric label="Pressione varianza" value={`${clampScore(risk.metrics.variance_pressure_score * 100)} / 100`} tone={summaryMetricTone(-risk.metrics.variance_pressure_score, -20, -65)} />
           </div>
         </SectionCard>
 
-        <SectionCard title="Stability & Robustness" subtitle="How much the edge survives perturbation">
+        <SectionCard title="Stabilità e robustezza" subtitle="Quanto l’edge sopravvive alle perturbazioni">
           <div className="grid gap-3 md:grid-cols-2">
-            <CompactMetric label="Stability Score" value={`${stabilityScore} / 100`} tone={summaryMetricTone(stabilityScore, 70, 45)} />
-            <CompactMetric label="Robustness Score" value={`${clampScore(robustness.robustness_score * 100)} / 100`} tone={summaryMetricTone(robustness.robustness_score, 0.7, 0.45)} />
-            <CompactMetric label="Parameter Fragility" value={formatPct(robustness.parameter_fragility_score * 100)} tone={summaryMetricTone(-robustness.parameter_fragility_score, -20, -55)} />
-            <CompactMetric label="Overfit Suspicion" value={formatPct(robustness.overfit_suspicion_score * 100)} tone={summaryMetricTone(-robustness.overfit_suspicion_score, -15, -50)} />
+            <CompactMetric label="Punteggio stabilità" value={`${stabilityScore} / 100`} tone={summaryMetricTone(stabilityScore, 70, 45)} />
+            <CompactMetric label="Punteggio robustezza" value={`${clampScore(robustness.robustness_score * 100)} / 100`} tone={summaryMetricTone(robustness.robustness_score, 0.7, 0.45)} />
+            <CompactMetric label="Fragilità parametri" value={formatPct(robustness.parameter_fragility_score * 100)} tone={summaryMetricTone(-robustness.parameter_fragility_score, -20, -55)} />
+            <CompactMetric label="Sospetto overfit" value={formatPct(robustness.overfit_suspicion_score * 100)} tone={summaryMetricTone(-robustness.overfit_suspicion_score, -15, -50)} />
           </div>
         </SectionCard>
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-        <SectionCard title="Performance by Market Regime" subtitle="Trend vs range and volatility segmentation">
+        <SectionCard title="Performance per regime di mercato" subtitle="Segmentazione trend/range e volatilità">
           <div className="space-y-3">
             {regime.by_regime.slice(0, 4).map((item) => (
               <div key={item.regime} className="grid gap-3 border border-slate-900/80 bg-slate-950/55 px-4 py-4 md:grid-cols-[1.1fr_1fr_1fr_1fr]">
@@ -315,7 +323,7 @@ export default function BacktestExecutiveSummary({ results }: Props) {
                     {item.trend_regime} · {item.volatility_regime}
                   </div>
                 </div>
-                <div className="text-sm text-slate-300">{item.trade_count} trades</div>
+                <div className="text-sm text-slate-300">{item.trade_count} trade</div>
                 <div className="text-sm text-slate-300">Expectancy {item.expectancy_r.toFixed(2)}R</div>
                 <div className="text-sm text-slate-300">Win rate {formatPct(item.win_rate * 100)}</div>
               </div>
@@ -324,17 +332,17 @@ export default function BacktestExecutiveSummary({ results }: Props) {
           </div>
         </SectionCard>
 
-        <SectionCard title="Trade Distribution" subtitle="PnL shape and concentration">
+        <SectionCard title="Distribuzione trade" subtitle="Forma del PnL e concentrazione">
           <div className="grid gap-3">
-            <CompactMetric label="Skewness" value={distribution.skew.toFixed(2)} tone={summaryMetricTone(distribution.skew, 0.2, -0.5)} />
-            <CompactMetric label="Fat Tails" value={distribution.kurtosis_excess.toFixed(2)} tone={distribution.kurtosis_excess > 2 ? 'warning' : 'neutral'} detail="Higher values indicate more extreme outlier dependence." />
-            <CompactMetric label="Tail Concentration" value={formatPct(distribution.tail_concentration * 100)} tone={summaryMetricTone(-distribution.tail_concentration, -15, -35)} />
-            <CompactMetric label="Positive Expectancy Probability" value={formatPct(stats.bootstrap.positive_expectancy_probability * 100)} tone={summaryMetricTone(stats.bootstrap.positive_expectancy_probability, 0.65, 0.5)} />
+            <CompactMetric label="Asimmetria" value={distribution.skew.toFixed(2)} tone={summaryMetricTone(distribution.skew, 0.2, -0.5)} />
+            <CompactMetric label="Code grasse" value={distribution.kurtosis_excess.toFixed(2)} tone={distribution.kurtosis_excess > 2 ? 'warning' : 'neutral'} detail="Valori più alti indicano maggiore dipendenza da outlier estremi." />
+            <CompactMetric label="Concentrazione code" value={formatPct(distribution.tail_concentration * 100)} tone={summaryMetricTone(-distribution.tail_concentration, -15, -35)} />
+            <CompactMetric label="Probabilità expectancy positiva" value={formatPct(stats.bootstrap.positive_expectancy_probability * 100)} tone={summaryMetricTone(stats.bootstrap.positive_expectancy_probability, 0.65, 0.5)} />
           </div>
         </SectionCard>
       </section>
 
-      <SectionCard title="Suggested Improvements" subtitle="Professional diagnosis translated into action">
+      <SectionCard title="Migliorie suggerite" subtitle="Diagnosi professionale tradotta in azione">
         <div className="grid gap-3">
           {suggestions.map((item) => (
             <div key={item.title} className="flex gap-4 border border-slate-900/80 bg-slate-950/55 px-4 py-4">
@@ -352,7 +360,7 @@ export default function BacktestExecutiveSummary({ results }: Props) {
 
       {driftMonitor && (
         <section className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-          <SectionCard title="Live Drift Monitor" subtitle="What to watch after deployment">
+          <SectionCard title="Monitor drift live" subtitle="Cosa osservare dopo il deploy">
             <div className={`border px-4 py-4 ${driftMonitor.toneClass}`}>
               <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">{driftMonitor.status}</div>
               <div className="mt-2 text-sm leading-relaxed text-slate-300">{driftMonitor.summary}</div>
@@ -367,7 +375,7 @@ export default function BacktestExecutiveSummary({ results }: Props) {
             </div>
           </SectionCard>
 
-          <SectionCard title="Drift Triggers" subtitle="Pause before the edge degrades">
+          <SectionCard title="Trigger di drift" subtitle="Metti in pausa prima che l’edge degradi">
             <div className="space-y-3">
               {driftMonitor.watchItems.map((item, index) => (
                 <div key={index} className="border border-slate-900/80 bg-slate-950/60 px-4 py-3 text-sm text-slate-300">
@@ -379,14 +387,14 @@ export default function BacktestExecutiveSummary({ results }: Props) {
         </section>
       )}
 
-      <SectionCard title="Deliverables" subtitle="What the platform packages for execution and handoff">
+      <SectionCard title="Deliverable" subtitle="Cosa la piattaforma prepara per esecuzione e handoff">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
           {[
-            { label: 'Strategy Specification', detail: 'Structured rule set already formalized.', tone: 'positive' as Tone },
-            { label: 'Validation Report', detail: 'Research-backed evaluation is ready.', tone: 'positive' as Tone },
-            { label: 'Risk Assessment', detail: 'Risk review and robustness diagnostics included.', tone: 'positive' as Tone },
-            { label: 'MQL5 Bot', detail: decision.generate_bot_allowed ? 'Unlocked by the validation gate.' : 'Unlocked once the verdict reaches the export threshold.', tone: decision.generate_bot_allowed ? 'positive' as Tone : 'warning' as Tone },
-            { label: 'Deployment Guide', detail: 'Provided after export as part of the delivery package.', tone: decision.generate_bot_allowed ? 'neutral' as Tone : 'warning' as Tone },
+            { label: 'Specifica strategia', detail: 'Set di regole strutturato già formalizzato.', tone: 'positive' as Tone },
+            { label: 'Report validazione', detail: 'La valutazione supportata dalla ricerca è pronta.', tone: 'positive' as Tone },
+            { label: 'Valutazione rischio', detail: 'Inclusi revisione rischio e diagnostica di robustezza.', tone: 'positive' as Tone },
+            { label: 'Algoritmo MQL5', detail: decision.generate_bot_allowed ? 'Sbloccato dalla soglia di validazione.' : 'Sbloccato quando il verdetto raggiunge la soglia export.', tone: decision.generate_bot_allowed ? 'positive' as Tone : 'warning' as Tone },
+            { label: 'Guida deploy', detail: 'Fornita dopo l’export come parte del pacchetto finale.', tone: decision.generate_bot_allowed ? 'neutral' as Tone : 'warning' as Tone },
           ].map((item) => (
             <div key={item.label} className={`border px-4 py-4 ${toneClasses(item.tone)}`}>
               <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">{item.label}</div>

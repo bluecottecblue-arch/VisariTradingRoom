@@ -211,7 +211,7 @@ export default function BotLabWorkspace() {
 
   const analyze = async () => {
     if (!code.trim()) {
-      setError('Upload a file or paste the bot source code before running analysis.')
+      setError('Carica un file o incolla il codice del bot prima di avviare l’analisi.')
       return
     }
     analyzeTokenRef.current += 1
@@ -245,11 +245,11 @@ export default function BotLabWorkspace() {
 
   const modify = async () => {
     if (!analysis) {
-      setError('Analyze the original bot first.')
+      setError('Analizza prima il bot originale.')
       return
     }
     if (!modifyPrompt.trim()) {
-      setError('Write a clear revision request before generating a new version.')
+      setError('Scrivi una richiesta di revisione chiara prima di generare una nuova versione.')
       return
     }
     if (claudeSource === 'account' && !accountClaudeAvailable) {
@@ -298,7 +298,7 @@ export default function BotLabWorkspace() {
 
   const runOriginalBacktest = () => {
     if (!analysis?.backtest_ready) {
-      setError('The local parser does not consider this bot interpretable enough for a credible proxy backtest.')
+      setError('Il parser locale non considera questo bot abbastanza interpretabile per un backtest proxy credibile.')
       return
     }
     originalBacktest.run(analysis.session_id, buildBacktestPayload())
@@ -306,7 +306,7 @@ export default function BotLabWorkspace() {
 
   const runModifiedBacktest = () => {
     if (!modifyResult?.session_id || modifyResult.status !== 'VALID') {
-      setError('Generate a valid revised version first.')
+      setError('Genera prima una versione rivista valida.')
       return
     }
     modifiedBacktest.run(modifyResult.session_id, buildBacktestPayload())
@@ -455,9 +455,9 @@ export default function BotLabWorkspace() {
                 />
 
                 <div className="space-y-4 border border-slate-800/40 bg-slate-950/20 p-5">
-                  <div className="text-sm font-semibold text-slate-200 uppercase tracking-widest text-[11px]">Backtest Environment</div>
+                  <div className="text-sm font-semibold text-slate-200 uppercase tracking-widest text-[11px]">Ambiente backtest</div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <Field label="Data provider">
+                    <Field label="Provider dati">
                       <select
                         value={config.provider}
                         onChange={(e) => setConfig((c) => ({ ...c, provider: e.target.value }))}
@@ -468,7 +468,7 @@ export default function BotLabWorkspace() {
                         <option value="dukascopy">dukascopy</option>
                       </select>
                     </Field>
-                    <Field label="Symbol">
+                    <Field label="Simbolo">
                       <input value={config.symbol} onChange={(e) => setConfig((c) => ({ ...c, symbol: e.target.value }))} className={inputCls} />
                     </Field>
                     <Field label="Timeframe">
@@ -478,21 +478,21 @@ export default function BotLabWorkspace() {
                         ))}
                       </select>
                     </Field>
-                    <Field label="Capital">
+                    <Field label="Capitale">
                       <input type="number" value={config.initial_capital} onChange={(e) => setConfig((c) => ({ ...c, initial_capital: Number(e.target.value) }))} className={inputCls} />
                     </Field>
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <Field label="Start date">
+                    <Field label="Data inizio">
                       <input type="date" value={config.date_from} onChange={(e) => setConfig((c) => ({ ...c, date_from: e.target.value }))} className={inputCls} />
                     </Field>
-                    <Field label="IS end">
+                    <Field label="Fine IS">
                       <input type="date" value={config.date_in_sample_end} onChange={(e) => setConfig((c) => ({ ...c, date_in_sample_end: e.target.value }))} className={inputCls} />
                     </Field>
-                    <Field label="OOS start">
+                    <Field label="Inizio OOS">
                       <input type="date" value={config.date_oos_start} onChange={(e) => setConfig((c) => ({ ...c, date_oos_start: e.target.value }))} className={inputCls} />
                     </Field>
-                    <Field label="End date">
+                    <Field label="Data fine">
                       <input type="date" value={config.date_to} onChange={(e) => setConfig((c) => ({ ...c, date_to: e.target.value }))} className={inputCls} />
                     </Field>
                   </div>
@@ -503,7 +503,7 @@ export default function BotLabWorkspace() {
                     <Field label="Slippage">
                       <input type="number" step={0.1} value={config.slippage_pips} onChange={(e) => setConfig((c) => ({ ...c, slippage_pips: Number(e.target.value) }))} className={inputCls} />
                     </Field>
-                    <Field label="Risk %">
+                    <Field label="Rischio %">
                       <input type="number" step={0.1} value={config.risk_per_trade_pct} onChange={(e) => setConfig((c) => ({ ...c, risk_per_trade_pct: Number(e.target.value) }))} className={inputCls} />
                     </Field>
                   </div>
@@ -516,7 +516,7 @@ export default function BotLabWorkspace() {
         <div className="space-y-6">
           <section className="space-y-4 border border-slate-800/90 bg-slate-950/70 px-5 py-5">
             <div className="flex items-center justify-between gap-3">
-              <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">AI key</div>
+              <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Chiave AI</div>
               <span className="border border-slate-800 px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] text-slate-500">
                 {claudeSource === 'account'
                   ? accountClaudeAvailable
@@ -539,7 +539,7 @@ export default function BotLabWorkspace() {
                     : 'border-slate-800 bg-transparent text-slate-400 hover:border-slate-700 hover:text-slate-100'
                 } ${!accountClaudeAvailable ? 'cursor-not-allowed opacity-50' : ''}`}
               >
-                <div className="text-sm font-medium">Key account</div>
+                <div className="text-sm font-medium">Chiave account</div>
               </button>
               <button
                 type="button"
@@ -550,7 +550,7 @@ export default function BotLabWorkspace() {
                     : 'border-slate-800 bg-transparent text-slate-400 hover:border-slate-700 hover:text-slate-100'
                 }`}
               >
-                <div className="text-sm font-medium">Key personale</div>
+                <div className="text-sm font-medium">Chiave personale</div>
               </button>
             </div>
             {claudeSource === 'personal' && (
@@ -583,7 +583,7 @@ export default function BotLabWorkspace() {
                   <div className="mt-2 text-lg font-semibold text-slate-50">{filename || 'Nessun file selezionato'}</div>
                 </div>
                 <span className="border border-slate-800 px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] text-slate-500">
-                  {analysis ? analysis.file_info.language : 'pending'}
+                  {analysis ? analysis.file_info.language : 'in attesa'}
                 </span>
               </div>
 
@@ -606,7 +606,7 @@ export default function BotLabWorkspace() {
               </div>
 
               <ul className="list-disc space-y-2 pl-5 text-sm text-slate-400 marker:text-slate-600">
-                <li>Bot Health Check</li>
+                <li>Controllo salute bot</li>
                 <li>Spiegazione chiara</li>
                 <li>Flusso di revisione controllato</li>
                 <li>Confronto tra logica originale e rivista</li>
@@ -617,22 +617,22 @@ export default function BotLabWorkspace() {
 
           {loadingAnalyze && (
             <div className="border border-slate-800 bg-slate-950/70 p-6">
-              <Spinner label="Analisi locale in corso..." />
-            </div>
-          )}
+                  <Spinner label="Analisi locale in corso..." />
+                </div>
+              )}
 
           {error && <Alert type="error">{error}</Alert>}
         </div>
       </div>
 
       {analysis && (
-        <div className="space-y-6">
+            <div className="space-y-6">
           <TabBar
             tabs={[
-              { id: 'overview', label: 'Overview' },
-              { id: 'code', label: 'Code' },
-              { id: 'modify', label: 'Improve' },
-              { id: 'compare', label: 'Compare' },
+              { id: 'overview', label: 'Panoramica' },
+              { id: 'code', label: 'Codice' },
+              { id: 'modify', label: 'Migliora' },
+              { id: 'compare', label: 'Confronta' },
             ]}
             active={tab}
             onChange={setTab}
@@ -641,24 +641,24 @@ export default function BotLabWorkspace() {
           {tab === 'overview' && (
             <div className="space-y-6">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <MetricCard label="Language" value={analysis.file_info.language} />
-                <MetricCard label="Platform" value={analysis.file_info.platform} />
+                <MetricCard label="Linguaggio" value={analysis.file_info.language} />
+                <MetricCard label="Piattaforma" value={analysis.file_info.platform} />
                 <MetricCard label="LOC" value={analysis.file_info.line_count} />
-                <MetricCard label="Health score" value={`${analysis.health_check.score}/100`} />
+                <MetricCard label="Punteggio salute" value={`${analysis.health_check.score}/100`} />
               </div>
 
               <div className="border border-slate-800 bg-slate-950/70 p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="text-slate-200 font-semibold text-sm">Explain my bot</div>
-                  <div className="text-xs text-cyan-300">local analysis, no Claude spend</div>
+                  <div className="text-slate-200 font-semibold text-sm">Spiegami il bot</div>
+                  <div className="text-xs text-cyan-300">analisi locale, nessuna spesa Claude</div>
                 </div>
                 <div className="text-sm text-slate-400">{analysis.explanation.plain_language}</div>
-                <ProgressBar value={analysis.health_check.score} max={100} label="Bot Health Check" />
+                <ProgressBar value={analysis.health_check.score} max={100} label="Controllo salute bot" />
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="border border-slate-800 bg-slate-950/70 p-4 space-y-2">
-                  <div className="text-slate-200 font-semibold text-sm">Inferred trading logic</div>
+                  <div className="text-slate-200 font-semibold text-sm">Logica di trading rilevata</div>
                   {analysis.bot_profile.entry_logic.map((item, index) => (
                     <div key={index} className="text-xs text-slate-400">• {item}</div>
                   ))}
@@ -667,7 +667,7 @@ export default function BotLabWorkspace() {
                   ))}
                 </div>
                 <div className="border border-slate-800 bg-slate-950/70 p-4 space-y-2">
-                  <div className="text-slate-200 font-semibold text-sm">Likely weaknesses</div>
+                  <div className="text-slate-200 font-semibold text-sm">Debolezze probabili</div>
                   {(analysis.health_check.likely_issues.length ? analysis.health_check.likely_issues : analysis.health_check.warnings).map((item, index) => (
                     <div key={index} className="text-xs text-amber-300">• {item}</div>
                   ))}
@@ -680,13 +680,13 @@ export default function BotLabWorkspace() {
                   disabled={originalBacktest.isRunning}
                   className="border border-cyan-800/70 bg-cyan-400/90 px-4 py-3 font-semibold text-slate-950 disabled:opacity-50"
                 >
-                  Run Backtest
+                  Esegui backtest
                 </button>
                 <button
                   onClick={() => setTab('modify')}
                   className="border border-slate-800 px-4 py-3 text-slate-300"
                 >
-                  Improve Bot
+                  Migliora bot
                 </button>
               </div>
 
@@ -696,7 +696,7 @@ export default function BotLabWorkspace() {
                 </div>
               )}
 
-              {originalBacktest.results && <BacktestMiniSummary title="Original bot backtest" results={originalBacktest.results} />}
+              {originalBacktest.results && <BacktestMiniSummary title="Backtest bot originale" results={originalBacktest.results} />}
             </div>
           )}
 
@@ -706,13 +706,13 @@ export default function BotLabWorkspace() {
 
           {tab === 'modify' && (
             <div className="space-y-5">
-              <Section title="Revision request">
-                <Field label="Modification prompt">
+              <Section title="Richiesta revisione">
+                <Field label="Prompt modifica">
                   <textarea
                     value={modifyPrompt}
                     onChange={(e) => setModifyPrompt(e.target.value)}
                     className={`${textareaCls} h-28`}
-                    placeholder="Example: add a trailing stop, require RSI confirmation and do not trade 30 minutes before or after high-impact USD news."
+                    placeholder="Esempio: aggiungi trailing stop, richiedi conferma RSI e non tradare 30 minuti prima o dopo news USD ad alto impatto."
                   />
                 </Field>
                 <div className="flex flex-wrap gap-2">
@@ -727,44 +727,44 @@ export default function BotLabWorkspace() {
                     </button>
                   ))}
                 </div>
-                <Alert type="info" title="Structured revision pipeline">
-                  Original bot → local parse → prompt validation → targeted revision → local re-analysis → compare old vs revised.
+                <Alert type="info" title="Pipeline revisione strutturata">
+                  Bot originale → parse locale → validazione prompt → revisione mirata → nuova analisi locale → confronto versione vecchia vs aggiornata.
                 </Alert>
                 <button
                   onClick={modify}
                   disabled={loadingAnalyze || loadingModify}
                   className="border border-slate-200 bg-slate-100 px-4 py-3 font-semibold text-slate-950 transition-all duration-200 hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_10px_28px_rgba(255,255,255,0.08)] disabled:opacity-50"
                 >
-                  {loadingModify ? 'Building revised version...' : 'Improve Bot'}
+                  {loadingModify ? 'Costruzione versione rivista...' : 'Migliora bot'}
                 </button>
               </Section>
 
               {loadingModify && (
                 <div className="border border-slate-800 bg-slate-950/70 p-6">
-                  <Spinner label="Claude is applying the approved revision..." />
+                  <Spinner label="Claude sta applicando la revisione approvata..." />
                 </div>
               )}
 
               {modifyResult && modifyResult.status !== 'VALID' && (
-                <Alert type="error" title="Revision blocked">
+                <Alert type="error" title="Revisione bloccata">
                   {(modifyResult.ambiguities || []).join(' · ') || modifyResult.message}
                 </Alert>
               )}
 
               {modifyResult?.status === 'VALID' && (
                 <div className="space-y-4">
-                  <Alert type="success" title="Revised version ready">
+                  <Alert type="success" title="Versione rivista pronta">
                     {modifyResult.message}
                   </Alert>
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="border border-slate-800 bg-slate-950/70 p-4 space-y-2">
-                      <div className="text-slate-200 font-semibold text-sm">Change summary</div>
+                      <div className="text-slate-200 font-semibold text-sm">Riepilogo modifiche</div>
                       {(modifyResult.change_summary || []).map((item, index) => (
                         <div key={index} className="text-xs text-slate-400">• {item}</div>
                       ))}
                     </div>
                     <div className="border border-slate-800 bg-slate-950/70 p-4 space-y-2">
-                      <div className="text-slate-200 font-semibold text-sm">Conceptual diff</div>
+                      <div className="text-slate-200 font-semibold text-sm">Diff concettuale</div>
                       {(modifyResult.conceptual_diff || []).map((item, index) => (
                         <div key={index} className="text-xs text-slate-400">• {item}</div>
                       ))}
@@ -776,8 +776,8 @@ export default function BotLabWorkspace() {
                   )}
 
                   {exportSaveFailed && (
-                    <Alert type="warning" title="Partial Save Failure">
-                      The modified logic was generated successfully, but saving it to the secure export directory failed. You may not be able to download the `.mq5` directly right now.
+                    <Alert type="warning" title="Salvataggio parziale fallito">
+                      La logica modificata è stata generata correttamente, ma il salvataggio nella cartella sicura di export è fallito. Potresti non riuscire a scaricare subito il `.mq5`.
                     </Alert>
                   )}
 
@@ -787,7 +787,7 @@ export default function BotLabWorkspace() {
                       disabled={modifiedBacktest.isRunning || !modifyResult.session_id}
                       className="border border-slate-200 bg-slate-100 px-4 py-3 font-semibold text-slate-950 disabled:opacity-50"
                     >
-                      Run Revised Backtest
+                      Esegui backtest rivisto
                     </button>
                     <button
                       onClick={() => {
@@ -802,7 +802,7 @@ export default function BotLabWorkspace() {
                       disabled={!modifyResult.session_id || !modifyResult.code_validation?.is_valid || modifiedExportBlocked}
                       className="border border-slate-800 px-4 py-3 text-slate-300 disabled:opacity-40"
                     >
-                      Download revised bot
+                      Scarica bot rivisto
                     </button>
                     <button
                       onClick={() => {
@@ -816,7 +816,7 @@ export default function BotLabWorkspace() {
                       disabled={!modifyResult.session_id || !modifyResult.code_validation?.is_valid || modifiedExportBlocked}
                       className="border border-slate-800 px-4 py-3 text-slate-300 disabled:opacity-40"
                     >
-                      Download setup guide
+                      Scarica guida setup
                     </button>
                   </div>
 
@@ -826,10 +826,10 @@ export default function BotLabWorkspace() {
                     </div>
                   )}
 
-                  {modifiedBacktest.results && <BacktestMiniSummary title="Revised bot backtest" results={modifiedBacktest.results} />}
+                  {modifiedBacktest.results && <BacktestMiniSummary title="Backtest bot rivisto" results={modifiedBacktest.results} />}
                   {modifiedExportBlocked && (
-                    <Alert type="warning" title="Export blocked by validation verdict">
-                      {(modifiedVerdict?.blockers || modifiedVerdict?.reasons || []).join(' · ') || 'The revised version was not promoted.'}
+                    <Alert type="warning" title="Export bloccato dal verdetto di validazione">
+                      {(modifiedVerdict?.blockers || modifiedVerdict?.reasons || []).join(' · ') || 'La versione rivista non è stata promossa.'}
                     </Alert>
                   )}
                 </div>
@@ -842,8 +842,8 @@ export default function BotLabWorkspace() {
               {!modifyResult?.modified_analysis && (
                 <EmptyState
                   icon="COMPARE"
-                  title="Compare view not available yet"
-                  description="Generate a revised version first to inspect logical differences and compare performance."
+                  title="Vista confronto non ancora disponibile"
+                  description="Genera prima una versione rivista per ispezionare le differenze logiche e confrontare le performance."
                 />
               )}
 
@@ -851,35 +851,35 @@ export default function BotLabWorkspace() {
                 <>
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="border border-slate-800 bg-slate-950/70 p-4 space-y-2">
-                      <div className="text-slate-200 font-semibold text-sm">Original</div>
-                      <div className="text-xs text-slate-400">style: {analysis.bot_profile.strategy_style}</div>
-                      <div className="text-xs text-slate-400">protections: {analysis.code_summary.protections.join(', ') || 'n/a'}</div>
-                      <div className="text-xs text-slate-400">indicators: {analysis.code_summary.indicators.map((item) => item.type).join(', ') || 'n/a'}</div>
+                      <div className="text-slate-200 font-semibold text-sm">Originale</div>
+                      <div className="text-xs text-slate-400">stile: {analysis.bot_profile.strategy_style}</div>
+                      <div className="text-xs text-slate-400">protezioni: {analysis.code_summary.protections.join(', ') || 'n/d'}</div>
+                      <div className="text-xs text-slate-400">indicatori: {analysis.code_summary.indicators.map((item) => item.type).join(', ') || 'n/d'}</div>
                     </div>
                     <div className="border border-slate-800 bg-slate-950/70 p-4 space-y-2">
-                      <div className="text-slate-200 font-semibold text-sm">Revised</div>
-                      <div className="text-xs text-slate-400">style: {modifyResult.modified_analysis.bot_profile.strategy_style}</div>
-                      <div className="text-xs text-slate-400">protections: {modifyResult.modified_analysis.code_summary.protections.join(', ') || 'n/a'}</div>
-                      <div className="text-xs text-slate-400">indicators: {modifyResult.modified_analysis.code_summary.indicators.map((item) => item.type).join(', ') || 'n/a'}</div>
+                      <div className="text-slate-200 font-semibold text-sm">Rivisto</div>
+                      <div className="text-xs text-slate-400">stile: {modifyResult.modified_analysis.bot_profile.strategy_style}</div>
+                      <div className="text-xs text-slate-400">protezioni: {modifyResult.modified_analysis.code_summary.protections.join(', ') || 'n/d'}</div>
+                      <div className="text-xs text-slate-400">indicatori: {modifyResult.modified_analysis.code_summary.indicators.map((item) => item.type).join(', ') || 'n/d'}</div>
                     </div>
                   </div>
 
                   {modifyResult.compare && (
                     <div className="border border-slate-800 bg-slate-950/70 p-4 space-y-2">
-                      <div className="text-slate-200 font-semibold text-sm">Conceptual diff</div>
-                      <div className="text-xs text-slate-400">New indicators: {modifyResult.compare.new_indicators.join(', ') || 'none'}</div>
-                      <div className="text-xs text-slate-400">New protections: {modifyResult.compare.new_protections.join(', ') || 'none'}</div>
-                      <div className="text-xs text-slate-400">Parameter delta: {modifyResult.compare.parameter_count_delta}</div>
-                      <div className="text-xs text-slate-400">Fundamental filter added: {modifyResult.compare.fundamental_filter_added ? 'yes' : 'no'}</div>
+                      <div className="text-slate-200 font-semibold text-sm">Diff concettuale</div>
+                      <div className="text-xs text-slate-400">Nuovi indicatori: {modifyResult.compare.new_indicators.join(', ') || 'nessuno'}</div>
+                      <div className="text-xs text-slate-400">Nuove protezioni: {modifyResult.compare.new_protections.join(', ') || 'nessuna'}</div>
+                      <div className="text-xs text-slate-400">Delta parametri: {modifyResult.compare.parameter_count_delta}</div>
+                      <div className="text-xs text-slate-400">Filtro fondamentale aggiunto: {modifyResult.compare.fundamental_filter_added ? 'sì' : 'no'}</div>
                     </div>
                   )}
 
                   {originalBacktest.results && modifiedBacktest.results && compareMetrics && (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      <MetricCard label="Δ Trade OOS" value={compareMetrics.trades} colorClass={compareMetrics.trades < 0 ? 'text-amber-400' : 'text-green-400'} />
-                      <MetricCard label="Δ Expectancy R" value={compareMetrics.expectancy.toFixed(2)} colorClass={compareMetrics.expectancy >= 0 ? 'text-green-400' : 'text-red-400'} />
-                      <MetricCard label="Δ Return %" value={compareMetrics.returnPct.toFixed(2)} colorClass={compareMetrics.returnPct >= 0 ? 'text-green-400' : 'text-red-400'} />
-                      <MetricCard label="Δ Max DD %" value={compareMetrics.drawdown.toFixed(2)} colorClass={compareMetrics.drawdown <= 0 ? 'text-green-400' : 'text-red-400'} />
+                      <MetricCard label="Δ trade OOS" value={compareMetrics.trades} colorClass={compareMetrics.trades < 0 ? 'text-amber-400' : 'text-green-400'} />
+                      <MetricCard label="Δ expectancy R" value={compareMetrics.expectancy.toFixed(2)} colorClass={compareMetrics.expectancy >= 0 ? 'text-green-400' : 'text-red-400'} />
+                      <MetricCard label="Δ rendimento %" value={compareMetrics.returnPct.toFixed(2)} colorClass={compareMetrics.returnPct >= 0 ? 'text-green-400' : 'text-red-400'} />
+                      <MetricCard label="Δ max DD %" value={compareMetrics.drawdown.toFixed(2)} colorClass={compareMetrics.drawdown <= 0 ? 'text-green-400' : 'text-red-400'} />
                     </div>
                   )}
                 </>
@@ -905,7 +905,7 @@ function BacktestMiniSummary({ title, results }: { title: string; results: Backt
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <MetricCard label="Trade OOS" value={oos.total_trades} />
         <MetricCard label="Expectancy R" value={oos.expectancy_r?.toFixed(2)} colorClass={(oos.expectancy_r || 0) >= 0 ? 'text-green-400' : 'text-red-400'} />
-        <MetricCard label="Return %" value={oos.total_return_pct?.toFixed(2)} colorClass={(oos.total_return_pct || 0) >= 0 ? 'text-green-400' : 'text-red-400'} />
+        <MetricCard label="Rendimento %" value={oos.total_return_pct?.toFixed(2)} colorClass={(oos.total_return_pct || 0) >= 0 ? 'text-green-400' : 'text-red-400'} />
         <MetricCard label="Max DD %" value={oos.max_drawdown_pct?.toFixed(2)} colorClass={(oos.max_drawdown_pct || 0) <= 10 ? 'text-green-400' : 'text-red-400'} />
       </div>
       <div className="text-xs text-stone-400">
@@ -913,8 +913,8 @@ function BacktestMiniSummary({ title, results }: { title: string; results: Backt
       </div>
       {calendarContext?.provider && calendarContext.provider !== 'none' && (
         <div className="text-xs text-stone-500">
-          News provider: {calendarContext.provider}
-          {typeof calendarContext.events_used === 'number' ? ` · events ${calendarContext.events_used}` : ''}
+          Provider news: {calendarContext.provider}
+          {typeof calendarContext.events_used === 'number' ? ` · eventi ${calendarContext.events_used}` : ''}
         </div>
       )}
       {(calendarContext?.warnings || []).length > 0 && (

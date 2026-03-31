@@ -530,18 +530,18 @@ export default function StepIntake({ projectId, onComplete }: Props) {
 
           {formStep === 4 && (
             <div className="space-y-8">
-              <Section title="Sessions and filters">
-                <Accordion title="Session & Day Triggers" defaultOpen={true}>
+              <Section title="Sessioni e filtri">
+                <Accordion title="Trigger di sessione e giorni" defaultOpen={true}>
                   <div className="grid gap-4 md:grid-cols-2">
-                    <Field label="Session start (UTC)">
+                    <Field label="Inizio sessione (UTC)">
                       <input type="time" value={form.trading_hours_start} onChange={(e) => set('trading_hours_start', e.target.value)} className={inputCls} />
                     </Field>
-                    <Field label="Session end (UTC)">
+                    <Field label="Fine sessione (UTC)">
                       <input type="time" value={form.trading_hours_end} onChange={(e) => set('trading_hours_end', e.target.value)} className={inputCls} />
                     </Field>
                   </div>
                   <div className="mt-4">
-                    <Field label="Trading days">
+                    <Field label="Giorni operativi">
                       <div className="flex flex-wrap gap-2">
                         {DAYS.map((day) => (
                           <button
@@ -563,40 +563,40 @@ export default function StepIntake({ projectId, onComplete }: Props) {
                 </Accordion>
                 
                 <div className="mt-4 space-y-4">
-                  <Field label="Trend filter">
+                  <Field label="Filtro trend">
                     <input
                       value={form.trend_filter}
                       onChange={(e) => set('trend_filter', e.target.value)}
                       className={inputCls}
-                      placeholder="Only trade with higher timeframe trend or structural bias"
+                      placeholder="Operare solo con trend del timeframe superiore o bias strutturale"
                     />
                   </Field>
-                  <Field label="Volatility filter">
+                  <Field label="Filtro volatilità">
                     <input
                       value={form.volatility_filter}
                       onChange={(e) => set('volatility_filter', e.target.value)}
                       className={inputCls}
-                      placeholder="Avoid compressed or extreme volatility conditions"
+                      placeholder="Evita condizioni di volatilità compressa o estrema"
                     />
                   </Field>
                 </div>
 
                 <div className="mt-4">
-                  <Accordion title="Advanced Context & News Handling" defaultOpen={true}>
-                    <Field label="Context notes">
+                  <Accordion title="Contesto avanzato e gestione news" defaultOpen={true}>
+                    <Field label="Note di contesto">
                       <input
                         value={form.context_filter}
                         onChange={(e) => set('context_filter', e.target.value)}
                         className={inputCls}
-                        placeholder="Session, structure, liquidity, correlated market context"
+                        placeholder="Sessione, struttura, liquidità, contesto di mercati correlati"
                       />
                     </Field>
-                    <Field label="News handling notes">
+                    <Field label="Note gestione news">
                       <input
                         value={form.news_management}
                         onChange={(e) => set('news_management', e.target.value)}
                         className={inputCls}
-                        placeholder="Example: block trading 30 minutes before and after high-impact USD events"
+                        placeholder="Esempio: blocca il trading 30 minuti prima e dopo news USD ad alto impatto"
                       />
                     </Field>
                   </Accordion>
@@ -605,7 +605,7 @@ export default function StepIntake({ projectId, onComplete }: Props) {
 
               <div className="mt-8">
                 <FundamentalFiltersCard
-                  title="Macro / news filters"
+                  title="Filtri macro / news"
                   value={form.macro_news}
                   onChange={(next) => set('macro_news', next)}
                 />
@@ -615,37 +615,37 @@ export default function StepIntake({ projectId, onComplete }: Props) {
 
           {formStep === 5 && (
             <>
-              <Section title="Examples and trader notes">
-                <Field label="Examples of valid trades">
+              <Section title="Esempi e note operative">
+                <Field label="Esempi di trade validi">
                   <textarea
                     value={form.valid_trade_examples}
                     onChange={(e) => set('valid_trade_examples', e.target.value)}
                     className={`${textareaCls} h-32`}
-                    placeholder="Describe 2–3 concrete trades that perfectly matched the strategy, including context, trigger, stop and target."
+                    placeholder="Descrivi 2–3 trade concreti che rispettavano perfettamente la strategia, includendo contesto, trigger, stop e target."
                   />
                 </Field>
-                <Field label="Examples of invalid trades">
+                <Field label="Esempi di trade invalidi">
                   <textarea
                     value={form.invalid_trade_examples}
                     onChange={(e) => set('invalid_trade_examples', e.target.value)}
                     className={`${textareaCls} h-24`}
-                    placeholder="Describe situations that looked tradable but must be rejected, and explain why."
+                    placeholder="Descrivi situazioni che sembravano tradabili ma che devono essere rifiutate, spiegando il motivo."
                   />
                 </Field>
-                <Field label="Additional notes">
+                <Field label="Note aggiuntive">
                   <textarea
                     value={form.additional_notes}
                     onChange={(e) => set('additional_notes', e.target.value)}
                     className={`${textareaCls} h-20`}
-                    placeholder="Anything else that matters for execution or interpretation."
+                    placeholder="Qualsiasi altra nota utile per esecuzione o interpretazione."
                   />
                 </Field>
               </Section>
 
-              <Section title="Assumption policy">
+              <Section title="Politica sulle assunzioni">
                 <div className="space-y-4">
                   <div className="rounded border border-slate-800 bg-slate-950/60 px-4 py-3 text-xs leading-relaxed text-slate-500">
-                    The platform should not invent critical logic. You can, however, authorize conservative completion of non-critical gaps so the outputs stay complete without overriding your stated rules.
+                    La piattaforma non deve inventare logiche critiche. Puoi però autorizzare il completamento conservativo dei punti non critici, così gli output restano completi senza sovrascrivere le tue regole.
                   </div>
                   <div className="grid gap-3 md:grid-cols-2">
                     <button
@@ -657,8 +657,8 @@ export default function StepIntake({ projectId, onComplete }: Props) {
                           : 'border-slate-800 bg-transparent text-slate-400 hover:border-slate-700 hover:text-slate-100'
                       }`}
                     >
-                      <div className="text-sm font-medium">Strict interpretation only</div>
-                      <div className="mt-1 text-xs text-slate-500">Block incomplete logic instead of completing it.</div>
+                      <div className="text-sm font-medium">Solo interpretazione rigida</div>
+                      <div className="mt-1 text-xs text-slate-500">Blocca la logica incompleta invece di completarla.</div>
                     </button>
                     <button
                       type="button"
@@ -669,12 +669,12 @@ export default function StepIntake({ projectId, onComplete }: Props) {
                           : 'border-slate-800 bg-transparent text-slate-400 hover:border-slate-700 hover:text-slate-100'
                       }`}
                     >
-                      <div className="text-sm font-medium">Authorize conservative completion</div>
-                      <div className="mt-1 text-xs text-slate-500">Allow non-critical operational assumptions, but force them to be listed explicitly.</div>
+                      <div className="text-sm font-medium">Autorizza completamento conservativo</div>
+                      <div className="mt-1 text-xs text-slate-500">Permetti assunzioni operative non critiche, ma obbliga a elencarle in modo esplicito.</div>
                     </button>
                   </div>
                   {form.inference_policy?.allow_non_critical_assumptions && (
-                    <Field label="Authorization notes">
+                    <Field label="Note di autorizzazione">
                       <textarea
                         value={form.inference_policy?.operator_notes || ''}
                         onChange={(e) =>
@@ -684,7 +684,7 @@ export default function StepIntake({ projectId, onComplete }: Props) {
                           })
                         }
                         className={`${textareaCls} h-24`}
-                        placeholder="Optional: specify what the platform may assume conservatively and what it must never infer."
+                        placeholder="Facoltativo: specifica cosa la piattaforma può assumere in modo conservativo e cosa non deve mai inferire."
                       />
                     </Field>
                   )}
@@ -697,9 +697,9 @@ export default function StepIntake({ projectId, onComplete }: Props) {
                 <section className="rounded-lg border border-slate-800 bg-slate-950/70 p-4 space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Free preflight</p>
+                      <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Preflight gratuito</p>
                       <h2 className="text-lg font-semibold text-slate-100">
-                        {preflight.status === 'VALID' ? 'Pipeline ready' : 'Pipeline blocked before token spend'}
+                        {preflight.status === 'VALID' ? 'Pipeline pronta' : 'Pipeline bloccata prima della spesa token'}
                       </h2>
                     </div>
                     <div className={`border px-3 py-1 text-xs font-semibold ${
@@ -707,7 +707,7 @@ export default function StepIntake({ projectId, onComplete }: Props) {
                         ? 'border-cyan-900/70 bg-cyan-950/10 text-cyan-300'
                         : 'border-amber-900/70 bg-amber-950/10 text-amber-300'
                     }`}>
-                      completeness {Math.round(preflight.completeness_score * 100)}%
+                      completezza {Math.round(preflight.completeness_score * 100)}%
                     </div>
                   </div>
                   <p className="text-sm text-slate-400">{preflight.message}</p>
@@ -717,7 +717,7 @@ export default function StepIntake({ projectId, onComplete }: Props) {
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{stage}</span>
                           <span className={`text-[11px] font-semibold ${estimate.enabled ? 'text-cyan-300' : 'text-amber-300'}`}>
-                            {estimate.enabled ? `~$${estimate.estimated_cost_usd.toFixed(4)}` : 'stopped'}
+                            {estimate.enabled ? `~$${estimate.estimated_cost_usd.toFixed(4)}` : 'fermato'}
                           </span>
                         </div>
                         <p className="mt-2 text-xs text-slate-500">{estimate.reason}</p>
@@ -725,7 +725,7 @@ export default function StepIntake({ projectId, onComplete }: Props) {
                           <div className="mt-2 space-y-1 text-[11px] text-slate-400">
                             <div>input ~ {estimate.estimated_input_tokens} tok</div>
                             <div>output ~ {estimate.estimated_output_tokens} tok</div>
-                            <div>cap {estimate.max_tokens}</div>
+                            <div>limite {estimate.max_tokens}</div>
                           </div>
                         )}
                       </div>
@@ -734,10 +734,10 @@ export default function StepIntake({ projectId, onComplete }: Props) {
                   <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
                     <p className="text-slate-400">
                       {preflight.next_recommended_action}
-                      {preflight.blocking_items > 0 ? ` Open blockers: ${preflight.blocking_items}.` : ''}
+                      {preflight.blocking_items > 0 ? ` Blocchi aperti: ${preflight.blocking_items}.` : ''}
                     </p>
                     <p className="font-semibold text-slate-200">
-                      max expected pipeline cost ~ ${preflight.estimated_total_cost_usd.toFixed(4)}
+                      costo massimo atteso della pipeline ~ ${preflight.estimated_total_cost_usd.toFixed(4)}
                     </p>
                   </div>
                 </section>
@@ -747,7 +747,7 @@ export default function StepIntake({ projectId, onComplete }: Props) {
 
           {preflightLoading && !loading && (
             <p className="text-xs text-slate-500">
-              Running local pre-check. No tokens spent.
+              Controllo locale in corso. Nessun token speso.
             </p>
           )}
 
@@ -757,16 +757,16 @@ export default function StepIntake({ projectId, onComplete }: Props) {
             <NavButtons
               onBack={formStep > 1 ? prevFormStep : undefined}
               onNext={nextFormStep}
-              nextLabel="Continue section →"
-              backLabel="← Previous section"
+              nextLabel="Continua sezione →"
+              backLabel="← Sezione precedente"
               disabled={loading}
             />
           ) : (
             <NavButtons
               onBack={prevFormStep}
               onNext={handleSubmit}
-              nextLabel={loading ? 'Analyzing strategy...' : 'Analyze Strategy →'}
-              backLabel="← Previous section"
+              nextLabel={loading ? 'Analisi strategia in corso...' : 'Analizza strategia →'}
+              backLabel="← Sezione precedente"
               loading={loading}
               disabled={loading}
             />
@@ -774,7 +774,7 @@ export default function StepIntake({ projectId, onComplete }: Props) {
 
           {loading && (
             <p className="text-xs text-slate-500">
-              Claude is translating the strategy into structured trading logic. Typical runtime: 20–60 seconds.
+              Claude sta traducendo la strategia in logica di trading strutturata. Tempo tipico: 20–60 secondi.
             </p>
           )}
         </div>

@@ -411,6 +411,45 @@ class ProjectStore:
         return None
 
     @classmethod
+    async def list_version_payloads(
+        cls,
+        project_id: str,
+        *,
+        version_kind: Optional[str] = None,
+        limit: int = 200,
+    ) -> list[dict[str, Any]]:
+        if is_db_available():
+            async with AsyncSessionLocal() as db:  # type: ignore[arg-type]
+                stmt = select(ProjectVersion).where(ProjectVersion.project_id == project_id)
+                if version_kind:
+                    stmt = stmt.where(ProjectVersion.version_kind == version_kind)
+                rows = (
+                    await db.execute(
+                        stmt.order_by(ProjectVersion.created_at.desc()).limit(limit)
+                    )
+                ).scalars().all()
+                return [
+                    {
+                        "version_id": row.id,
+                        "project_id": row.project_id,
+                        "session_id": row.session_id,
+                        "version_kind": row.version_kind,
+                        "status": row.status,
+                        "summary": row.summary or {},
+                        "payload": row.payload or {},
+                        "fingerprint": row.fingerprint,
+                        "created_at": row.created_at.isoformat() if row.created_at else None,
+                    }
+                    for row in rows
+                ]
+
+        state = cls._memory_state()
+        versions = list(state["versions"].get(project_id, []))
+        if version_kind:
+            versions = [item for item in versions if item.get("version_kind") == version_kind]
+        return list(reversed(versions[-limit:]))
+
+    @classmethod
     async def add_artifact(
         cls,
         *,

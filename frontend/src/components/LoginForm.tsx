@@ -47,13 +47,13 @@ export default function LoginForm({
       } catch {}
 
       if (!response.ok) {
-        throw new Error(body.detail || 'Invalid credentials')
+        throw new Error(body.detail || 'Credenziali non valide')
       }
 
       router.replace(nextPath)
       router.refresh()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
+      setError(err instanceof Error ? err.message : 'Errore sconosciuto')
     } finally {
       setLoading(false)
     }
@@ -67,26 +67,26 @@ export default function LoginForm({
             <div>
               <div className="text-[11px] uppercase tracking-[0.28em] text-cyan-300">Visari Trading Room</div>
               <h1 className="mt-4 text-4xl font-semibold leading-tight tracking-tight text-slate-50">
-                Quantitative Strategy Platform
+                Piattaforma di ingegneria strategica
               </h1>
               <p className="mt-4 max-w-xl text-sm leading-relaxed text-slate-400">
-                Transform trading logic into validated MT5 systems with structured research, controlled revisions and delivery-ready exports.
+                Trasforma logiche di trading in algoritmi MT5 validati con ricerca strutturata, revisioni controllate ed export pronti al deploy.
               </p>
             </div>
 
             <div className="grid gap-4">
               {[
                 {
-                  title: 'Validated workflow',
-                  detail: 'Structured intake, formal specification, out-of-sample backtesting and export control.',
+                  title: 'Workflow validato',
+                  detail: 'Raccolta strutturata, specifica formale, backtest out-of-sample e controllo dell’export.',
                 },
                 {
-                  title: 'Institutional review',
-                  detail: 'Risk, robustness, macro filters and delivery checks in one professional workspace.',
+                  title: 'Revisione istituzionale',
+                  detail: 'Rischio, robustezza, filtri macro e controlli finali in un unico workspace professionale.',
                 },
                 {
-                  title: 'MT5 deployment ready',
-                  detail: 'From strategy idea or existing bot to a professional handoff package.',
+                  title: 'Pronto per MT5',
+                  detail: 'Dall’idea strategica o da un bot esistente fino a un pacchetto finale pronto all’handoff.',
                 },
               ].map((item) => (
                 <div key={item.title} className="border border-slate-800/90 bg-slate-950/45 px-4 py-4">
@@ -100,20 +100,20 @@ export default function LoginForm({
 
         <div className="p-8 sm:p-10">
           <div className="mb-8">
-            <p className="text-[11px] uppercase tracking-[0.28em] text-slate-500">Secure access</p>
+            <p className="text-[11px] uppercase tracking-[0.28em] text-slate-500">Accesso protetto</p>
             <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-50">{title}</h2>
             <p className="mt-2 text-sm leading-relaxed text-slate-500">{description}</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <label className="block">
-              <span className="mb-2 block text-[11px] uppercase tracking-[0.16em] text-slate-500">Username</span>
+              <span className="mb-2 block text-[11px] uppercase tracking-[0.16em] text-slate-500">Nome utente</span>
               <input
                 type="text"
                 value={username}
                 onChange={(event) => setUsername(event.target.value)}
                 className="w-full border border-slate-800 bg-slate-950/90 px-4 py-3.5 text-slate-100 outline-none transition-colors focus:border-cyan-700/70"
-                placeholder="your username"
+                placeholder="il tuo nome utente"
                 autoFocus
               />
             </label>
@@ -125,7 +125,7 @@ export default function LoginForm({
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 className="w-full border border-slate-800 bg-slate-950/90 px-4 py-3.5 text-slate-100 outline-none transition-colors focus:border-cyan-700/70"
-                placeholder="your password"
+                placeholder="la tua password"
               />
             </label>
 
@@ -140,13 +140,13 @@ export default function LoginForm({
               disabled={loading || !username.trim() || !password}
               className="w-full border border-cyan-800/70 bg-cyan-400/90 px-4 py-3.5 font-semibold text-slate-950 transition-colors hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {loading ? 'Signing in...' : submitLabel}
+              {loading ? 'Accesso in corso...' : submitLabel}
             </button>
           </form>
 
           <div className="mt-6 flex items-center justify-between gap-4 text-xs text-slate-500">
-            <span>Protected client workspace</span>
-            <span>Session-based access</span>
+            <span>Workspace cliente protetto</span>
+            <span>Accesso basato su sessione</span>
           </div>
 
           {secondaryHref && secondaryLabel && (
