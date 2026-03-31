@@ -346,20 +346,6 @@ export default function BotLabWorkspace() {
               <span className="border border-slate-800 px-3 py-1.5">Pronto per review e backtest</span>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="border border-slate-800/90 bg-slate-950/55 px-4 py-4">
-                <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Supported input</div>
-                <div className="mt-2 text-sm text-slate-300">`.mq5`, `.txt`, `.py`, or pasted code.</div>
-              </div>
-              <div className="border border-slate-800/90 bg-slate-950/55 px-4 py-4">
-                <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Trader outcome</div>
-                <div className="mt-2 text-sm text-slate-300">Understand, improve, compare and export with confidence.</div>
-              </div>
-              <div className="border border-slate-800/90 bg-slate-950/55 px-4 py-4">
-                <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">AI usage</div>
-                <div className="mt-2 text-sm text-slate-300">Only used for guided modifications. Initial analysis stays local.</div>
-              </div>
-            </div>
           </div>
 
           <div className="space-y-4 border border-slate-800/90 bg-slate-950/70 px-5 py-5">
