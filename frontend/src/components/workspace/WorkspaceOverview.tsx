@@ -305,8 +305,8 @@ export default function WorkspaceOverview({
         </div>
       </section>
 
-      <section className="grid items-start gap-5 xl:grid-cols-2">
-        <div className="min-w-0 border border-slate-800/90 bg-slate-950/75 px-5 py-5 lg:px-6">
+      <section className="grid items-stretch gap-5 xl:grid-cols-2">
+        <div className="flex min-w-0 flex-col border border-slate-800/90 bg-slate-950/75 px-5 py-5 lg:px-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Progetti</div>
@@ -336,7 +336,7 @@ export default function WorkspaceOverview({
             </div>
           </div>
 
-          <div className="mt-4 space-y-3">
+          <div className="mt-4 flex-1 space-y-3">
             {filteredProjects.map((project) => {
               const isActive = currentProjectId === project.project_id
               return (
