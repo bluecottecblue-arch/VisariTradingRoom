@@ -328,91 +328,21 @@ export default function BotLabWorkspace() {
 
       <section className="relative overflow-hidden border border-slate-800/90 bg-[linear-gradient(135deg,rgba(8,47,73,0.22),rgba(15,23,42,0.84)_32%,rgba(2,6,23,0.97))] px-6 py-8 lg:px-8 lg:py-9">
         <div className="absolute inset-y-0 right-0 hidden w-1/3 bg-[radial-gradient(circle_at_top_right,rgba(56,189,248,0.16),transparent_55%)] lg:block" />
-        <div className="relative grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-          <div className="space-y-5">
-            <div>
-              <div className="text-[11px] uppercase tracking-[0.28em] text-cyan-300">Bot Lab</div>
-              <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-50 lg:text-5xl">
-                Analizza, migliora e rivalida bot di trading esistenti
-              </h1>
-              <p className="mt-4 max-w-3xl text-sm leading-relaxed text-slate-400 lg:text-base">
-                Carica un bot MT5 o un codice strategico esistente, ispeziona la logica in locale, applica revisioni controllate in linguaggio naturale e confronta la versione aggiornata prima dell&apos;export.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-3 text-[11px] uppercase tracking-[0.16em] text-slate-500">
-              <span className="border border-slate-800 px-3 py-1.5">Analisi locale del codice</span>
-              <span className="border border-slate-800 px-3 py-1.5">Revisioni strutturate</span>
-              <span className="border border-slate-800 px-3 py-1.5">Pronto per review e backtest</span>
-            </div>
-
+        <div className="relative space-y-5">
+          <div>
+            <div className="text-[11px] uppercase tracking-[0.28em] text-cyan-300">Bot Lab</div>
+            <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-50 lg:text-5xl">
+              Analizza, migliora e rivalida bot di trading esistenti
+            </h1>
+            <p className="mt-4 max-w-3xl text-sm leading-relaxed text-slate-400 lg:text-base">
+              Carica un bot MT5 o un codice strategico esistente, ispeziona la logica in locale, applica revisioni controllate in linguaggio naturale e confronta la versione aggiornata prima dell&apos;export.
+            </p>
           </div>
 
-          <div className="space-y-4 border border-slate-800/90 bg-slate-950/70 px-5 py-5">
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">AI Engine access for revisions</div>
-              <span className="border border-slate-800 px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] text-slate-500">
-                {claudeSource === 'account' ? 'account key' : 'personal key'}
-              </span>
-            </div>
-            <div className="text-sm leading-relaxed text-slate-400">
-              Use the AI Service key assigned to your account, or provide your own personal key only for this revision session.
-            </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => accountClaudeAvailable && setClaudeSource('account')}
-                disabled={!accountClaudeAvailable}
-                className={`border px-4 py-4 text-left transition-colors ${
-                  claudeSource === 'account'
-                    ? 'border-cyan-900/70 bg-cyan-950/10 text-slate-100'
-                    : 'border-slate-800 bg-transparent text-slate-400 hover:border-slate-700 hover:text-slate-100'
-                } ${!accountClaudeAvailable ? 'cursor-not-allowed opacity-50' : ''}`}
-              >
-                <div className="text-sm font-medium">Use my assigned AI key</div>
-                <div className="mt-1 text-xs text-slate-500">
-                  {accountClaudeAvailable ? 'Available on this account.' : 'No account key assigned yet.'}
-                </div>
-              </button>
-              <button
-                type="button"
-                onClick={() => setClaudeSource('personal')}
-                className={`border px-4 py-4 text-left transition-colors ${
-                  claudeSource === 'personal'
-                    ? 'border-cyan-900/70 bg-cyan-950/10 text-slate-100'
-                    : 'border-slate-800 bg-transparent text-slate-400 hover:border-slate-700 hover:text-slate-100'
-                }`}
-              >
-                <div className="text-sm font-medium">Use my personal AI key</div>
-                <div className="mt-1 text-xs text-slate-500">Scoped to the current revision request.</div>
-              </button>
-            </div>
-            {claudeSource === 'personal' ? (
-              <div className="grid gap-4 md:grid-cols-2">
-                <select
-                  value={aiProvider}
-                  onChange={(e) => setAiProvider(e.target.value)}
-                  className={inputCls}
-                >
-                  <option value="anthropic">Anthropic (Claude)</option>
-                  <option value="openai">OpenAI (GPT-4o)</option>
-                  <option value="google">Google (Gemini)</option>
-                </select>
-                <input
-                  type="password"
-                  value={claudeApiKey}
-                  onChange={(e) => setClaudeApiKey(e.target.value)}
-                  className={inputCls}
-                  placeholder={aiProvider === 'openai' ? 'sk-proj-...' : aiProvider === 'google' ? 'AIza...' : 'sk-ant-...'}
-                />
-              </div>
-            ) : (
-              <div className="border border-slate-800 bg-slate-950/70 px-4 py-3 text-xs text-slate-500">
-                {accountClaudeAvailable
-                  ? 'Guided revisions will use the AI provider and key assigned to this user.'
-                  : 'Ask the admin to assign an AI API key to this account, or switch to your own personal key.'}
-              </div>
-            )}
+          <div className="flex flex-wrap gap-3 text-[11px] uppercase tracking-[0.16em] text-slate-500">
+            <span className="border border-slate-800 px-3 py-1.5">Analisi locale del codice</span>
+            <span className="border border-slate-800 px-3 py-1.5">Revisioni strutturate</span>
+            <span className="border border-slate-800 px-3 py-1.5">Pronto per review e backtest</span>
           </div>
         </div>
       </section>
