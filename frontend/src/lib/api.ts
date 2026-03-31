@@ -165,7 +165,7 @@ export const projectApi = {
 }
 
 export const dashboardApi = {
-  commandCenter: (params?: { projectId?: string | null; timeframe?: string; source?: 'auto' | 'real' | 'demo' }) => {
+  commandCenter: (params?: { projectId?: string | null; timeframe?: string; source?: 'auto' | 'live' | 'real' | 'demo' }) => {
     const search = new URLSearchParams()
     if (params?.projectId) search.set('project_id', params.projectId)
     if (params?.timeframe) search.set('timeframe', params.timeframe)

@@ -620,8 +620,8 @@ export interface ProjectDetail extends ProjectSummary {
   jobs: ProjectJobRecord[]
 }
 
-export type DashboardSourceMode = 'real' | 'mock' | 'hybrid'
-export type DashboardOperatingMode = 'DEMO' | 'PAPER' | 'LIVE_READY' | 'BACKTEST_REVIEW'
+export type DashboardSourceMode = 'live' | 'real' | 'mock' | 'hybrid'
+export type DashboardOperatingMode = 'DEMO' | 'PAPER' | 'LIVE' | 'LIVE_READY' | 'BACKTEST_REVIEW'
 export type DashboardTone = 'neutral' | 'positive' | 'negative' | 'warning'
 
 export interface DashboardHeader {
@@ -754,6 +754,14 @@ export interface CommandCenterDashboard {
   insight_boxes: DashboardInsightBox[]
   recent_changes: string[]
   alerts: DashboardAlert[]
+  live_monitor?: {
+    project_id?: string | null
+    monitor_token?: string | null
+    ingest_path: string
+    last_ingest_at?: string | null
+    connected: boolean
+    sample_fields: string[]
+  } | null
 }
 
 export interface AdminUserRecord {

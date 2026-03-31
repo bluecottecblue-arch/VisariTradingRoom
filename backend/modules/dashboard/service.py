@@ -79,6 +79,37 @@ def _build_distribution(values: list[float], buckets: int = 9) -> list[dict[str,
     return result
 
 
+def _normalize_curve(
+    values: list[Any],
+    *,
+    start: datetime,
+    step: timedelta,
+) -> list[dict[str, Any]]:
+    if not values:
+        return []
+    if isinstance(values[0], dict):
+        points: list[dict[str, Any]] = []
+        for item in values:
+            if not isinstance(item, dict):
+                continue
+            timestamp = item.get("timestamp")
+            label = item.get("label")
+            value = item.get("value")
+            if not isinstance(value, (int, float)):
+                continue
+            ts = timestamp or _utc_now().isoformat()
+            points.append(
+                {
+                    "timestamp": ts,
+                    "label": label or datetime.fromisoformat(str(ts).replace("Z", "+00:00")).strftime("%d %b"),
+                    "value": round(float(value), 2),
+                }
+            )
+        return points
+    numeric = [float(value) for value in values if isinstance(value, (int, float))]
+    return _build_line_points(numeric, start, step)
+
+
 def _strategy_health_label(score: float) -> str:
     if score >= 0.82:
         return "Institutional quality"
@@ -106,33 +137,73 @@ class DashboardService:
             if selected_project
             else None
         )
+        live_monitor_config = await cls._live_monitor_config(selected_project)
 
         if source == "demo":
-            return cls._build_mock_response(
+            payload = cls._build_mock_response(
                 projects=projects,
                 selected_project=selected_project,
                 selected_detail=selected_detail,
                 timeframe=timeframe,
                 forced=True,
             )
+            payload["live_monitor"] = live_monitor_config
+            return payload
+
+        live_payload = await cls._load_live_monitor_payload(selected_detail)
+        if source == "live":
+            if live_payload:
+                payload = cls._build_live_response(
+                    projects=projects,
+                    selected_project=selected_project,
+                    selected_detail=selected_detail,
+                    live_payload=live_payload,
+                    timeframe=timeframe,
+                )
+                payload["live_monitor"] = live_monitor_config
+                return payload
+            payload = cls._build_mock_response(
+                projects=projects,
+                selected_project=selected_project,
+                selected_detail=selected_detail,
+                timeframe=timeframe,
+                forced=True,
+            )
+            payload["live_monitor"] = live_monitor_config
+            return payload
+
+        if live_payload and source == "auto":
+            payload = cls._build_live_response(
+                projects=projects,
+                selected_project=selected_project,
+                selected_detail=selected_detail,
+                live_payload=live_payload,
+                timeframe=timeframe,
+            )
+            payload["live_monitor"] = live_monitor_config
+            return payload
 
         real_payload = await cls._load_real_backtest_payload(selected_detail)
         if real_payload:
-            return cls._build_real_response(
+            payload = cls._build_real_response(
                 projects=projects,
                 selected_project=selected_project,
                 selected_detail=selected_detail,
                 backtest_payload=real_payload,
                 timeframe=timeframe,
             )
+            payload["live_monitor"] = live_monitor_config
+            return payload
 
-        return cls._build_mock_response(
+        payload = cls._build_mock_response(
             projects=projects,
             selected_project=selected_project,
             selected_detail=selected_detail,
             timeframe=timeframe,
-            forced=(source == "real"),
+            forced=(source in {"real", "live"}),
         )
+        payload["live_monitor"] = live_monitor_config
+        return payload
 
     @classmethod
     async def _resolve_project(
@@ -160,6 +231,37 @@ class DashboardService:
         if latest and latest.get("payload"):
             return latest["payload"]
         return None
+
+    @classmethod
+    async def _load_live_monitor_payload(cls, project: Optional[dict[str, Any]]) -> Optional[dict[str, Any]]:
+        if not project:
+            return None
+        latest = await ProjectStore.get_latest_version(project["project_id"], version_kind="live_monitor_snapshot")
+        if latest and latest.get("payload"):
+            return latest["payload"]
+        return None
+
+    @classmethod
+    async def _live_monitor_config(cls, project: Optional[dict[str, Any]]) -> Optional[dict[str, Any]]:
+        if not project:
+            return None
+        token = await ProjectStore.ensure_live_monitor_token(project["project_id"])
+        metadata = dict(project.get("metadata") or {})
+        return {
+            "project_id": project["project_id"],
+            "monitor_token": token,
+            "ingest_path": "/api/dashboard/live-monitor-ingest",
+            "last_ingest_at": metadata.get("last_live_ingest_at"),
+            "connected": bool(metadata.get("last_live_ingest_at")),
+            "sample_fields": [
+                "equity",
+                "today_pnl_pct",
+                "risk_usage_pct",
+                "open_positions",
+                "recent_signals",
+                "latency_ms",
+            ],
+        }
 
     @classmethod
     def _build_real_response(
@@ -318,6 +420,159 @@ class DashboardService:
             ],
             "recent_changes": cls._recent_changes(selected_detail),
             "alerts": alerts,
+        }
+
+    @classmethod
+    def _build_live_response(
+        cls,
+        *,
+        projects: list[dict[str, Any]],
+        selected_project: Optional[dict[str, Any]],
+        selected_detail: Optional[dict[str, Any]],
+        live_payload: dict[str, Any],
+        timeframe: str,
+    ) -> dict[str, Any]:
+        now = _utc_now()
+        project_title = (selected_project or {}).get("title") or live_payload.get("bot_label") or "Live Monitor"
+        equity_curve = list(live_payload.get("equity_curve") or [])
+        if not equity_curve and isinstance(live_payload.get("equity"), (int, float)):
+            base_equity = float(live_payload.get("equity") or 0.0)
+            equity_curve = [base_equity * (1 - 0.002 * i) for i in reversed(range(10))] + [base_equity]
+        step = timedelta(hours=6 if timeframe == "7D" else 12)
+        start = now - step * max(1, len(equity_curve) - 1)
+        equity_points = _normalize_curve(equity_curve, start=start, step=step)
+        curve_values = [point["value"] for point in equity_points]
+        drawdown_points = _build_line_points(_compute_drawdown_series(curve_values), start, step, precision=3)
+        open_positions = [
+            {
+                "id": str(item.get("id") or f"pos-{index}"),
+                "symbol": str(item.get("symbol") or "N/A"),
+                "side": str(item.get("side") or "LONG"),
+                "size": float(item.get("size") or 0.0),
+                "entry": float(item.get("entry") or 0.0),
+                "pnl": float(item.get("pnl") or 0.0),
+                "stop": float(item.get("stop") or 0.0),
+                "take_profit": float(item.get("take_profit") or 0.0),
+                "status": str(item.get("status") or "OPEN"),
+            }
+            for index, item in enumerate(live_payload.get("open_positions") or [], start=1)
+            if isinstance(item, dict)
+        ]
+        recent_signals = [
+            {
+                "id": str(item.get("id") or f"sig-{index}"),
+                "timestamp": item.get("timestamp") or now.isoformat(),
+                "symbol": str(item.get("symbol") or "N/A"),
+                "side": str(item.get("side") or "BUY"),
+                "status": str(item.get("status") or "EXECUTED"),
+                "price": float(item.get("price") or 0.0),
+                "reason": str(item.get("reason") or "Live bridge"),
+            }
+            for index, item in enumerate(live_payload.get("recent_signals") or [], start=1)
+            if isinstance(item, dict)
+        ]
+        distribution_seed = [float(item.get("pnl") or 0.0) for item in open_positions] or [float(live_payload.get("today_pnl_pct") or 0.0)]
+        metadata = dict((selected_project or {}).get("metadata") or {})
+
+        return {
+            "as_of": live_payload.get("timestamp") or now.isoformat(),
+            "source_mode": "live",
+            "operating_mode": "LIVE",
+            "selected_project_id": (selected_project or {}).get("project_id"),
+            "selected_project_title": project_title,
+            "available_projects": projects,
+            "timeframe": timeframe,
+            "header": {
+                "bot_label": live_payload.get("bot_label") or project_title,
+                "status": "LIVE MONITOR",
+                "status_tone": "positive",
+                "current_time": live_payload.get("timestamp") or now.isoformat(),
+                "market_session": _market_session(now),
+                "connection_status": "Live bridge connected",
+                "connection_tone": "positive",
+                "strategy_health_label": "Live telemetry active",
+                "strategy_health_score": max(0, min(100, round(100 - float(live_payload.get("max_drawdown_pct") or 0.0) * 3))),
+                "desk_mode": "Live supervision",
+                "source_label": "Live project telemetry",
+            },
+            "kpis": [
+                {"id": "equity", "label": "Total Equity", "value": _fmt_currency(float(live_payload.get("equity") or 0.0)), "tone": "neutral", "detail": "Current account equity"},
+                {"id": "pnl", "label": "Today PnL", "value": _fmt_pct(float(live_payload.get("today_pnl_pct") or 0.0)), "tone": "positive" if float(live_payload.get("today_pnl_pct") or 0.0) >= 0 else "negative", "detail": "Current live day"},
+                {"id": "positions", "label": "Open Positions", "value": str(len(open_positions)), "tone": "neutral", "detail": "Active live tickets"},
+                {"id": "winrate", "label": "Feed Status", "value": str(live_payload.get("data_feed_status") or "Live"), "tone": "positive", "detail": "Runtime data feed"},
+                {"id": "drawdown", "label": "Max Drawdown", "value": _fmt_pct(float(live_payload.get("max_drawdown_pct") or 0.0)), "tone": "negative", "detail": "Live drawdown"},
+                {"id": "quality", "label": "Latency", "value": f"{int(live_payload.get('latency_ms') or 0)} ms", "tone": "neutral", "detail": "Bridge latency"},
+                {"id": "risk", "label": "Risk Usage", "value": _fmt_pct(float(live_payload.get("risk_usage_pct") or 0.0)), "tone": "warning", "detail": "Current risk budget"},
+                {"id": "cash", "label": "Available Cash", "value": _fmt_currency(float(live_payload.get("available_cash") or live_payload.get("balance") or 0.0)), "tone": "neutral", "detail": "Free live capital"},
+            ],
+            "charts": {
+                "equity_curve": equity_points,
+                "drawdown_curve": drawdown_points,
+                "pnl_distribution": _build_distribution(distribution_seed),
+                "exposure_map": [
+                    {"label": "Live exposure", "value": round(float(live_payload.get("exposure_pct") or 0.0), 2)},
+                    {"label": "Cash buffer", "value": round(max(0.0, 100.0 - float(live_payload.get("exposure_pct") or 0.0)), 2)},
+                ],
+            },
+            "recent_signals": recent_signals,
+            "open_positions": open_positions,
+            "risk_panel": {
+                "risk_usage_pct": round(float(live_payload.get("risk_usage_pct") or 0.0), 2),
+                "var_proxy_pct": round(float(live_payload.get("var_proxy_pct") or 0.0), 2),
+                "leverage_proxy": round(float(live_payload.get("leverage_proxy") or 1.0), 2),
+                "exposure_pct": round(float(live_payload.get("exposure_pct") or 0.0), 2),
+                "daily_loss_used_pct": round(float(live_payload.get("daily_loss_used_pct") or 0.0), 2),
+                "kill_switch_status": str(live_payload.get("kill_switch_status") or "NOMINAL"),
+                "warnings": list(live_payload.get("warnings") or []),
+                "max_drawdown_pct": round(float(live_payload.get("max_drawdown_pct") or 0.0), 2),
+            },
+            "market_panel": {
+                "regime": str(live_payload.get("regime") or "Unknown"),
+                "volatility": str(live_payload.get("volatility") or "Unknown"),
+                "session": _market_session(now),
+                "news_risk_active": bool(live_payload.get("news_risk_active")),
+                "news_provider": str(live_payload.get("news_provider") or "none"),
+                "news_events": int(live_payload.get("news_events") or 0),
+                "macro_filter_status": str(live_payload.get("macro_filter_status") or "Inactive"),
+                "directional_bias": str(live_payload.get("directional_bias") or "Neutral"),
+                "warnings": list(live_payload.get("warnings") or [])[:3],
+            },
+            "tech_panel": {
+                "data_provider": str(live_payload.get("data_provider") or "mt5_bridge"),
+                "data_feed_status": str(live_payload.get("data_feed_status") or "Live"),
+                "last_sync": live_payload.get("timestamp") or metadata.get("last_live_ingest_at") or now.isoformat(),
+                "parser_status": "N/A",
+                "engine_status": str(live_payload.get("engine_status") or "Running"),
+                "provider_status": str(live_payload.get("provider_status") or "Connected"),
+                "export_status": str(live_payload.get("export_status") or "Package ready"),
+                "last_run_label": live_payload.get("timestamp") or now.isoformat(),
+                "artifacts_ready": len((selected_detail or {}).get("artifacts") or []),
+                "jobs_running": len([job for job in ((selected_detail or {}).get("jobs") or []) if job.get("status") in {"queued", "running"}]),
+                "latency_ms": int(live_payload.get("latency_ms") or 0),
+                "warnings": list(live_payload.get("warnings") or []),
+            },
+            "insight_boxes": [
+                {"label": "Live Feed", "value": "Connected", "tone": "positive", "detail": "Runtime telemetry linked to the project"},
+                {"label": "Drift Risk", "value": "Watch" if float(live_payload.get("max_drawdown_pct") or 0.0) >= 8 else "Contained", "tone": "warning" if float(live_payload.get("max_drawdown_pct") or 0.0) >= 8 else "positive", "detail": "Compare live behavior vs validated profile"},
+                {"label": "Macro State", "value": "Armed" if bool(live_payload.get("news_risk_active")) else "Inactive", "tone": "warning" if bool(live_payload.get("news_risk_active")) else "neutral", "detail": "Live macro window supervision"},
+                {"label": "Safe to run?", "value": "Controlled" if str(live_payload.get("kill_switch_status") or "NOMINAL") == "NOMINAL" else "Restricted", "tone": "positive" if str(live_payload.get("kill_switch_status") or "NOMINAL") == "NOMINAL" else "negative", "detail": "Live governance status"},
+            ],
+            "recent_changes": cls._recent_changes(selected_detail) or ["Live monitor linked to current project."],
+            "alerts": [
+                {
+                    "tone": "warning" if float(live_payload.get("daily_loss_used_pct") or 0.0) >= 70 else "neutral",
+                    "title": "Live supervision active",
+                    "detail": "The desk is now reading live telemetry snapshots instead of review-only payloads.",
+                }
+            ],
+            "live_monitor": {
+                "project_id": (selected_project or {}).get("project_id"),
+                "monitor_token": metadata.get("live_monitor_token"),
+                "ingest_path": "/api/dashboard/live-monitor-ingest",
+                "last_ingest_at": metadata.get("last_live_ingest_at") or live_payload.get("timestamp"),
+                "connected": True,
+                "sample_fields": ["equity", "today_pnl_pct", "risk_usage_pct", "open_positions", "recent_signals", "latency_ms"],
+            },
         }
 
     @classmethod

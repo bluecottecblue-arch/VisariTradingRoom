@@ -16,7 +16,7 @@ import type {
 import { BarChart, LineChart, PanelFrame, SkeletonDesk, StatusPill, panelCls } from './visuals'
 
 type DeskTab = 'performance' | 'risk' | 'execution' | 'fundamentals'
-type DataSource = 'auto' | 'real' | 'demo'
+type DataSource = 'auto' | 'live' | 'real' | 'demo'
 
 const tabs: Array<{ id: DeskTab; label: string }> = [
   { id: 'performance', label: 'Strategy Health' },
@@ -92,7 +92,7 @@ function buildDeskBadges(dashboard: CommandCenterDashboard) {
   }
   if (
     header.strategy_health_score < 70 ||
-    source_mode !== 'real' ||
+    source_mode === 'mock' ||
     risk_panel.warnings.length > 0
   ) {
     badges.push({ label: 'RESEARCH CANDIDATE', tone: 'neutral' })
@@ -455,7 +455,7 @@ export default function CommandCenterClient({ initialProjectId = null }: { initi
             <div className="flex flex-wrap items-center gap-3">
               <div className="text-[11px] uppercase tracking-[0.28em] text-cyan-300">Visari Trading Room</div>
               <StatusPill label={dashboard?.header.status || 'Command Center'} tone={dashboard?.header.status_tone || 'neutral'} />
-              {dashboard && <StatusPill label={dashboard.source_mode} tone={dashboard.source_mode === 'real' ? 'positive' : 'warning'} />}
+              {dashboard && <StatusPill label={dashboard.source_mode} tone={dashboard.source_mode === 'mock' ? 'warning' : 'positive'} />}
             </div>
             <div>
               <h1 className="text-3xl font-semibold tracking-tight text-slate-50 lg:text-4xl">
@@ -521,6 +521,7 @@ export default function CommandCenterClient({ initialProjectId = null }: { initi
                   className="w-full border border-slate-800 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-slate-600"
                 >
                   <option value="auto">Auto / migliore disponibile</option>
+                  <option value="live">Solo live</option>
                   <option value="real">Solo dati reali</option>
                   <option value="demo">Demo professionale</option>
                 </select>
@@ -763,6 +764,33 @@ export default function CommandCenterClient({ initialProjectId = null }: { initi
                             { label: 'Last Sync', value: formatClock(dashboard.tech_panel.last_sync) },
                           ]}
                         />
+                        {dashboard.live_monitor && (
+                          <div className="mt-4 space-y-3 border-t border-slate-800/80 pt-4">
+                            <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Live link</div>
+                            <div className="grid gap-3 md:grid-cols-2">
+                              <div className="border border-slate-900/80 bg-slate-950/60 px-4 py-3">
+                                <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Status</div>
+                                <div className="mt-2 text-sm font-semibold text-slate-100">
+                                  {dashboard.live_monitor.connected ? 'Connected' : 'Ready'}
+                                </div>
+                              </div>
+                              <div className="border border-slate-900/80 bg-slate-950/60 px-4 py-3">
+                                <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Last ingest</div>
+                                <div className="mt-2 text-sm font-semibold text-slate-100">
+                                  {dashboard.live_monitor.last_ingest_at ? formatClock(dashboard.live_monitor.last_ingest_at) : '—'}
+                                </div>
+                              </div>
+                              <div className="border border-slate-900/80 bg-slate-950/60 px-4 py-3">
+                                <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Endpoint</div>
+                                <div className="mt-2 break-all font-mono text-xs text-slate-300">{dashboard.live_monitor.ingest_path}</div>
+                              </div>
+                              <div className="border border-slate-900/80 bg-slate-950/60 px-4 py-3">
+                                <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Project token</div>
+                                <div className="mt-2 break-all font-mono text-xs text-slate-300">{dashboard.live_monitor.monitor_token || '—'}</div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </PanelFrame>
                     </div>
                   </div>

@@ -25,6 +25,10 @@ def _fingerprint(payload: Any) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
 
 
+def _new_monitor_token() -> str:
+    return f"vtl_{uuid.uuid4().hex}{uuid.uuid4().hex[:8]}"
+
+
 class ProjectStore:
     _MEMORY_ROOT = "__projects__"
 
@@ -58,6 +62,10 @@ class ProjectStore:
     async def create_project(cls, *, owner_username: str, title: str, mode: str = "strategy") -> dict[str, Any]:
         project_id = str(uuid.uuid4())
         now = _utc_now()
+        metadata = {
+            "live_monitor_token": _new_monitor_token(),
+            "last_live_ingest_at": None,
+        }
         project = {
             "project_id": project_id,
             "owner_username": owner_username,
@@ -66,7 +74,7 @@ class ProjectStore:
             "status": "active",
             "active_session_id": None,
             "latest_verdict": None,
-            "metadata": {},
+            "metadata": metadata,
             "created_at": now,
             "updated_at": now,
         }
@@ -78,7 +86,7 @@ class ProjectStore:
                     title=project["title"],
                     mode=project["mode"],
                     status=project["status"],
-                    metadata_json={},
+                    metadata_json=metadata,
                 )
                 db.add(row)
                 await db.commit()
@@ -165,6 +173,60 @@ class ProjectStore:
             "artifacts": state["artifacts"].get(project_id, []),
             "jobs": state["jobs"].get(project_id, []),
         }
+
+    @classmethod
+    async def get_project_unscoped(cls, project_id: str) -> Optional[dict[str, Any]]:
+        if is_db_available():
+            try:
+                async with AsyncSessionLocal() as db:  # type: ignore[arg-type]
+                    stmt = select(Project).where(Project.id == project_id)
+                    row = (await db.execute(stmt)).scalar_one_or_none()
+                    if not row:
+                        return None
+                    versions = await cls.list_versions(project_id)
+                    artifacts = await cls.list_artifacts(project_id)
+                    jobs = await cls.list_jobs(project_id)
+                    return {
+                        "project_id": row.id,
+                        "owner_username": row.owner_username,
+                        "title": row.title,
+                        "mode": row.mode,
+                        "status": row.status,
+                        "active_session_id": row.active_session_id,
+                        "latest_verdict": row.latest_verdict,
+                        "metadata": row.metadata_json or {},
+                        "created_at": row.created_at.isoformat() if row.created_at else None,
+                        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+                        "versions": versions,
+                        "artifacts": artifacts,
+                        "jobs": jobs,
+                    }
+            except Exception:
+                pass
+
+        state = cls._memory_state()
+        project = state["projects"].get(project_id)
+        if not project:
+            return None
+        return {
+            **project,
+            "versions": state["versions"].get(project_id, []),
+            "artifacts": state["artifacts"].get(project_id, []),
+            "jobs": state["jobs"].get(project_id, []),
+        }
+
+    @classmethod
+    async def ensure_live_monitor_token(cls, project_id: str) -> str:
+        project = await cls.get_project_unscoped(project_id)
+        if not project:
+            raise ValueError("Project not found")
+        metadata = dict(project.get("metadata") or {})
+        token = str(metadata.get("live_monitor_token") or "").strip()
+        if token:
+            return token
+        token = _new_monitor_token()
+        await cls.update_project(project_id, metadata={"live_monitor_token": token})
+        return token
 
     @classmethod
     async def update_project(cls, project_id: str, **changes: Any) -> None:
