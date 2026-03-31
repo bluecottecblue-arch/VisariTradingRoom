@@ -221,7 +221,7 @@ export default function StepIntake({ projectId, onComplete }: Props) {
     if (!form.name.trim()) return 'Inserisci un nome per la strategia.'
     if (!form.market.trim()) return 'Seleziona il mercato o lo strumento.'
     if (form.claude_access?.credential_source === 'account' && !accountClaudeAvailable) {
-      return "Questo account non ha ancora una chiave AI assegnata. Usa la tua chiave personale oppure chiedi all'admin di assegnarne una."
+      return "Usa una chiave personale oppure chiedi all'admin di assegnarne una al tuo account."
     }
     if (form.claude_access?.credential_source !== 'account' && !(form.claude_access?.api_key || '').trim()) {
       return 'Inserisci la tua chiave AI personale per continuare.'
@@ -347,10 +347,7 @@ export default function StepIntake({ projectId, onComplete }: Props) {
               <Section title="Accesso motore AI">
                 <div className="space-y-4">
                   <div className="text-xs text-stone-500">
-                    Analisi strategia, formalizzazione e generazione bot richiedono una chiave AI. Puoi usare la chiave assegnata al tuo account oppure la tua chiave personale per questo workflow.
-                  </div>
-                  <div className="rounded border border-stone-800 bg-stone-900/60 px-4 py-3 text-xs text-stone-500">
-                    Nessuna chiave condivisa globale viene esposta agli utenti. Ogni workflow usa o la tua chiave personale o quella assegnata al tuo account.
+                    Usa la chiave assegnata al tuo account, altrimenti inserisci una chiave personale.
                   </div>
                   <div className="grid gap-3 md:grid-cols-2">
                     <button
@@ -407,8 +404,8 @@ export default function StepIntake({ projectId, onComplete }: Props) {
                   ) : (
                     <div className="rounded border border-slate-800 bg-slate-950/60 px-4 py-3 text-xs text-slate-500">
                       {accountClaudeAvailable
-                        ? 'Questo workflow usera il provider AI e la chiave gia assegnati al tuo account.'
-                        : 'Passa alla chiave personale oppure chiedi all’admin di assegnarne una al tuo account.'}
+                        ? 'Questo workflow usera la chiave gia assegnata al tuo account.'
+                        : 'Usa una chiave personale oppure chiedi all’admin di assegnarne una al tuo account.'}
                     </div>
                   )}
                 </div>

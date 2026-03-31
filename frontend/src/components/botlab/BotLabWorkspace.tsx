@@ -525,6 +525,9 @@ export default function BotLabWorkspace() {
                   : 'personale'}
               </span>
             </div>
+            <div className="text-xs text-slate-500">
+              Usa la chiave assegnata al tuo account, altrimenti inserisci una chiave personale.
+            </div>
             <div className="grid gap-3 md:grid-cols-2">
               <button
                 type="button"
