@@ -2,7 +2,7 @@
 ORM Models — solo caricati se SQLAlchemy è disponibile
 """
 try:
-    from sqlalchemy import Column, String, Float, Integer, Text, DateTime, JSON
+    from sqlalchemy import Boolean, Column, String, Float, Integer, Text, DateTime, JSON
     from sqlalchemy.sql import func
     from db.database import Base
 
@@ -113,6 +113,35 @@ try:
         updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
         last_login_at = Column(DateTime(timezone=True))
 
+
+    class AcademyProfile(Base):
+        __tablename__ = "academy_profiles"
+
+        username = Column(String, primary_key=True)
+        level_input = Column(String)
+        detected_level = Column(String, default="beginner")
+        freeform_background = Column(Text)
+        recommended_module_id = Column(String)
+        recommendation_reason = Column(Text)
+        last_viewed_module_id = Column(String)
+        last_viewed_lesson_id = Column(String)
+        created_at = Column(DateTime(timezone=True), server_default=func.now())
+        updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+    class AcademyLessonProgress(Base):
+        __tablename__ = "academy_lesson_progress"
+
+        id = Column(String, primary_key=True)
+        username = Column(String, index=True, nullable=False)
+        module_id = Column(String, index=True, nullable=False)
+        lesson_id = Column(String, index=True, nullable=False)
+        completed = Column(Boolean, default=False)
+        completed_at = Column(DateTime(timezone=True))
+        last_viewed_at = Column(DateTime(timezone=True))
+        created_at = Column(DateTime(timezone=True), server_default=func.now())
+        updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
 except ImportError:
     # SQLAlchemy not installed — models not available, using InMemorySessionStore
     class StrategySession:  # type: ignore
@@ -131,4 +160,10 @@ except ImportError:
         pass
 
     class User:  # type: ignore
+        pass
+
+    class AcademyProfile:  # type: ignore
+        pass
+
+    class AcademyLessonProgress:  # type: ignore
         pass

@@ -67,8 +67,8 @@ export default function BotLabWorkspace() {
   const [filename, setFilename] = useState('uploaded_bot.mq5')
   const [code, setCode] = useState('')
   const [dragActive, setDragActive] = useState(false)
-  const [claudeSource, setClaudeSource] = useState<'account' | 'personal'>('personal')
-  const [aiProvider, setAiProvider] = useState('anthropic')
+  const [claudeSource, setClaudeSource] = useState<'account' | 'personal'>('account')
+  const [aiProvider, setAiProvider] = useState('google')
   const [claudeApiKey, setClaudeApiKey] = useState('')
   const [accountClaudeAvailable, setAccountClaudeAvailable] = useState(false)
   const [sourceOrigin, setSourceOrigin] = useState<'user' | 'visari'>('user')
@@ -138,12 +138,14 @@ export default function BotLabWorkspace() {
     authApi.me()
       .then((body) => {
         if (!cancelled) {
+          setAiProvider(body.ai_provider || 'google')
           const hasKey = Boolean(
              (body.ai_provider === 'openai' && body.openai_key_configured) ||
              (body.ai_provider === 'google' && body.google_key_configured) ||
              ((!body.ai_provider || body.ai_provider === 'anthropic') && body.claude_key_configured)
           )
           setAccountClaudeAvailable(hasKey)
+          if (hasKey) setClaudeSource('account')
         }
       })
       .catch(() => {
@@ -272,7 +274,7 @@ export default function BotLabWorkspace() {
         claude_access: {
           credential_source: claudeSource,
           api_key: claudeSource === 'personal' ? claudeApiKey : '',
-          provider: claudeSource === 'personal' ? aiProvider : 'anthropic',
+          provider: claudeSource === 'personal' ? aiProvider : aiProvider,
         },
         fundamental_filters: effectiveFundamentals,
       }) as BotLabModifyResult

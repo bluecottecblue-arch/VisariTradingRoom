@@ -183,6 +183,32 @@ export const dashboardApi = {
   },
 }
 
+export const academyApi = {
+  bootstrap: () =>
+    request('/api/academy/bootstrap'),
+
+  updateProfile: (payload: { level_input?: string; freeform_background?: string }) =>
+    request('/api/academy/profile', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  markViewed: (moduleId: string, lessonId: string) =>
+    request('/api/academy/lessons/view', {
+      method: 'POST',
+      body: JSON.stringify({ module_id: moduleId, lesson_id: lessonId }),
+    }),
+
+  setLessonProgress: (moduleId: string, lessonId: string, completed: boolean) =>
+    request('/api/academy/lessons/progress', {
+      method: 'POST',
+      body: JSON.stringify({ module_id: moduleId, lesson_id: lessonId, completed }),
+    }),
+
+  search: (query: string) =>
+    request(`/api/academy/search?q=${encodeURIComponent(query)}`),
+}
+
 // ─── Export endpoints ─────────────────────────────────────────────────────────
 
 export const exportApi = {

@@ -9,7 +9,7 @@ import traceback
 import logging
 from contextlib import asynccontextmanager
 
-from api.routers import auth, strategy, backtest, export, guide, botlab, projects, dashboard
+from api.routers import auth, strategy, backtest, export, guide, botlab, projects, dashboard, academy
 from modules.auth.security import require_authenticated
 from db.database import DATABASE_URL, init_db, is_db_available, resolve_storage_root
 
@@ -57,6 +57,7 @@ async def add_security_headers(request: Request, call_next):
 app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
 app.include_router(projects.router, prefix="/api/projects", tags=["Projects"], dependencies=[Depends(require_authenticated)])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Dashboard"])
+app.include_router(academy.router, prefix="/api/academy", tags=["Academy"], dependencies=[Depends(require_authenticated)])
 app.include_router(strategy.router, prefix="/api/strategy", tags=["Strategy"], dependencies=[Depends(require_authenticated)])
 app.include_router(backtest.router, prefix="/api/backtest", tags=["Backtest"], dependencies=[Depends(require_authenticated)])
 app.include_router(botlab.router, prefix="/api/bot-lab", tags=["Bot Lab"], dependencies=[Depends(require_authenticated)])

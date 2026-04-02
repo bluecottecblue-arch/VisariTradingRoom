@@ -27,13 +27,13 @@ _TECHNICAL_DEFAULT_NOTES = (
 
 def normalize_claude_access(raw: Optional[dict]) -> dict:
     raw = raw if isinstance(raw, dict) else {}
-    credential_source = str(raw.get("credential_source") or "personal").strip().lower()
+    credential_source = str(raw.get("credential_source") or "account").strip().lower()
     if credential_source not in {"personal", "account"}:
-        credential_source = "personal"
+        credential_source = "account"
     return {
         "credential_source": credential_source,
         "api_key": str(raw.get("api_key") or "").strip(),
-        "provider": str(raw.get("provider") or "anthropic").strip().lower(),
+        "provider": str(raw.get("provider") or "google").strip().lower(),
     }
 
 

@@ -46,9 +46,9 @@ const DEFAULT_FORM: StrategyIntake = {
   invalid_trade_examples: '',
   additional_notes: '',
   claude_access: {
-    credential_source: 'personal',
+    credential_source: 'account',
     api_key: '',
-    provider: 'anthropic',
+    provider: 'google',
   },
   inference_policy: {
     allow_non_critical_assumptions: false,
@@ -106,13 +106,15 @@ export default function StepIntake({ projectId, onComplete }: Props) {
           )
           setAccountClaudeAvailable(hasKey)
           
-          const accountProvider = body.ai_provider || 'anthropic'
+          const accountProvider = body.ai_provider || 'google'
           
           if (hasKey) {
             setForm((prev) => {
-              const currentAccess = prev.claude_access || { credential_source: 'personal', api_key: '', provider: 'anthropic' }
-              // ONLY update if it's currently personal AND has no key
-              if (currentAccess.credential_source === 'personal' && !currentAccess.api_key) {
+              const currentAccess = prev.claude_access || { credential_source: 'account', api_key: '', provider: 'google' }
+              if (currentAccess.credential_source === 'personal' && currentAccess.api_key) {
+                return prev
+              }
+              if (currentAccess.credential_source !== 'account' || currentAccess.provider !== accountProvider) {
                 return {
                   ...prev,
                   claude_access: {
@@ -124,6 +126,16 @@ export default function StepIntake({ projectId, onComplete }: Props) {
               }
               return prev
             })
+          } else {
+            setForm((prev) => ({
+              ...prev,
+              claude_access: {
+                ...(prev.claude_access || { api_key: '' }),
+                credential_source: prev.claude_access?.credential_source === 'personal' ? 'personal' : 'account',
+                provider: prev.claude_access?.provider || 'google',
+                api_key: prev.claude_access?.api_key || '',
+              },
+            }))
           }
         }
       })
@@ -352,7 +364,7 @@ export default function StepIntake({ projectId, onComplete }: Props) {
                   <div className="grid gap-3 md:grid-cols-2">
                     <button
                       type="button"
-                      onClick={() => accountClaudeAvailable && set('claude_access', { ...(form.claude_access || { api_key: '', provider: 'anthropic' }), credential_source: 'account' })}
+                      onClick={() => accountClaudeAvailable && set('claude_access', { ...(form.claude_access || { api_key: '', provider: 'google' }), credential_source: 'account' })}
                       disabled={!accountClaudeAvailable}
                       className={`border px-4 py-3 text-left transition-colors ${
                         form.claude_access?.credential_source === 'account'
@@ -367,7 +379,7 @@ export default function StepIntake({ projectId, onComplete }: Props) {
                     </button>
                     <button
                       type="button"
-                      onClick={() => set('claude_access', { ...(form.claude_access || { api_key: '', provider: 'anthropic' }), credential_source: 'personal' })}
+                      onClick={() => set('claude_access', { ...(form.claude_access || { api_key: '', provider: 'google' }), credential_source: 'personal' })}
                       className={`border px-4 py-3 text-left transition-colors ${
                         form.claude_access?.credential_source === 'personal'
                           ? 'border-slate-500 bg-slate-900 text-slate-100'

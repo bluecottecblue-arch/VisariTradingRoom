@@ -780,3 +780,143 @@ export interface AdminUserRecord {
   updated_at: string | null
   last_login_at: string | null
 }
+
+export type AcademyLevel = 'beginner' | 'intermediate' | 'advanced'
+export type AcademyModuleStatus = 'locked' | 'in_progress' | 'completed'
+
+export interface AcademyAppLink {
+  label: string
+  href: string
+}
+
+export interface AcademyLesson {
+  id: string
+  title: string
+  duration_min: number
+  difficulty: string
+  summary: string
+  theory: string
+  practical: string[]
+  mistakes: string[]
+  case_study: string
+  app_links: AcademyAppLink[]
+  completed: boolean
+  last_viewed_at?: string | null
+}
+
+export interface AcademyIndicator {
+  id: string
+  name: string
+  formula: string
+  interpretation: string
+  works_when: string
+  fails_when: string
+  strategy_use: string
+  common_mistakes: string[]
+  example: string
+}
+
+export interface AcademyIndicatorCategory {
+  id: string
+  title: string
+  description: string
+  indicators: AcademyIndicator[]
+}
+
+export interface AcademyModule {
+  id: string
+  title: string
+  category: string
+  difficulty: string
+  estimated_hours: number
+  description: string
+  objectives: string[]
+  lessons: AcademyLesson[]
+  indicator_categories?: AcademyIndicatorCategory[]
+  locked: boolean
+  status: AcademyModuleStatus
+  progress_pct: number
+  completed_lessons: number
+  total_lessons: number
+  last_viewed_at?: string | null
+}
+
+export interface AcademyProfile {
+  username?: string
+  level_input?: string | null
+  detected_level?: AcademyLevel
+  freeform_background?: string | null
+  recommended_module_id?: string | null
+  recommendation_reason?: string | null
+  last_viewed_module_id?: string | null
+  last_viewed_lesson_id?: string | null
+  created_at?: string | null
+  updated_at?: string | null
+}
+
+export interface AcademyDashboardModuleProgress {
+  module_id: string
+  title: string
+  difficulty: string
+  progress_pct: number
+  status: AcademyModuleStatus
+  locked: boolean
+  estimated_hours: number
+}
+
+export interface AcademyLatestLesson {
+  module_id: string
+  module_title: string
+  lesson_id: string
+  lesson_title: string
+  last_viewed_at?: string | null
+  completed: boolean
+}
+
+export interface AcademyContinueFromHere {
+  module_id: string
+  module_title: string
+  lesson_id: string
+  lesson_title: string
+  reason: string
+}
+
+export interface AcademySuggestion {
+  module_id?: string | null
+  module_title?: string | null
+  reason: string
+}
+
+export interface AcademyDashboard {
+  total_progress_pct: number
+  completed_lessons: number
+  total_lessons: number
+  modules: AcademyDashboardModuleProgress[]
+  latest_lessons: AcademyLatestLesson[]
+  continue_from_here?: AcademyContinueFromHere | null
+  personalized_suggestion: AcademySuggestion
+}
+
+export interface AcademyCatalog {
+  title: string
+  description: string
+  modules: AcademyModule[]
+  features: string[]
+}
+
+export interface AcademySearchResult {
+  kind: 'module' | 'lesson' | 'indicator'
+  id: string
+  module_id: string
+  lesson_id?: string | null
+  indicator_id?: string | null
+  title: string
+  subtitle: string
+  snippet: string
+}
+
+export interface AcademyBootstrapPayload {
+  profile: AcademyProfile
+  dashboard: AcademyDashboard
+  catalog: AcademyCatalog
+}
