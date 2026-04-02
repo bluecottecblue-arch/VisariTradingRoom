@@ -9,6 +9,7 @@ import StepBacktest from "@/components/wizard/StepBacktest";
 import StepBot from "@/components/wizard/StepBot";
 import StepGuide from "@/components/wizard/StepGuide";
 import AuthToolbar from "@/components/AuthToolbar";
+import AppSidebar from "@/components/layout/AppSidebar";
 import { projectApi } from "@/lib/api";
 import type { ProjectDetail } from "@/types";
 
@@ -23,6 +24,7 @@ const STEPS = [
 
 export default function BuilderPage() {
   const router = useRouter();
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [currentStep, setCurrentStep] = useState(1);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [projectId, setProjectId] = useState<string | null>(null);
@@ -71,10 +73,23 @@ export default function BuilderPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+    <div className={`min-h-screen bg-slate-950 text-slate-100 transition-[padding] duration-200 ${sidebarOpen ? 'xl:pl-80' : 'xl:pl-0'}`}>
+      <AppSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       {/* Clean Header */}
       <header className="border-b border-slate-800 px-6 py-4 flex items-center justify-between bg-slate-950/50 backdrop-blur-md sticky top-0 z-50">
         <div className="flex items-center gap-6">
+          <button
+            type="button"
+            aria-label={sidebarOpen ? "Chiudi navigazione" : "Apri navigazione"}
+            onClick={() => setSidebarOpen((current) => !current)}
+            className="flex h-11 w-11 shrink-0 items-center justify-center border border-slate-800 text-slate-300 transition-colors hover:border-slate-700 hover:text-slate-100"
+          >
+            <span className="flex flex-col gap-1.5">
+              <span className="block h-0.5 w-4 bg-current" />
+              <span className="block h-0.5 w-4 bg-current" />
+              <span className="block h-0.5 w-4 bg-current" />
+            </span>
+          </button>
           <button 
             onClick={() => router.push("/workspace")}
             className="text-slate-400 hover:text-slate-100 transition-colors flex items-center gap-2 text-sm"

@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import AuthToolbar from '@/components/AuthToolbar'
+import AppSidebar from '@/components/layout/AppSidebar'
 import { dashboardApi, formatError } from '@/lib/api'
 import type {
   CommandCenterDashboard,
@@ -437,6 +438,7 @@ function KeyValueGrid({
 }
 
 export default function CommandCenterClient({ initialProjectId = null }: { initialProjectId?: string | null }) {
+  const [sidebarOpen, setSidebarOpen] = useState(true)
   const [dashboard, setDashboard] = useState<CommandCenterDashboard | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -494,11 +496,24 @@ export default function CommandCenterClient({ initialProjectId = null }: { initi
   const governanceLayer = useMemo(() => (dashboard ? buildDeploymentGovernance(dashboard) : null), [dashboard])
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(14,116,144,0.16),transparent_25%),radial-gradient(circle_at_top_right,rgba(15,23,42,0.36),transparent_34%),linear-gradient(180deg,#020617_0%,#020617_100%)] text-slate-100">
+    <div className={`min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(14,116,144,0.16),transparent_25%),radial-gradient(circle_at_top_right,rgba(15,23,42,0.36),transparent_34%),linear-gradient(180deg,#020617_0%,#020617_100%)] text-slate-100 transition-[padding] duration-200 ${sidebarOpen ? 'xl:pl-80' : 'xl:pl-0'}`}>
+      <AppSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="border-b border-slate-800/90 bg-slate-950/80 backdrop-blur">
         <div className="mx-auto flex max-w-[1680px] flex-col gap-5 px-6 py-5 lg:flex-row lg:items-end lg:justify-between lg:px-8">
-          <div className="space-y-4 md:pl-8">
+          <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                aria-label={sidebarOpen ? "Chiudi navigazione" : "Apri navigazione"}
+                onClick={() => setSidebarOpen((current) => !current)}
+                className="mr-1 flex h-11 w-11 shrink-0 items-center justify-center border border-slate-800 text-slate-300 transition-colors hover:border-slate-700 hover:text-slate-100"
+              >
+                <span className="flex flex-col gap-1.5">
+                  <span className="block h-0.5 w-4 bg-current" />
+                  <span className="block h-0.5 w-4 bg-current" />
+                  <span className="block h-0.5 w-4 bg-current" />
+                </span>
+              </button>
               <div className="text-[11px] uppercase tracking-[0.28em] text-cyan-300">Visari Trading Room</div>
               <StatusPill label={runtimeLabel(dashboard?.header.status || 'Desk')} tone={dashboard?.header.status_tone || 'neutral'} />
               {dashboard && <StatusPill label={sourceModeLabel(dashboard.source_mode)} tone={dashboard.source_mode === 'mock' ? 'warning' : 'positive'} />}

@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import AuthToolbar from '@/components/AuthToolbar'
+import AppSidebar from '@/components/layout/AppSidebar'
 import { EmptyState, ProgressBar, Spinner, inputCls, textareaCls } from '@/components/ui'
 import { academyApi, formatError } from '@/lib/api'
 import type {
@@ -207,6 +208,7 @@ function IndicatorCard({ indicator, highlighted }: { indicator: AcademyIndicator
 }
 
 export default function AcademyClient() {
+  const [sidebarOpen, setSidebarOpen] = useState(true)
   const [data, setData] = useState<AcademyBootstrapPayload | null>(null)
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null)
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null)
@@ -360,7 +362,8 @@ export default function AcademyClient() {
   const latestLessons = data?.dashboard.latest_lessons || []
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
+    <div className={`min-h-screen bg-slate-950 text-slate-100 transition-[padding] duration-200 ${sidebarOpen ? 'xl:pl-80' : 'xl:pl-0'}`}>
+      <AppSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex min-h-screen">
         <aside className="hidden w-80 shrink-0 border-r border-slate-800 bg-slate-950 xl:flex xl:flex-col sticky top-0 h-screen">
           <div className="border-b border-slate-800 px-6 py-6 md:pl-[3.25rem]">
@@ -407,10 +410,24 @@ export default function AcademyClient() {
 
         <main className="flex-1 flex flex-col min-h-screen">
           <header className="border-b border-slate-800 px-6 py-4 lg:px-8 flex items-center justify-between sticky top-0 bg-slate-950/95 backdrop-blur z-40">
-            <div className="md:pl-8">
-              <div className="text-[10px] uppercase tracking-widest text-slate-500">Visari Trading Room</div>
-              <div className="text-xl font-bold bg-gradient-to-r from-slate-100 to-slate-400 bg-clip-text text-transparent">
-                Algorithmic Trading Academy
+            <div className="flex items-center gap-3 md:pl-2">
+              <button
+                type="button"
+                aria-label={sidebarOpen ? "Chiudi navigazione" : "Apri navigazione"}
+                onClick={() => setSidebarOpen((current) => !current)}
+                className="flex h-11 w-11 shrink-0 items-center justify-center border border-slate-800 text-slate-300 transition-colors hover:border-slate-700 hover:text-slate-100"
+              >
+                <span className="flex flex-col gap-1.5">
+                  <span className="block h-0.5 w-4 bg-current" />
+                  <span className="block h-0.5 w-4 bg-current" />
+                  <span className="block h-0.5 w-4 bg-current" />
+                </span>
+              </button>
+              <div>
+                <div className="text-[10px] uppercase tracking-widest text-slate-500">Visari Trading Room</div>
+                <div className="text-xl font-bold bg-gradient-to-r from-slate-100 to-slate-400 bg-clip-text text-transparent">
+                  Algorithmic Trading Academy
+                </div>
               </div>
             </div>
             <AuthToolbar />

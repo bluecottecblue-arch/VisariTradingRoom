@@ -56,6 +56,14 @@ export default function WorkspacePage() {
   }, [])
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const requestedMode = params.get("mode");
+    if (requestedMode === "strategy" || requestedMode === "botlab") {
+      setWorkspaceMode(requestedMode);
+    }
+  }, [])
+
+  useEffect(() => {
     if (!currentProjectId) {
       setCurrentProject(null)
       return;
