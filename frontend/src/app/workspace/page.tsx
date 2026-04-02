@@ -12,6 +12,7 @@ import type { ProjectDetail, ProjectSummary } from "@/types";
 export default function WorkspacePage() {
   const router = useRouter();
   const [workspaceMode, setWorkspaceMode] = useState<"strategy" | "botlab">("strategy");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
   const [currentProject, setCurrentProject] = useState<ProjectDetail | null>(null);
@@ -77,10 +78,34 @@ export default function WorkspacePage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
       <div className="flex flex-1 min-h-screen">
-        <aside className="hidden w-80 shrink-0 border-r border-slate-800 bg-slate-950 xl:flex xl:flex-col sticky top-0 h-screen">
+        {sidebarOpen && (
+          <button
+            type="button"
+            aria-label="Chiudi menu laterale"
+            onClick={() => setSidebarOpen(false)}
+            className="fixed inset-0 z-30 bg-slate-950/72 xl:hidden"
+          />
+        )}
+
+        <aside
+          className={`fixed inset-y-0 left-0 z-40 w-80 shrink-0 border-r border-slate-800 bg-slate-950 transition-transform duration-200 ${
+            sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+        >
           <div className="border-b border-slate-800 px-6 py-6 md:pl-[3.25rem]">
-            <div className="text-[11px] uppercase tracking-[0.28em] text-amber-300">Visari Trading Room</div>
-            <div className="mt-3 text-2xl font-semibold text-slate-50">Area operativa</div>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-[11px] uppercase tracking-[0.28em] text-amber-300">Visari Trading Room</div>
+                <div className="mt-3 text-2xl font-semibold text-slate-50">Area operativa</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(false)}
+                className="border border-slate-800 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400 transition-colors hover:border-slate-700 hover:text-slate-100"
+              >
+                Chiudi
+              </button>
+            </div>
           </div>
 
           <div className="space-y-8 px-6 py-6 overflow-y-auto">
@@ -145,12 +170,26 @@ export default function WorkspacePage() {
           </div>
         </aside>
 
-        <main className="flex-1 flex flex-col min-h-screen">
+        <main className={`flex-1 flex flex-col min-h-screen transition-[margin] duration-200 ${sidebarOpen ? 'xl:ml-80' : 'xl:ml-0'}`}>
           <header className="border-b border-slate-800 px-6 py-4 lg:px-8 flex items-center justify-between sticky top-0 bg-slate-950 z-40">
-            <div className="md:pl-8">
-              <div className="text-[10px] uppercase tracking-widest text-slate-500">Visari Trading Room</div>
-              <div className="text-xl font-bold bg-gradient-to-r from-slate-100 to-slate-400 bg-clip-text text-transparent">
-                {workspaceMode === "strategy" ? "Strategie" : "Bot Lab"}
+            <div className="flex items-center gap-3 md:pl-2">
+              <button
+                type="button"
+                aria-label={sidebarOpen ? "Chiudi navigazione" : "Apri navigazione"}
+                onClick={() => setSidebarOpen((current) => !current)}
+                className="flex h-11 w-11 shrink-0 items-center justify-center border border-slate-800 text-slate-300 transition-colors hover:border-slate-700 hover:text-slate-100"
+              >
+                <span className="flex flex-col gap-1.5">
+                  <span className="block h-0.5 w-4 bg-current" />
+                  <span className="block h-0.5 w-4 bg-current" />
+                  <span className="block h-0.5 w-4 bg-current" />
+                </span>
+              </button>
+              <div>
+                <div className="text-[10px] uppercase tracking-widest text-slate-500">Visari Trading Room</div>
+                <div className="text-xl font-bold bg-gradient-to-r from-slate-100 to-slate-400 bg-clip-text text-transparent">
+                  {workspaceMode === "strategy" ? "Strategie" : "Bot Lab"}
+                </div>
               </div>
             </div>
             <AuthToolbar />
