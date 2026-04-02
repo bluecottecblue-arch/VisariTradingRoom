@@ -800,6 +800,11 @@ export interface AcademyLesson {
   mistakes: string[]
   case_study: string
   app_links: AcademyAppLink[]
+  why_it_matters?: string
+  framework?: string[]
+  app_exercise?: string[]
+  checklist?: string[]
+  before_continue?: string[]
   completed: boolean
   last_viewed_at?: string | null
 }

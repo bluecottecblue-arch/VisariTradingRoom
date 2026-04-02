@@ -15,6 +15,11 @@ def lesson(
     mistakes: list[str],
     app_links: list[dict[str, str]],
     case_study: str | None = None,
+    why_it_matters: str | None = None,
+    framework: list[str] | None = None,
+    app_exercise: list[str] | None = None,
+    checklist: list[str] | None = None,
+    before_continue: list[str] | None = None,
 ) -> dict[str, Any]:
     return {
         "id": lesson_id,
@@ -27,6 +32,11 @@ def lesson(
         "mistakes": mistakes,
         "case_study": case_study or "",
         "app_links": app_links,
+        "why_it_matters": why_it_matters or "",
+        "framework": framework or [],
+        "app_exercise": app_exercise or [],
+        "checklist": checklist or [],
+        "before_continue": before_continue or [],
     }
 
 
@@ -475,6 +485,13 @@ ACADEMY_MODULES = [
                 difficulty="Base",
                 summary="La differenza tra una buona intuizione di mercato e una regola che un motore può davvero eseguire.",
                 theory="Un sistema algoritmico nasce da un'ipotesi falsificabile: in quali condizioni il mercato tende a fare qualcosa, con quale frequenza, e in quali condizioni smette di farlo. L'utente deve imparare a scrivere una regola che abbia trigger, invalidazione, rischio e contesto. Questa è la base dell'intera app: Visari non trasforma frasi vaghe in magia, ma struttura ipotesi testabili.",
+                why_it_matters="Questa lezione è il punto in cui smetti di descrivere il mercato come lo percepisci e inizi a descriverlo come lo deve leggere una macchina. Se non superi questo passaggio, builder, backtest e bot finale diventano solo un involucro tecnico attorno a una logica ancora vaga.",
+                framework=[
+                    "Parti da un evento osservabile, non da un giudizio: breakout, pullback, cross, squeeze, ritorno alla media.",
+                    "Definisci la condizione di invalidazione prima ancora dell'entry: quando il setup smette di avere senso?",
+                    "Aggiungi il contesto che rende l'evento selettivo: trend, volatilità, orario, sessione, news.",
+                    "Traduci tutto in una frase che un bot possa eseguire senza interpretare nulla.",
+                ],
                 practical=[
                     "Scrivi il trigger come evento osservabile: breakout, pullback, cross, ritorno alla media.",
                     "Definisci sempre dove il setup non vale più.",
@@ -486,6 +503,21 @@ ACADEMY_MODULES = [
                     "Pensare che la codifica da sola crei edge.",
                 ],
                 case_study="Una strategia 'compra quando il mercato è forte' diventa: compra EURUSD se chiude sopra il massimo delle ultime 20 barre con EMA20 > EMA50, ATR in aumento e fuori dalla finestra CPI.",
+                app_exercise=[
+                    "Apri il Builder e descrivi una tua idea in una sola frase grezza.",
+                    "Riformulala in tre blocchi: trigger, invalidazione, contesto.",
+                    "Controlla se ogni blocco contiene parole misurabili o solo impressioni soggettive.",
+                ],
+                checklist=[
+                    "Il trigger usa parole osservabili e non psicologiche.",
+                    "Esiste una condizione esplicita in cui il setup non è più valido.",
+                    "Il rischio non è lasciato implicito.",
+                    "Il contesto dice quando il segnale va ignorato.",
+                ],
+                before_continue=[
+                    "Se una persona diversa da te non saprebbe eseguire la regola nello stesso modo, la regola non è ancora pronta.",
+                    "Se la tua frase richiede interpretazione discrezionale, il bot non potrà implementarla in modo robusto.",
+                ],
                 app_links=[APP_CTA_BUILDER, APP_CTA_WORKSPACE],
             ),
             lesson(
@@ -495,6 +527,14 @@ ACADEMY_MODULES = [
                 difficulty="Base",
                 summary="Come lavora davvero un team quant: idea, formalizzazione, test, review, iterazione.",
                 theory="Il processo corretto non è lineare ma iterativo. Si parte da un'idea, la si formalizza, si testa, si misurano gli errori, si corregge, si ri-testa e solo dopo si valuta il deploy. La piattaforma è costruita proprio per supportare questo loop con Builder, Bot Lab e Desk.",
+                why_it_matters="Molti trader saltano direttamente dall'idea al bot. Il problema è che così non sanno mai quale parte ha creato o distrutto il risultato. Il loop professionale serve proprio a isolare ogni passaggio: ipotesi, struttura, validazione, revisione e supervisione live.",
+                framework=[
+                    "Idea: formula l'ipotesi di edge e il contesto di mercato che la giustifica.",
+                    "Formalizzazione: costruisci regole chiare, parametri e filtri nel Builder.",
+                    "Validazione: controlla se il comportamento regge fuori campione e sotto stress.",
+                    "Revisione: correggi solo una componente alla volta.",
+                    "Governance: una volta pronto, il bot va sorvegliato nel Desk e non abbandonato.",
+                ],
                 practical=[
                     "Usa il Builder per trasformare l'idea in specifica.",
                     "Usa il Backtest per capire se il comportamento regge fuori campione.",
@@ -505,6 +545,19 @@ ACADEMY_MODULES = [
                     "Cambiare troppe variabili insieme tra un test e l'altro.",
                     "Scambiare un singolo backtest positivo per robustezza.",
                 ],
+                app_exercise=[
+                    "Prendi un'idea già scritta e decidi in quale fase del loop si trova davvero oggi.",
+                    "Se è solo un'intuizione, non passare al backtest: prima formalizzala.",
+                    "Se hai già un bot, aprilo in Bot Lab e identifica un solo difetto da correggere.",
+                ],
+                checklist=[
+                    "Sai dire qual è la singola ipotesi che stai testando.",
+                    "Sai cosa stai modificando tra una versione e l'altra.",
+                    "Sai quali risultati stai usando per promuovere o scartare il bot.",
+                ],
+                before_continue=[
+                    "Un bot professionale non nasce da un colpo di fortuna ma da un ciclo disciplinato di miglioramento.",
+                ],
                 app_links=[APP_CTA_BUILDER, APP_CTA_DESK],
             ),
             lesson(
@@ -514,6 +567,13 @@ ACADEMY_MODULES = [
                 difficulty="Base",
                 summary="Le grandi famiglie di strategie e il regime di mercato in cui tendono a funzionare.",
                 theory="Ogni strategia compra o vende una struttura di mercato. Trend-following compra persistenza. Mean reversion compra ritorno alla media. Breakout compra espansione. Carry compra tempo e differenziale. Capire la famiglia giusta evita di mischiare logiche incompatibili nello stesso bot.",
+                why_it_matters="Quasi tutti i bot mediocri diventano confusi perché mescolano famiglie di edge diverse nello stesso sistema. Se non sai in quale famiglia vive la tua idea, non saprai neanche in quale regime proteggerla o spegnerla.",
+                framework=[
+                    "Trend-following: cerca persistenza, continuità e follow-through.",
+                    "Mean reversion: cerca eccesso e ritorno al fair value locale.",
+                    "Breakout: compra espansione e cambiamento di struttura.",
+                    "Carry: monetizza tempo, differenziale o premio di rischio, non solo movimento.",
+                ],
                 practical=[
                     "Classifica sempre la tua idea in una famiglia principale.",
                     "Associa a ogni famiglia il regime in cui tende a performare.",
@@ -522,6 +582,15 @@ ACADEMY_MODULES = [
                 mistakes=[
                     "Mescolare trigger trend con exit mean reversion senza una ragione testata.",
                     "Usare lo stesso risk model su strategie con edge diversi.",
+                ],
+                app_exercise=[
+                    "Apri una tua strategia e scrivi in una riga quale edge sta cercando di comprare.",
+                    "Nel Desk, osserva se il regime corrente è coerente con quella famiglia.",
+                ],
+                checklist=[
+                    "Hai identificato una famiglia dominante di edge.",
+                    "Hai definito il regime giusto e quello sbagliato per quella famiglia.",
+                    "Il risk model è coerente con il tipo di edge.",
                 ],
                 app_links=[APP_CTA_BUILDER, APP_CTA_DESK],
             ),

@@ -139,6 +139,21 @@ function LessonCard({
   )
 }
 
+function BulletList({ items, tone = 'cyan' }: { items: string[]; tone?: 'cyan' | 'amber' | 'slate' }) {
+  const dotClass =
+    tone === 'amber' ? 'bg-amber-300' : tone === 'slate' ? 'bg-slate-400' : 'bg-cyan-300'
+  return (
+    <ul className="mt-3 space-y-2 text-sm text-slate-300">
+      {items.map((item) => (
+        <li key={item} className="flex gap-2">
+          <span className={`mt-1 h-1.5 w-1.5 shrink-0 rounded-full ${dotClass}`} />
+          <span>{item}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 function IndicatorCard({ indicator, highlighted }: { indicator: AcademyIndicator; highlighted?: boolean }) {
   return (
     <article
@@ -639,33 +654,33 @@ export default function AcademyClient() {
 
                               <div className="mt-6 grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
                                 <div className="space-y-5">
+                                  {selectedLesson.why_it_matters && (
+                                    <div className="border border-slate-800 bg-slate-950/60 p-5">
+                                      <div className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Perché conta davvero</div>
+                                      <p className="mt-3 text-sm leading-relaxed text-slate-300">{selectedLesson.why_it_matters}</p>
+                                    </div>
+                                  )}
+
                                   <div className="border border-slate-800 bg-slate-950/60 p-5">
                                     <div className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Teoria operativa</div>
                                     <p className="mt-3 text-sm leading-relaxed text-slate-300">{selectedLesson.theory}</p>
                                   </div>
 
+                                  {!!selectedLesson.framework?.length && (
+                                    <div className="border border-slate-800 bg-slate-950/60 p-5">
+                                      <div className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Framework operativo</div>
+                                      <BulletList items={selectedLesson.framework} tone="slate" />
+                                    </div>
+                                  )}
+
                                   <div className="grid gap-5 lg:grid-cols-2">
                                     <div className="border border-slate-800 bg-slate-950/60 p-5">
                                       <div className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Cosa fare in pratica</div>
-                                      <ul className="mt-3 space-y-2 text-sm text-slate-300">
-                                        {selectedLesson.practical.map((item) => (
-                                          <li key={item} className="flex gap-2">
-                                            <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-300" />
-                                            <span>{item}</span>
-                                          </li>
-                                        ))}
-                                      </ul>
+                                      <BulletList items={selectedLesson.practical} tone="cyan" />
                                     </div>
                                     <div className="border border-slate-800 bg-slate-950/60 p-5">
                                       <div className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Errori comuni</div>
-                                      <ul className="mt-3 space-y-2 text-sm text-slate-300">
-                                        {selectedLesson.mistakes.map((item) => (
-                                          <li key={item} className="flex gap-2">
-                                            <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-300" />
-                                            <span>{item}</span>
-                                          </li>
-                                        ))}
-                                      </ul>
+                                      <BulletList items={selectedLesson.mistakes} tone="amber" />
                                     </div>
                                   </div>
 
@@ -673,6 +688,13 @@ export default function AcademyClient() {
                                     <div className="border border-slate-800 bg-slate-950/60 p-5">
                                       <div className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Caso reale</div>
                                       <p className="mt-3 text-sm leading-relaxed text-slate-300">{selectedLesson.case_study}</p>
+                                    </div>
+                                  )}
+
+                                  {!!selectedLesson.app_exercise?.length && (
+                                    <div className="border border-slate-800 bg-slate-950/60 p-5">
+                                      <div className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Esercizio dentro Visari</div>
+                                      <BulletList items={selectedLesson.app_exercise} tone="cyan" />
                                     </div>
                                   )}
                                 </div>
@@ -700,6 +722,18 @@ export default function AcademyClient() {
                                       <div>Ultima apertura: {shortDate(selectedLesson.last_viewed_at)}</div>
                                     </div>
                                   </div>
+                                  {!!selectedLesson.checklist?.length && (
+                                    <div className="border border-slate-800 bg-slate-950/60 p-5">
+                                      <div className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Checklist</div>
+                                      <BulletList items={selectedLesson.checklist} tone="slate" />
+                                    </div>
+                                  )}
+                                  {!!selectedLesson.before_continue?.length && (
+                                    <div className="border border-slate-800 bg-slate-950/60 p-5">
+                                      <div className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Prima di continuare</div>
+                                      <BulletList items={selectedLesson.before_continue} tone="amber" />
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </section>
