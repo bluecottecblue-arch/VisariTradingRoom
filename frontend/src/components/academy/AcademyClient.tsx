@@ -201,6 +201,7 @@ export default function AcademyClient() {
   const [searchResults, setSearchResults] = useState<AcademySearchResult[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
   const lastViewedRef = useRef<string | null>(null)
+  const profileTextareaRef = useRef<HTMLTextAreaElement | null>(null)
 
   const applyPayload = (payload: AcademyBootstrapPayload, preferred?: { moduleId?: string | null; lessonId?: string | null }) => {
     setData(payload)
@@ -248,6 +249,13 @@ export default function AcademyClient() {
     }, 180)
     return () => window.clearTimeout(timeout)
   }, [searchQuery])
+
+  useEffect(() => {
+    const node = profileTextareaRef.current
+    if (!node) return
+    node.style.height = '0px'
+    node.style.height = `${Math.max(42, node.scrollHeight)}px`
+  }, [profileText])
 
   const selectedModule = useMemo(
     () => data?.catalog.modules.find((module) => module.id === selectedModuleId) || null,
@@ -509,11 +517,12 @@ export default function AcademyClient() {
                           ))}
                         </div>
                         <textarea
+                          ref={profileTextareaRef}
                           value={profileText}
                           onChange={(event) => setProfileText(event.target.value)}
-                          rows={4}
+                          rows={1}
                           placeholder="Oppure descrivi in poche righe cosa sai già e cosa vuoi ottenere."
-                          className={`${textareaCls} mt-3`}
+                          className={`${textareaCls} mt-3 min-h-[42px] overflow-hidden py-2.5`}
                         />
                         <button
                           onClick={handleSaveProfile}
