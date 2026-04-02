@@ -469,15 +469,15 @@ export default function AcademyClient() {
                     </div>
                   </section>
 
-                  <section className="relative border border-slate-800 bg-slate-950/72 p-5">
-                    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_290px]">
-                      <div className="relative">
+                  <section className="border border-slate-800 bg-slate-950/72 p-4">
+                    <div className="grid gap-4 xl:grid-cols-[minmax(0,0.78fr)_290px] xl:items-start">
+                      <div className="relative max-w-3xl">
                         <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Ricerca Academy</div>
                         <input
                           value={searchQuery}
                           onChange={(event) => setSearchQuery(event.target.value)}
                           placeholder="Cerca moduli, lezioni, indicatori"
-                          className={`${inputCls} mt-3`}
+                          className={`${inputCls} mt-3 py-2.5`}
                         />
                         {(searchLoading || searchResults.length > 0) && (
                           <div className="absolute left-0 right-0 top-[84px] z-20 border border-slate-800 bg-slate-950 shadow-2xl">
