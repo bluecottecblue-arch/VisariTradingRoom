@@ -789,6 +789,13 @@ export interface AcademyAppLink {
   href: string
 }
 
+export interface AcademyLessonSection {
+  title: string
+  body: string
+  bullets?: string[]
+  tone?: 'cyan' | 'amber' | 'slate'
+}
+
 export interface AcademyLesson {
   id: string
   title: string
@@ -805,6 +812,7 @@ export interface AcademyLesson {
   app_exercise?: string[]
   checklist?: string[]
   before_continue?: string[]
+  deep_sections?: AcademyLessonSection[]
   completed: boolean
   last_viewed_at?: string | null
 }

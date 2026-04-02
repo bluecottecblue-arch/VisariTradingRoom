@@ -20,6 +20,7 @@ def lesson(
     app_exercise: list[str] | None = None,
     checklist: list[str] | None = None,
     before_continue: list[str] | None = None,
+    deep_sections: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     return {
         "id": lesson_id,
@@ -37,6 +38,7 @@ def lesson(
         "app_exercise": app_exercise or [],
         "checklist": checklist or [],
         "before_continue": before_continue or [],
+        "deep_sections": deep_sections or [],
     }
 
 
@@ -518,6 +520,26 @@ ACADEMY_MODULES = [
                     "Se una persona diversa da te non saprebbe eseguire la regola nello stesso modo, la regola non è ancora pronta.",
                     "Se la tua frase richiede interpretazione discrezionale, il bot non potrà implementarla in modo robusto.",
                 ],
+                deep_sections=[
+                    {
+                        "title": "Come ragiona un quant",
+                        "body": "Un ricercatore non parte dalla domanda 'quanto può rendere?', ma da 'quale comportamento ripetibile sto osservando e con quale evidenza posso smentirlo?'. Questa inversione di prospettiva cambia tutto: ti impedisce di innamorarti della narrativa e ti costringe a scrivere regole che possono essere distrutte dai dati, non protette dalla tua convinzione.",
+                        "bullets": [
+                            "Una buona ipotesi ha un contesto preciso, non vive in tutti i mercati e in tutti gli orari.",
+                            "Una buona ipotesi prevede già il proprio fallimento: sai in anticipo cosa la invalida.",
+                        ],
+                        "tone": "slate",
+                    },
+                    {
+                        "title": "Traduzione pratica nel builder",
+                        "body": "Dentro Visari questo passaggio si vede subito: se descrivi una strategia come 'compra quando il mercato accelera', il builder non può produrre una specifica davvero forte. Se invece specifichi evento, contesto, rischio e invalidazione, l'app può costruire una base seria per parse, formalizzazione e backtest.",
+                        "bullets": [
+                            "Più la frase è concreta, meno ambiguità troverai nelle fasi successive.",
+                            "Le parole vaghe entrano nel workflow come rumore e ne escono come bot fragili.",
+                        ],
+                        "tone": "cyan",
+                    },
+                ],
                 app_links=[APP_CTA_BUILDER, APP_CTA_WORKSPACE],
             ),
             lesson(
@@ -558,6 +580,26 @@ ACADEMY_MODULES = [
                 before_continue=[
                     "Un bot professionale non nasce da un colpo di fortuna ma da un ciclo disciplinato di miglioramento.",
                 ],
+                deep_sections=[
+                    {
+                        "title": "Perché il loop batte il talento grezzo",
+                        "body": "Molti trader hanno intuizioni buone. Quello che li separa da un processo professionale è il modo in cui trasformano quelle intuizioni in cicli di verifica ripetibili. Un loop disciplinato riduce l'ego, rende visibili gli errori e impedisce di scambiare una fase di mercato fortunata per abilità strutturale.",
+                        "bullets": [
+                            "Ogni passaggio del loop deve lasciare una traccia leggibile.",
+                            "Ogni revisione deve esistere per rispondere a un difetto osservato, non a un impulso.",
+                        ],
+                        "tone": "slate",
+                    },
+                    {
+                        "title": "Cosa cambia dentro Visari",
+                        "body": "Builder, Bot Lab e Desk non sono tre tool separati: sono tre momenti dello stesso processo. Il Builder serve a togliere ambiguità. Il Bot Lab serve a fare revisioni isolate. Il Desk serve a capire se il sistema continua a stare in piedi una volta validato.",
+                        "bullets": [
+                            "Se salti un passaggio, perdi la capacità di spiegare da dove arriva il risultato.",
+                            "Più il workflow è pulito, più diventa facile capire cosa tenere e cosa scartare.",
+                        ],
+                        "tone": "cyan",
+                    },
+                ],
                 app_links=[APP_CTA_BUILDER, APP_CTA_DESK],
             ),
             lesson(
@@ -591,6 +633,26 @@ ACADEMY_MODULES = [
                     "Hai identificato una famiglia dominante di edge.",
                     "Hai definito il regime giusto e quello sbagliato per quella famiglia.",
                     "Il risk model è coerente con il tipo di edge.",
+                ],
+                deep_sections=[
+                    {
+                        "title": "Perché le famiglie di edge contano",
+                        "body": "Le famiglie di edge non sono etichette teoriche: sono il modo con cui il mercato paga o punisce una strategia. Un trend follower vive di continuità, un mean reverter vive di eccesso, un breakout vive di espansione. Se non distingui queste logiche, costruirai bot con segnali che si annullano a vicenda.",
+                        "bullets": [
+                            "Ogni famiglia richiede filtri, risk model e aspettative psicologiche diverse.",
+                            "La stessa strategia può sembrare buona in backtest solo perché combina edge incompatibili che nel campione si sono compensati per caso.",
+                        ],
+                        "tone": "slate",
+                    },
+                    {
+                        "title": "Errore tipico del trader discrezionale",
+                        "body": "Molti trader chiamano 'strategia' un insieme di comportamenti che cambiano in base al mercato. In realtà stanno saltando tra famiglie di edge diverse senza dichiararlo. Questo è uno dei motivi principali per cui un'idea discrezionale sembra forte sulla carta ma diventa debole quando la trasformi in bot.",
+                        "bullets": [
+                            "Se una strategia vuole trend la mattina e mean reversion il pomeriggio, deve dichiararlo come due regimi diversi.",
+                            "Un bot robusto preferisce una sola identità chiara a una versatilità confusa.",
+                        ],
+                        "tone": "amber",
+                    },
                 ],
                 app_links=[APP_CTA_BUILDER, APP_CTA_DESK],
             ),
@@ -827,6 +889,26 @@ ACADEMY_MODULES = [
                     "Se non riesci a separare trigger e filtro, la strategia non è ancora pronta per essere codificata.",
                     "Se il risk model è ancora un pensiero generico, torna qui prima di passare oltre.",
                 ],
+                deep_sections=[
+                    {
+                        "title": "L'errore più comune nel design",
+                        "body": "Quando una strategia nasce, quasi tutta l'attenzione del trader va sul trigger. È naturale: il trigger è la parte visibile, quella che sembra 'intelligente'. Ma il rendimento reale viene spesso dai pezzi meno glamour: il filtro che evita i contesti tossici, il risk model che impedisce alla distribuzione di distruggerti, la governance che ferma il bot quando esce dal profilo atteso.",
+                        "bullets": [
+                            "Se due trigger sono mediocri ma uno ha un filtro serio, quello con il filtro vince molto più spesso.",
+                            "La governance non migliora l'entry, ma salva il processo quando il mercato cambia faccia.",
+                        ],
+                        "tone": "slate",
+                    },
+                    {
+                        "title": "Come usarlo in modo professionale",
+                        "body": "Quando progetti una strategia, chiediti sempre quale layer stai osservando. Se il difetto è che entra troppo, non toccare subito lo stop. Se il difetto è il drawdown, non cambiare per forza l'entry. Separare i layer significa anche sapere quale leva muovere senza rompere quelle che stanno già funzionando.",
+                        "bullets": [
+                            "Ogni layer dovrebbe poter essere discusso, testato e rivisto quasi da solo.",
+                            "Più i layer sono distinguibili, più il bot resta migliorabile nel tempo.",
+                        ],
+                        "tone": "cyan",
+                    },
+                ],
                 app_links=[APP_CTA_BUILDER, APP_CTA_DESK],
             ),
             lesson(
@@ -865,6 +947,26 @@ ACADEMY_MODULES = [
                 before_continue=[
                     "Se non sai spiegare il perché dell'edge in una riga, non passare al backtest.",
                 ],
+                deep_sections=[
+                    {
+                        "title": "Tesi non vuol dire slogan",
+                        "body": "Dire 'quando il mercato accelera entro long' non è una tesi: è una descrizione superficiale di un comportamento di prezzo. Una tesi vera risponde a tre domande: quale squilibrio o comportamento sto osservando, perché dovrebbe produrre un vantaggio, e in quali condizioni questo vantaggio dovrebbe sparire. Solo dopo questo passaggio ha senso costruire una specifica.",
+                        "bullets": [
+                            "La tesi vive nel dominio economico e comportamentale.",
+                            "La specifica vive nel dominio operativo e computabile.",
+                        ],
+                        "tone": "slate",
+                    },
+                    {
+                        "title": "Criterio di qualità",
+                        "body": "Una specifica è buona quando un altro trader, leggendo le stesse regole, arriverebbe quasi alle stesse decisioni operative. Se servono ancora interpretazione, sensibilità soggettiva o 'occhio', non sei ancora passato davvero dal discrezionale al sistematico.",
+                        "bullets": [
+                            "Ogni parola ambigua nel setup diventa una fonte di drift in fase di codifica.",
+                            "L'invalidazione è il test più rapido per capire se la tua tesi è seria o solo elegante.",
+                        ],
+                        "tone": "cyan",
+                    },
+                ],
                 app_links=[APP_CTA_BUILDER, APP_CTA_WORKSPACE],
             ),
             lesson(
@@ -900,6 +1002,26 @@ ACADEMY_MODULES = [
                 ],
                 before_continue=[
                     "Non trattare Chan come libreria di setup pronti: usalo come struttura mentale.",
+                ],
+                deep_sections=[
+                    {
+                        "title": "Cosa resta attualissimo",
+                        "body": "Il lascito più forte di Chan non sono i singoli setup, ma il modo di ragionare: costi prima delle fantasie, mean reversion o trend come famiglie misurabili, attenzione al campione, diffidenza verso la complessità gratuita. Questo impianto resta fortissimo ancora oggi.",
+                        "bullets": [
+                            "La domanda giusta non è 'funziona?', ma 'perché dovrebbe continuare a funzionare fuori dal campione?'.",
+                            "Un edge con logica semplice e costi realistici vale più di un modello brillante ma opaco.",
+                        ],
+                        "tone": "slate",
+                    },
+                    {
+                        "title": "Cosa serve aggiungere oggi",
+                        "body": "Negli anni recenti la differenza non la fa solo la ricerca dell'edge, ma la disciplina di deployment: capire quando un sistema è sensibile al regime, quando il drift è accettabile, quando il desk deve fermarlo e quando invece è solo rumore fisiologico. Qui Visari estende davvero il framework classico.",
+                        "bullets": [
+                            "Backtest forte senza governance è ancora incompleto.",
+                            "Il live monitor non sostituisce Chan: ne completa il metodo.",
+                        ],
+                        "tone": "cyan",
+                    },
                 ],
                 app_links=[APP_CTA_BUILDER, APP_CTA_DESK],
             ),
@@ -937,6 +1059,26 @@ ACADEMY_MODULES = [
                 before_continue=[
                     "Se il regime è definito solo dopo aver visto i risultati, non è ancora un regime operativo.",
                 ],
+                deep_sections=[
+                    {
+                        "title": "Regime detection utile",
+                        "body": "Un regime utile non è una classificazione elegante da slide. È una distinzione che cambia davvero il comportamento del bot. Se chiami 'regime' qualcosa che non modifica entry, size, rischio o pause operative, stai solo aggiungendo etichette. Un regime vero deve avere conseguenze.",
+                        "bullets": [
+                            "Meglio due regimi ben usati che sette regimi impossibili da gestire.",
+                            "La qualità di un regime si misura dalla differenza operativa che produce.",
+                        ],
+                        "tone": "slate",
+                    },
+                    {
+                        "title": "Quando fermarsi",
+                        "body": "Molti trader usano il regime solo per capire a posteriori perché il bot ha sofferto. Un approccio professionale lo usa prima: per ridurre il size, per spegnere il sistema, per bloccare news-sensitive setups o per passare in paper review. È qui che il regime diventa governance e non solo analisi.",
+                        "bullets": [
+                            "Un bot che sa quando non deve operare è molto più adulto di un bot che sa solo entrare.",
+                            "Nel desk, il regime serve a leggere deviazioni del bot rispetto al suo habitat naturale.",
+                        ],
+                        "tone": "amber",
+                    },
+                ],
                 app_links=[APP_CTA_DESK, APP_CTA_BUILDER],
             ),
             lesson(
@@ -972,6 +1114,26 @@ ACADEMY_MODULES = [
                 ],
                 before_continue=[
                     "Se non sai dire quale difetto stai correggendo, non fare una revisione.",
+                ],
+                deep_sections=[
+                    {
+                        "title": "La revisione che migliora davvero",
+                        "body": "Una revisione buona ha un bersaglio stretto: troppa sensibilità alle news, eccesso di trade in range, stop troppo larghi rispetto alla struttura, o sizing incoerente con la distribuzione dei trade. Più la domanda è specifica, più il confronto prima/dopo diventa leggibile e utile.",
+                        "bullets": [
+                            "Ogni modifica deve avere una tesi chiara e una metrica associata.",
+                            "Se cambi più leve insieme, perderai la causalità del miglioramento.",
+                        ],
+                        "tone": "slate",
+                    },
+                    {
+                        "title": "Il ruolo del Bot Lab",
+                        "body": "Il Bot Lab non dovrebbe essere usato per 'abbellire' il codice o aggiungere indicatori a caso. Serve a fare interventi mirati: chiarire la logica, isolare il risk layer, confrontare due versioni e capire se l'algoritmo guadagna robustezza o solo complessità.",
+                        "bullets": [
+                            "Se non sai cosa vuoi correggere, non aprire una revisione.",
+                            "Se una modifica migliora solo un numero ma peggiora la leggibilità, spesso non è un vero progresso.",
+                        ],
+                        "tone": "cyan",
+                    },
                 ],
                 app_links=[APP_CTA_WORKSPACE, APP_CTA_DESK],
             ),
@@ -1063,6 +1225,26 @@ ACADEMY_MODULES = [
                 before_continue=[
                     "Se i costi sono a zero o il dataset è vago, il backtest non è ancora affidabile.",
                 ],
+                deep_sections=[
+                    {
+                        "title": "Perché tanti backtest mentono",
+                        "body": "Mentono non perché ci sia malizia, ma perché il motore sottovaluta tutto ciò che nel runtime reale è scomodo: spread che si allargano, slippage nei momenti sbagliati, campioni sporchi, ordini che in live non si eseguono nello stesso modo e stato della posizione gestito con troppo ottimismo. Quando questo succede, il backtest non misura il bot: misura l'ingenuità del modello.",
+                        "bullets": [
+                            "Più il margine dell'edge è sottile, più le frizioni contano.",
+                            "Un risultato mediocre ma credibile vale più di una curva bellissima costruita male.",
+                        ],
+                        "tone": "slate",
+                    },
+                    {
+                        "title": "Cosa guardare subito nel report",
+                        "body": "Se vuoi capire se il simulatore sta lavorando bene, guarda prima la coerenza tra logica, costi, range temporale e tipo di dati. Solo dopo ha senso leggere profitto e score. Il report va interrogato partendo dalla credibilità, non dalla speranza.",
+                        "bullets": [
+                            "Se il bot dipende da fill quasi perfetti, il report te lo deve far capire presto.",
+                            "Se la finestra dati è troppo favorevole, il simulatore sta raccontando solo un pezzo di verità.",
+                        ],
+                        "tone": "cyan",
+                    },
+                ],
                 app_links=[APP_CTA_BUILDER, APP_CTA_DESK],
             ),
             lesson(
@@ -1096,6 +1278,26 @@ ACADEMY_MODULES = [
                 before_continue=[
                     "Se non hai visto dispersione tra segmenti, non sai ancora quanto sia fragile la strategia.",
                 ],
+                deep_sections=[
+                    {
+                        "title": "La domanda giusta",
+                        "body": "Walk-forward non serve a trovare il periodo perfetto. Serve a rispondere a una domanda più dura: se avessi davvero lanciato questo sistema nel tempo, quante volte avrei visto il suo comportamento cambiare abbastanza da costringermi a intervenire? Questa è la domanda che separa una strategia elegante da una strategia governabile.",
+                        "bullets": [
+                            "Una media buona può nascondere segmenti pessimi.",
+                            "La dispersione tra finestre è un dato, non un fastidio da ignorare.",
+                        ],
+                        "tone": "slate",
+                    },
+                    {
+                        "title": "Uso corretto nella pratica",
+                        "body": "Quando guardi una strategia nel desk, dovresti già ragionare come se stessi leggendo una walk-forward implicita: quali segmenti hanno retto, quali no, e quali condizioni di mercato hanno messo in crisi il sistema. Questo rende il report molto più utile di una sola curva aggregata.",
+                        "bullets": [
+                            "La ri-calibrazione deve essere una decisione di processo, non una reazione emotiva.",
+                            "Se serve ritoccare i parametri ogni due settimane, il problema è probabilmente a monte.",
+                        ],
+                        "tone": "cyan",
+                    },
+                ],
                 app_links=[APP_CTA_DESK],
             ),
             lesson(
@@ -1124,6 +1326,26 @@ ACADEMY_MODULES = [
                 ],
                 before_continue=[
                     "Se il tuo sizing sopravvive solo allo scenario medio, non è ancora deployment-grade.",
+                ],
+                deep_sections=[
+                    {
+                        "title": "La parte psicologica è tecnica",
+                        "body": "Molti trattano Monte Carlo come un giocattolo statistico. In realtà è un test di tenuta psicologica e operativa. Se il bot può vivere sequenze molto peggiori di quelle che immaginavi, allora la vera domanda non è se l'edge esiste, ma se tu e il tuo risk layer saprete restare coerenti mentre quell'edge attraversa una fase dura.",
+                        "bullets": [
+                            "La robustezza non è solo matematica: è anche sostenibilità del comportamento umano.",
+                            "Uno sizing che non sopporta il percentile peggiore è uno sizing ancora incompleto.",
+                        ],
+                        "tone": "slate",
+                    },
+                    {
+                        "title": "Come usarlo con Visari",
+                        "body": "Dentro Visari Monte Carlo diventa utile quando influenza davvero la decisione successiva: meno size, più guard rail, più cautela nel deploy o revisione del sistema prima del live. Se leggi quei numeri e poi non cambi nulla, stai solo collezionando analisi.",
+                        "bullets": [
+                            "I percentili peggiori devono modificare il risk layer.",
+                            "Il desk dovrebbe diventare più severo, non più ottimista, dopo uno scenario stressato.",
+                        ],
+                        "tone": "amber",
+                    },
                 ],
                 app_links=[APP_CTA_DESK],
             ),
@@ -1160,6 +1382,26 @@ ACADEMY_MODULES = [
                 ],
                 before_continue=[
                     "Se dopo il report vuoi solo 'ottimizzare un po'', fermati: non hai ancora capito il problema principale.",
+                ],
+                deep_sections=[
+                    {
+                        "title": "Come legge un report un PM",
+                        "body": "Un PM non cerca una curva bella da mostrare, ma un motivo credibile per allocare capitale. Per questo parte dalle domande scomode: qual è il rischio dominante, dove il sistema perde coerenza, quanto dipende da pochi trade, quanto è fragile ai costi, quanto è governabile in runtime. Solo dopo arriva il tema del rendimento.",
+                        "bullets": [
+                            "Rendimento senza governabilità non è ancora qualità.",
+                            "Un edge difficile da spiegare è anche difficile da difendere quando peggiora.",
+                        ],
+                        "tone": "slate",
+                    },
+                    {
+                        "title": "Decisione, non solo lettura",
+                        "body": "Alla fine di un report devi uscire con una decisione chiara: promuovere il sistema a paper, mandarlo in revisione, congelarlo o portarlo avanti verso il live. Se il report ti lascia solo con una sensazione vaga, non lo stai usando abbastanza bene.",
+                        "bullets": [
+                            "Il valore del report è nella decisione che ti fa prendere.",
+                            "Un report forte restringe le opzioni, non le moltiplica.",
+                        ],
+                        "tone": "cyan",
+                    },
                 ],
                 app_links=[APP_CTA_DESK, APP_CTA_WORKSPACE],
             ),
@@ -1405,6 +1647,26 @@ ACADEMY_MODULES = [
                 before_continue=[
                     "Se una singola funzione ti sembra ancora una frase magica, resta un altro giro su questa lezione.",
                 ],
+                deep_sections=[
+                    {
+                        "title": "Perché Python basta poco ma serve davvero",
+                        "body": "Non devi diventare programmatore per usare bene Visari, ma devi saper leggere la forma minima di una regola in codice. Questo ti protegge da due errori: delegare ciecamente la logica a strumenti che non capisci e sopravvalutare codice elegante che in realtà implementa una cattiva idea.",
+                        "bullets": [
+                            "Sapere leggere una funzione semplice ti rende un utente molto più forte del builder e del Bot Lab.",
+                            "Chi capisce input, regola e output capisce anche dove nasce l'errore.",
+                        ],
+                        "tone": "slate",
+                    },
+                    {
+                        "title": "Collegamento con i bot reali",
+                        "body": "Ogni volta che vedi una regola nel builder, puoi immaginarla come una piccola funzione: dati in ingresso, verifica della condizione, decisione di azione. Questo è il ponte mentale che ti serve per non vivere il bot come magia ma come processo leggibile e correggibile.",
+                        "bullets": [
+                            "Più questo ponte è chiaro, più diventa facile revisionare il bot in modo mirato.",
+                            "L'obiettivo non è scrivere tanto codice, ma capirne il significato operativo.",
+                        ],
+                        "tone": "cyan",
+                    },
+                ],
                 app_links=[APP_CTA_BUILDER, APP_CTA_WORKSPACE],
             ),
             lesson(
@@ -1441,6 +1703,26 @@ ACADEMY_MODULES = [
                 before_continue=[
                     "Se non sai spiegare perché stai usando shift, non sei ancora pronto a fidarti del risultato.",
                 ],
+                deep_sections=[
+                    {
+                        "title": "Il dataframe è già ricerca",
+                        "body": "Molti trattano pandas come un passaggio tecnico tra il dato grezzo e il modello. In realtà la qualità della ricerca nasce già qui. Un indice sporco, un merge sbagliato o una rolling window non causale falsano la struttura dell'esperimento prima ancora che il segnale venga discusso.",
+                        "bullets": [
+                            "Ogni trasformazione del dataframe è una decisione metodologica.",
+                            "Le scorciatoie su tempo e indice generano bias molto più spesso di quanto sembri.",
+                        ],
+                        "tone": "slate",
+                    },
+                    {
+                        "title": "Come usarlo in modo minimo ma forte",
+                        "body": "Per essere efficace non devi conoscere cento metodi pandas. Devi padroneggiare poche operazioni ma bene: ordinamento temporale, shift, rolling, normalizzazione locale e controllo dei buchi dati. Questo ti basta per costruire feature sensate e controllare se il tuo esperimento sta rispettando il tempo.",
+                        "bullets": [
+                            "Poche trasformazioni corrette valgono più di cinquanta colonne rumorose.",
+                            "Se una feature non sai spiegarla economicamente, non usarla solo perché è facile calcolarla.",
+                        ],
+                        "tone": "cyan",
+                    },
+                ],
                 app_links=[APP_CTA_BUILDER],
             ),
             lesson(
@@ -1476,6 +1758,26 @@ ACADEMY_MODULES = [
                 ],
                 before_continue=[
                     "Se ogni barra può aprire un nuovo trade senza logica di stato, non sei ancora in simulazione seria.",
+                ],
+                deep_sections=[
+                    {
+                        "title": "Segnale non vuol dire trade",
+                        "body": "Molti si fermano al segnale perché è la parte che sembra più quantitativa. Ma il sistema inizia davvero quando il segnale deve convivere con stop, target, stato della posizione, limiti di esposizione e costi. Una formula può sembrare brillante e diventare mediocre appena la trasformi in comportamento operativo.",
+                        "bullets": [
+                            "Il segnale è una possibilità, non ancora una decisione completa.",
+                            "La simulazione dà forma al rischio implicito che il segnale da solo nasconde.",
+                        ],
+                        "tone": "slate",
+                    },
+                    {
+                        "title": "Ponte diretto con Visari",
+                        "body": "Questa è la parte in cui il builder e il backtest si toccano davvero. Se l'entry è chiara ma stop e invalidazione sono deboli, il motore lo farà emergere. Se invece la struttura è pulita, il backtest ti restituirà un comportamento che puoi leggere, non solo un numero da inseguire.",
+                        "bullets": [
+                            "Ogni stato non definito genera comportamento ambiguo nel bot.",
+                            "Più la simulazione è leggibile, più il desk diventa utile dopo il deploy.",
+                        ],
+                        "tone": "cyan",
+                    },
                 ],
                 app_links=[APP_CTA_BUILDER, APP_CTA_DESK],
             ),
@@ -1514,6 +1816,26 @@ ACADEMY_MODULES = [
                 ],
                 before_continue=[
                     "Se non sai quale parte del codice genera davvero il segnale, il bot non è ancora abbastanza leggibile.",
+                ],
+                deep_sections=[
+                    {
+                        "title": "Perché i notebook collassano",
+                        "body": "I notebook spesso funzionano come laboratorio, ma collassano quando devono diventare prodotto operativo. Il problema non è Python: è che tutto viene accumulato nella stessa catena di celle, senza confini chiari tra dati, segnale, rischio ed esecuzione. Così ogni cambiamento rompe qualcosa che non riesci più a tracciare.",
+                        "bullets": [
+                            "Il notebook eccellente per esplorare può essere pessimo per governare un bot.",
+                            "La modularità è una forma di risk management del codice.",
+                        ],
+                        "tone": "slate",
+                    },
+                    {
+                        "title": "Cosa rende un bot davvero revisionabile",
+                        "body": "Un bot revisionabile è quello in cui puoi dire: qui nasce il segnale, qui si dimensiona il rischio, qui si decide l'uscita. Quando questa chiarezza esiste, Bot Lab smette di essere una toppa e diventa un vero strumento di miglioramento continuo.",
+                        "bullets": [
+                            "La leggibilità del codice aumenta la qualità delle revisioni.",
+                            "Un bot modulare rende più affidabile anche il confronto prima/dopo nel desk.",
+                        ],
+                        "tone": "cyan",
+                    },
                 ],
                 app_links=[APP_CTA_WORKSPACE, APP_CTA_BUILDER, APP_CTA_DESK],
             ),

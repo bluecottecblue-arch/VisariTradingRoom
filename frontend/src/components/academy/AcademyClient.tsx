@@ -690,6 +690,18 @@ export default function AcademyClient() {
                                     </div>
                                   )}
 
+                                  {!!selectedLesson.deep_sections?.length && (
+                                    <div className="grid gap-5 lg:grid-cols-2">
+                                      {selectedLesson.deep_sections.map((section) => (
+                                        <div key={`${selectedLesson.id}-${section.title}`} className="border border-slate-800 bg-slate-950/60 p-5">
+                                          <div className="text-[11px] uppercase tracking-[0.16em] text-slate-500">{section.title}</div>
+                                          <p className="mt-3 text-sm leading-relaxed text-slate-300">{section.body}</p>
+                                          {!!section.bullets?.length && <BulletList items={section.bullets} tone={section.tone || 'slate'} />}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+
                                   <div className="grid gap-5 lg:grid-cols-2">
                                     <div className="border border-slate-800 bg-slate-950/60 p-5">
                                       <div className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Cosa fare in pratica</div>
