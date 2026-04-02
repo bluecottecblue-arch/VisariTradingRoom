@@ -125,9 +125,14 @@ function LessonCard({
       </div>
       <button type="button" onClick={onSelect} className="block w-full text-left">
         <p className="text-sm leading-relaxed text-slate-400">{lesson.summary}</p>
-        <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
-          <span>{lesson.duration_min} min</span>
-          <span>{lesson.completed ? 'Completata' : 'Da fare'}</span>
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 text-xs text-slate-500">
+            <span>{lesson.duration_min} min</span>
+            <span>{lesson.completed ? 'Completata' : 'Da fare'}</span>
+          </div>
+          <span className="border border-slate-700 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-300 transition-colors group-hover:border-cyan-700/70 group-hover:text-cyan-300">
+            Apri lezione
+          </span>
         </div>
       </button>
     </div>
@@ -202,6 +207,7 @@ export default function AcademyClient() {
   const [searchLoading, setSearchLoading] = useState(false)
   const lastViewedRef = useRef<string | null>(null)
   const profileTextareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const lessonDetailRef = useRef<HTMLElement | null>(null)
 
   const applyPayload = (payload: AcademyBootstrapPayload, preferred?: { moduleId?: string | null; lessonId?: string | null }) => {
     setData(payload)
@@ -308,6 +314,16 @@ export default function AcademyClient() {
     } finally {
       setUpdatingLesson(null)
     }
+  }
+
+  const openLesson = (moduleId: string, lessonId: string) => {
+    setSelectedModuleId(moduleId)
+    setSelectedLessonId(lessonId)
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        lessonDetailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      })
+    })
   }
 
   const handleSaveProfile = async () => {
@@ -593,7 +609,7 @@ export default function AcademyClient() {
                                   key={lesson.id}
                                   lesson={lesson}
                                   active={selectedLesson?.id === lesson.id}
-                                  onSelect={() => setSelectedLessonId(lesson.id)}
+                                  onSelect={() => openLesson(selectedModule.id, lesson.id)}
                                   onToggle={() => handleToggleLesson(lesson)}
                                 />
                               ))}
@@ -601,7 +617,7 @@ export default function AcademyClient() {
                           </section>
 
                           {selectedLesson && (
-                            <section className="border border-slate-800 bg-slate-950/72 p-6">
+                            <section ref={lessonDetailRef} className="border border-slate-800 bg-slate-950/72 p-6">
                               <div className="flex flex-wrap items-start justify-between gap-4">
                                 <div>
                                   <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Lezione attiva</div>
