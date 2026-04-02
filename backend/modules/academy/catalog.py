@@ -781,7 +781,7 @@ ACADEMY_MODULES = [
         "title": "Strategia (Core)",
         "category": "Core",
         "difficulty": "Intermedio",
-        "estimated_hours": 5.4,
+        "estimated_hours": 6.8,
         "description": "Il cuore della piattaforma: dalla logica di Ernest Chan alle estensioni moderne su regime, robustezza e iterazione.",
         "objectives": [
             "Progettare una strategia come ipotesi strutturata.",
@@ -796,6 +796,13 @@ ACADEMY_MODULES = [
                 difficulty="Intermedio",
                 summary="Una strategia forte non è un solo segnale: è un insieme di livelli che lavorano insieme.",
                 theory="Il segnale di entry è solo una parte. Un sistema professionale ha almeno quattro layer: trigger, filtro di contesto, risk model e governance. Questa distinzione è centrale anche in Visari: Builder per formalizzare, Backtest per validare, Desk per governare runtime e drift.",
+                why_it_matters="Molte strategie sembrano promettenti solo perché il trader vede un trigger carino. Il risultato reale dipende invece da come quel trigger viene filtrato, dimensionato e protetto quando il mercato smette di collaborare.",
+                framework=[
+                    "Trigger: la condizione osservabile che accende il trade.",
+                    "Filtro: il contesto che decide quando il trigger è permesso.",
+                    "Rischio: size, stop, take profit e limiti operativi.",
+                    "Governance: pause, review, drift monitor e regole di escalation.",
+                ],
                 practical=[
                     "Scrivi il trigger separato dal filtro di contesto.",
                     "Tratta il risk layer come parte del design, non come accessorio.",
@@ -806,7 +813,59 @@ ACADEMY_MODULES = [
                     "Mettere il risk management fuori dal design della strategia.",
                 ],
                 case_study="Un breakout intraday con vol filter, session filter, daily loss guard e kill-switch ha spesso più edge reale del breakout 'puro'.",
+                app_exercise=[
+                    "Apri il Builder e descrivi una strategia in quattro righe separate: trigger, filtro, rischio, governance.",
+                    "Nel Desk verifica quali badge e alert cambierebbero se togliessi il layer di governance.",
+                ],
+                checklist=[
+                    "Il trigger è scritto come evento osservabile, non come intuizione vaga.",
+                    "Esiste almeno un filtro che definisce quando NON operare.",
+                    "Il risk layer è esplicito e non lasciato implicito.",
+                    "Hai una regola di stop o review se il bot esce dal profilo atteso.",
+                ],
+                before_continue=[
+                    "Se non riesci a separare trigger e filtro, la strategia non è ancora pronta per essere codificata.",
+                    "Se il risk model è ancora un pensiero generico, torna qui prima di passare oltre.",
+                ],
                 app_links=[APP_CTA_BUILDER, APP_CTA_DESK],
+            ),
+            lesson(
+                "strategy-core-thesis-to-spec",
+                "Dalla tesi di mercato alla specifica eseguibile",
+                duration_min=32,
+                difficulty="Intermedio",
+                summary="Una strategia inizia con una tesi, ma diventa utile solo quando la tesi si trasforma in regola operativa e falsificabile.",
+                theory="La tesi è la frase economica o comportamentale che spiega il perché dell'edge. La specifica è la sua traduzione in condizioni, eccezioni, sizing e invalidazione. Questo passaggio è il vero ponte tra ricerca discrezionale e algoritmo MT5.",
+                why_it_matters="Se la tua tesi resta astratta, il builder produrrà specifiche vaghe. Se la tua specifica non conserva il meccanismo economico della tesi, otterrai codice coerente ma senza edge.",
+                framework=[
+                    "Tesi: quale inefficienza o comportamento vuoi catturare.",
+                    "Setup: in quale contesto la tesi ha più probabilità di emergere.",
+                    "Trigger: quale evento conferma che il setup sta diventando trade.",
+                    "Invalidazione: quale evidenza dimostra che la tesi non vale più.",
+                ],
+                practical=[
+                    "Scrivi sempre la tesi in una sola frase corta.",
+                    "Aggiungi una condizione di invalidazione prima ancora di ottimizzare l'entry.",
+                    "Trasforma la tesi in campi concreti nel Builder.",
+                ],
+                mistakes=[
+                    "Saltare dalla narrativa al codice senza passare per la specifica.",
+                    "Confondere una descrizione di mercato con una regola eseguibile.",
+                ],
+                case_study="La tesi 'il mercato tende a continuare dopo una compressione intraday rotta con volume' diventa: breakout della session range, ATR in aumento, esclusione news macro e invalidazione sotto il midpoint della compressione.",
+                app_exercise=[
+                    "Prendi una tua idea discrezionale e riducila a una singola tesi.",
+                    "Compila nel Builder le sezioni entry, exit e invalidation senza usare parole vaghe come 'forte' o 'debole'.",
+                ],
+                checklist=[
+                    "La tesi può essere smentita dai dati.",
+                    "La specifica conserva il motivo economico della tesi.",
+                    "Hai definito anche quando restare flat.",
+                ],
+                before_continue=[
+                    "Se non sai spiegare il perché dell'edge in una riga, non passare al backtest.",
+                ],
+                app_links=[APP_CTA_BUILDER, APP_CTA_WORKSPACE],
             ),
             lesson(
                 "strategy-core-chan-principles",
@@ -815,6 +874,12 @@ ACADEMY_MODULES = [
                 difficulty="Intermedio",
                 summary="I principi classici di Chan restano solidi: mean reversion, pairs, cross-sectional, ma vanno integrati con regime e deployment discipline.",
                 theory="Chan insegna a ragionare per edge misurabile, sample, costi e adattamento. Oggi però bisogna estendere quel framework con regime detection, drift monitoring, governance live e validazione più robusta. L'Academy usa Chan come base, non come punto di arrivo.",
+                why_it_matters="Chan ti insegna a pensare come ricercatore. Visari aggiunge il pezzo che molti trader saltano: come portare quella disciplina fino al deployment, al drift e alla revisione continua.",
+                framework=[
+                    "Mantieni: ipotesi testabile, costi realistici, ossessione per i dati.",
+                    "Estendi: regime, robustness suite, deployment protocol.",
+                    "Rendi operativo: monitor live, guard rail, review periodica.",
+                ],
                 practical=[
                     "Prendi da Chan l'ossessione per la testabilità.",
                     "Aggiungi sempre regime e deployment protocol.",
@@ -823,6 +888,18 @@ ACADEMY_MODULES = [
                 mistakes=[
                     "Copiare una famiglia di strategie senza capire in quale regime vive.",
                     "Restare solo su backtest statico e ignorare il dopo.",
+                ],
+                app_exercise=[
+                    "Nel Desk confronta il backtest con i pannelli di governance deploy e drift monitor.",
+                    "Nel Builder aggiungi sempre almeno un filtro di contesto coerente con la famiglia di edge.",
+                ],
+                checklist=[
+                    "Hai una tesi misurabile.",
+                    "Hai stimato costi e frizioni realistiche.",
+                    "Hai pensato a cosa succede dopo il backtest.",
+                ],
+                before_continue=[
+                    "Non trattare Chan come libreria di setup pronti: usalo come struttura mentale.",
                 ],
                 app_links=[APP_CTA_BUILDER, APP_CTA_DESK],
             ),
@@ -833,6 +910,12 @@ ACADEMY_MODULES = [
                 difficulty="Avanzato",
                 summary="Un bot professionale sa quando il proprio edge è attivo e quando deve ridurre intensità o spegnersi.",
                 theory="La maggior parte dei sistemi degrada perché continua a operare anche quando il regime non è più coerente. Un modello regime-aware usa volatilità, struttura prezzo, sessione o contesto macro per attivare, modulare o disattivare il segnale.",
+                why_it_matters="La differenza tra un bot che dura sei settimane e uno che sopravvive un anno spesso non sta nell'entry, ma nella capacità di riconoscere quando il proprio edge è fuori habitat.",
+                framework=[
+                    "Regime di trend: priorità alla persistenza e al follow-through.",
+                    "Regime di range: priorità a fade e ritorno al fair value.",
+                    "Regime di transizione: size ridotta o nessun trade finché il mercato non si chiarisce.",
+                ],
                 practical=[
                     "Definisci 2 o 3 regimi operativi massimi.",
                     "Associa a ogni regime un set di segnali o un livello di rischio.",
@@ -841,6 +924,18 @@ ACADEMY_MODULES = [
                 mistakes=[
                     "Creare tassonomie di regime troppo complesse.",
                     "Stimare il regime in modo retrospettivo anziché operativo.",
+                ],
+                app_exercise=[
+                    "Nel Desk osserva come cambia il comportamento della strategia tra regime simulato e storico.",
+                    "Nel Builder aggiungi un filtro semplice di volatilità o sessione e verifica se migliora la coerenza.",
+                ],
+                checklist=[
+                    "Hai massimo tre regimi chiaramente distinguibili.",
+                    "Ogni regime cambia qualcosa di operativo: trigger, size o stop.",
+                    "Esiste un comportamento esplicito per il regime sbagliato: riduzione o stop.",
+                ],
+                before_continue=[
+                    "Se il regime è definito solo dopo aver visto i risultati, non è ancora un regime operativo.",
                 ],
                 app_links=[APP_CTA_DESK, APP_CTA_BUILDER],
             ),
@@ -851,6 +946,12 @@ ACADEMY_MODULES = [
                 difficulty="Avanzato",
                 summary="Le revisioni utili cambiano una sola ipotesi per volta e misurano l'impatto in modo disciplinato.",
                 theory="Migliorare un bot non significa aggiungere indicatori a caso. Significa formulare un problema preciso — troppo rumore, drawdown eccessivo, operatività in news, sizing incoerente — e intervenire con una modifica tracciabile. Il Bot Lab è progettato proprio per questo.",
+                why_it_matters="Molti bot peggiorano non perché mancasse l'idea, ma perché ogni revisione cambia cinque cose insieme e rende impossibile capire cosa ha davvero migliorato o distrutto il sistema.",
+                framework=[
+                    "Osserva il difetto nel report o nel desk.",
+                    "Isola una sola ipotesi di modifica.",
+                    "Rivalida prima/dopo su stabilità, drawdown e deployment readiness.",
+                ],
                 practical=[
                     "Definisci un difetto osservabile prima di modificare il codice.",
                     "Cambia una sola componente alla volta.",
@@ -859,6 +960,18 @@ ACADEMY_MODULES = [
                 mistakes=[
                     "Fare revisioni omnibus.",
                     "Confondere complessità extra con miglioramento reale.",
+                ],
+                app_exercise=[
+                    "In Bot Lab scegli una sola leva: filtro, stop o frequenza.",
+                    "Esegui un confronto prima/dopo e annota cosa migliora e cosa peggiora.",
+                ],
+                checklist=[
+                    "La modifica risponde a un difetto misurabile.",
+                    "Hai cambiato una sola ipotesi per volta.",
+                    "Hai verificato che il miglioramento non dipenda da una sola finestra temporale.",
+                ],
+                before_continue=[
+                    "Se non sai dire quale difetto stai correggendo, non fare una revisione.",
                 ],
                 app_links=[APP_CTA_WORKSPACE, APP_CTA_DESK],
             ),
@@ -907,7 +1020,7 @@ ACADEMY_MODULES = [
         "title": "Backtesting professionale",
         "category": "Validation",
         "difficulty": "Intermedio",
-        "estimated_hours": 4.8,
+        "estimated_hours": 6.3,
         "description": "Costruire backtest credibili, non scenari ottimistici vestiti da ricerca.",
         "objectives": [
             "Capire cosa rende un backtest credibile.",
@@ -922,6 +1035,13 @@ ACADEMY_MODULES = [
                 difficulty="Intermedio",
                 summary="Ordine temporale, costi, split, fill assumptions e stato della posizione cambiano tutto.",
                 theory="Un motore serio non guarda il futuro, applica costi plausibili, separa in-sample e out-of-sample e mantiene lo stato delle posizioni nel tempo. Qualsiasi scorciatoia qui crea risultati troppo belli per essere veri.",
+                why_it_matters="Il simulatore decide se il tuo edge è reale o cosmetico. Se il motore sbaglia causalità, costi o logica di fill, non stai validando una strategia: stai validando un'illusione.",
+                framework=[
+                    "Causalità: nessuna informazione futura nel segnale.",
+                    "Frizioni: spread, commissioni, slippage, tempi di esecuzione.",
+                    "Stato: posizione, size, stop e target coerenti nel tempo.",
+                    "Campioni: separazione chiara tra design e verifica.",
+                ],
                 practical=[
                     "Verifica sempre costi, orizzonte temporale e qualità dati.",
                     "Guarda se il motore sta usando dati storici reali o sintetici.",
@@ -930,6 +1050,18 @@ ACADEMY_MODULES = [
                 mistakes=[
                     "Backtest su dati demo o poco profondi come se fossero produzione.",
                     "Costi nulli, fill perfetti e sizing irrealistico.",
+                ],
+                app_exercise=[
+                    "Lancia un backtest con dati reali e poi confrontalo con uno demo per vedere dove si allargano le differenze.",
+                    "Controlla nel report se il sizing è realistico rispetto al capitale e allo strumento.",
+                ],
+                checklist=[
+                    "Sai che dataset stai usando.",
+                    "I costi sono plausibili per strumento e orario.",
+                    "Lo stato della posizione è coerente con la logica del bot.",
+                ],
+                before_continue=[
+                    "Se i costi sono a zero o il dataset è vago, il backtest non è ancora affidabile.",
                 ],
                 app_links=[APP_CTA_BUILDER, APP_CTA_DESK],
             ),
@@ -940,12 +1072,30 @@ ACADEMY_MODULES = [
                 difficulty="Avanzato",
                 summary="Il test più importante non è il fit sul passato ma la tenuta su periodi mai visti durante il design.",
                 theory="La walk-forward analysis è la disciplina base per capire se il sistema regge quando le condizioni cambiano. Non serve solo a validare: serve a capire quando una strategia richiede re-calibrazione o quando è troppo sensibile per vivere in produzione.",
+                why_it_matters="Una curva equity bella sul campione intero può nascondere un sistema che vive solo in un sottoperiodo fortunato. La walk-forward smonta questa illusione e ti obbliga a chiederti se il bot regge davvero nel tempo.",
+                framework=[
+                    "Finestra di design: dove costruisci o scegli i parametri.",
+                    "Finestra di test: dove il sistema deve dimostrare trasferibilità.",
+                    "Rolling review: ripeti il processo per vedere dispersione e stabilità.",
+                ],
                 practical=[
                     "Usa finestre train/test realistiche.",
                     "Guarda stabilità dei parametri, non solo performance media.",
                     "Misura la dispersione tra segmenti temporali.",
                 ],
                 mistakes=["Training troppo lungo e test ridicolo.", "Cambiare parametri ogni volta senza criterio operativo."],
+                app_exercise=[
+                    "Confronta il risultato di una strategia su un periodo recente e su uno precedente senza toccare i parametri.",
+                    "Annota dove il sistema perde coerenza e se questo coincide con un cambio di regime.",
+                ],
+                checklist=[
+                    "Le finestre train/test hanno senso per la frequenza del sistema.",
+                    "Il sistema non vive solo di un singolo segmento eccezionale.",
+                    "Sai dire quando avresti fatto re-calibrazione e quando no.",
+                ],
+                before_continue=[
+                    "Se non hai visto dispersione tra segmenti, non sai ancora quanto sia fragile la strategia.",
+                ],
                 app_links=[APP_CTA_DESK],
             ),
             lesson(
@@ -955,9 +1105,63 @@ ACADEMY_MODULES = [
                 difficulty="Avanzato",
                 summary="Un sistema può essere valido e comunque vivere sequenze di drawdown peggiori del backtest lineare.",
                 theory="Monte Carlo e stress distribution servono a capire la gamma di risultati possibili, non il risultato più bello. Sono essenziali per stimare drawdown plausibili, dipendenza dalla sequenza dei trade e tenuta psicologica/operativa.",
+                why_it_matters="La curva lineare del backtest racconta una storia ordinata che il mercato reale non ti concederà quasi mai. Monte Carlo ti costringe a pensare per distribuzioni, non per curve perfette.",
+                framework=[
+                    "Scenario mediano: cosa puoi aspettarti nella normalità.",
+                    "Scenario stressato: cosa succede in sequenze avverse ma plausibili.",
+                    "Scenario limite: quale drawdown devi saper sopportare senza rompere il processo.",
+                ],
                 practical=["Valuta percentile 5/50/95 su capitale e drawdown.", "Tratta il worst-case come design input per il risk layer."],
                 mistakes=["Usare solo la curva equity lineare.", "Ignorare la fragilità alla sequenza dei trade."],
+                app_exercise=[
+                    "Leggi il report come se dovessi spiegare al desk quanto drawdown operativo sei disposto a sopportare.",
+                    "Confronta il tuo sizing attuale con uno sizing più prudente e chiediti quale dei due ti farebbe davvero restare disciplinato.",
+                ],
+                checklist=[
+                    "Hai un drawdown plausibile, non solo un drawdown storico visto una volta.",
+                    "Il risk layer nasce anche dai percentili peggiori.",
+                    "Sai se il bot dipende da pochi outlier.",
+                ],
+                before_continue=[
+                    "Se il tuo sizing sopravvive solo allo scenario medio, non è ancora deployment-grade.",
+                ],
                 app_links=[APP_CTA_DESK],
+            ),
+            lesson(
+                "backtesting-report-reading",
+                "Leggere un report come un PM, non come un tifoso",
+                duration_min=30,
+                difficulty="Intermedio",
+                summary="Un report buono non si legge cercando conferme: si legge cercando i punti in cui il sistema può rompersi.",
+                theory="Profitto, win rate e profit factor non bastano. Un portfolio manager guarda anche dispersione, regime sensitivity, dipendenza da pochi trade, costo dell'edge, profondità del drawdown e qualità del deploy. Questa lettura è esattamente ciò che Visari prova a rendere strutturato nel verdict finale.",
+                why_it_matters="Se impari a leggere un report come una storia da venderti, terrai in vita bot deboli. Se impari a leggerlo come un comitato rischio, taglierai molto prima le illusioni.",
+                framework=[
+                    "Prima domanda: da dove viene davvero l'edge.",
+                    "Seconda domanda: quanto è stabile tra periodi e regimi.",
+                    "Terza domanda: cosa succede se i costi o il mercato peggiorano.",
+                ],
+                practical=[
+                    "Parti sempre da drawdown, distribuzione e regime performance.",
+                    "Guarda se il sistema resta sensato anche dopo una lieve riduzione del vantaggio.",
+                    "Trasforma il verdetto in una decisione: deploy, paper, revisione o stop.",
+                ],
+                mistakes=[
+                    "Cercare solo il numero che conferma la tua idea iniziale.",
+                    "Saltare la sezione miglioramenti suggeriti perché 'il bot è già profittevole'.",
+                ],
+                app_exercise=[
+                    "Apri un backtest in Visari e scrivi tre ragioni per cui NON dovresti mandarlo live subito.",
+                    "Poi scrivi quali prove ti servirebbero per cambiare decisione.",
+                ],
+                checklist=[
+                    "Hai identificato il rischio principale del sistema.",
+                    "Hai una decisione operativa chiara derivata dal report.",
+                    "Sai cosa testare dopo se il verdetto non è ancora forte.",
+                ],
+                before_continue=[
+                    "Se dopo il report vuoi solo 'ottimizzare un po'', fermati: non hai ancora capito il problema principale.",
+                ],
+                app_links=[APP_CTA_DESK, APP_CTA_WORKSPACE],
             ),
         ],
     },
@@ -1158,7 +1362,7 @@ ACADEMY_MODULES = [
         "title": "Python Essentials for Trading Bots",
         "category": "Implementation",
         "difficulty": "Base → Intermedio",
-        "estimated_hours": 4.6,
+        "estimated_hours": 6.0,
         "description": "Solo il Python che serve davvero per costruire, leggere e migliorare bot quantitativi dentro Visari.",
         "objectives": [
             "Capire le basi Python utili al trading sistematico.",
@@ -1173,6 +1377,12 @@ ACADEMY_MODULES = [
                 difficulty="Base",
                 summary="Variabili, funzioni, condizioni e strutture dati: solo ciò che serve per leggere e scrivere logiche di trading.",
                 theory="Un trader non ha bisogno di diventare software engineer per ragionare bene sui bot. Ha però bisogno di capire come una regola diventa codice: input, condizioni, funzioni, liste, dizionari e controllo del flusso. Questa lezione riduce l'attrito tra idea di strategia e logica implementata.",
+                why_it_matters="Se non capisci la forma minima del codice, ogni bot resterà una scatola nera. Capire il minimo Python ti restituisce controllo: puoi leggere, criticare e migliorare la logica senza dipendere ciecamente da chi scrive codice.",
+                framework=[
+                    "Input: dati e parametri che entrano nella logica.",
+                    "Regola: condizione che decide LONG, SHORT o flat.",
+                    "Output: segnale, size, stop o stato operativo.",
+                ],
                 practical=[
                     "Scrivi condizioni if/else che imitano trigger di mercato.",
                     "Usa funzioni per separare segnale, filtro e rischio.",
@@ -1183,6 +1393,18 @@ ACADEMY_MODULES = [
                     "Mescolare troppe responsabilità nella stessa funzione.",
                 ],
                 case_study="Una regola 'entra long se close > EMA20' diventa una funzione che restituisce LONG/None in modo leggibile e testabile.",
+                app_exercise=[
+                    "Prendi una regola del Builder e riscrivila mentalmente come if/else con input e output.",
+                    "Apri Bot Lab e prova a individuare dove finisce il trigger e dove inizia il risk layer.",
+                ],
+                checklist=[
+                    "Sai distinguere dati in ingresso, regola e output.",
+                    "Sai leggere una funzione semplice senza perderti.",
+                    "Capisci dove una regola potrebbe usare dati futuri.",
+                ],
+                before_continue=[
+                    "Se una singola funzione ti sembra ancora una frase magica, resta un altro giro su questa lezione.",
+                ],
                 app_links=[APP_CTA_BUILDER, APP_CTA_WORKSPACE],
             ),
             lesson(
@@ -1192,6 +1414,12 @@ ACADEMY_MODULES = [
                 difficulty="Intermedio",
                 summary="Caricare, pulire e trasformare serie OHLC in segnali misurabili.",
                 theory="pandas è il coltellino svizzero del trading quantitativo: indicizzazione temporale, rolling window, trasformazioni vettoriali, join tra feature e target. L'obiettivo non è diventare data engineer, ma saper manipolare i dati in modo pulito e causale.",
+                why_it_matters="Molti errori di trading quant non nascono dal modello ma dal dataframe: indice sporco, shift mancanti, finestre rolling sbagliate, timezone incoerenti. Se sbagli qui, il resto del workflow eredita dati tossici.",
+                framework=[
+                    "Ordina e normalizza il tempo.",
+                    "Costruisci feature con rolling e shift causali.",
+                    "Controlla sempre cosa sa il modello al momento della decisione.",
+                ],
                 practical=[
                     "Crea ritorni, rolling mean, ATR proxy e z-score.",
                     "Usa shift e rolling in modo causale.",
@@ -1200,6 +1428,18 @@ ACADEMY_MODULES = [
                 mistakes=[
                     "Normalizzare con il dataset intero.",
                     "Usare rolling window che guardano la barra corrente in modo scorretto.",
+                ],
+                app_exercise=[
+                    "Apri una lezione o una strategia e prova a dire quali colonne pandas servirebbero per calcolare il setup.",
+                    "Controlla se il segnale deve usare il close della barra appena chiusa o una barra precedente.",
+                ],
+                checklist=[
+                    "L'indice temporale è ordinato e coerente.",
+                    "Le rolling window non leggono il futuro.",
+                    "Le feature hanno un significato economico, non solo numerico.",
+                ],
+                before_continue=[
+                    "Se non sai spiegare perché stai usando shift, non sei ancora pronto a fidarti del risultato.",
                 ],
                 app_links=[APP_CTA_BUILDER],
             ),
@@ -1210,6 +1450,12 @@ ACADEMY_MODULES = [
                 difficulty="Intermedio",
                 summary="Come passare da una feature a un backtest leggibile e coerente con il motore dell’app.",
                 theory="Un segnale utile non basta: devi sapere come si trasforma in entry, stop, take profit, size e stato della posizione. Questa lezione collega direttamente la logica Python con il motore di backtest e con il Builder di Visari.",
+                why_it_matters="La differenza tra una formula e un sistema sta tutta qui: come quel segnale accende un trade, quanto rischia, quando esce e come mantiene memoria dello stato. Senza questo passaggio, stai solo disegnando indicatori.",
+                framework=[
+                    "Feature: misura un fenomeno.",
+                    "Segnale: decide se il fenomeno è tradabile.",
+                    "Simulazione: applica stato, rischio, costi ed exit.",
+                ],
                 practical=[
                     "Traduci un segnale in LONG/SHORT/flat.",
                     "Definisci stop e target come output espliciti.",
@@ -1219,7 +1465,57 @@ ACADEMY_MODULES = [
                     "Calcolare il segnale su dati futuri.",
                     "Non mantenere lo stato della posizione in simulazione.",
                 ],
+                app_exercise=[
+                    "Prendi un segnale semplice e descrivi cosa deve succedere se una posizione è già aperta.",
+                    "Confronta nel Builder come hai scritto l'entry rispetto a come definisci exit e invalidazione.",
+                ],
+                checklist=[
+                    "Esistono stati chiari: flat, long, short.",
+                    "Stop e target sono espliciti.",
+                    "La simulazione sa quando ignorare nuovi segnali.",
+                ],
+                before_continue=[
+                    "Se ogni barra può aprire un nuovo trade senza logica di stato, non sei ancora in simulazione seria.",
+                ],
                 app_links=[APP_CTA_BUILDER, APP_CTA_DESK],
+            ),
+            lesson(
+                "python-notebook-to-bot",
+                "Dal notebook al bot leggibile",
+                duration_min=32,
+                difficulty="Intermedio",
+                summary="Il codice utile non è quello più furbo: è quello che puoi rileggere, correggere e trasferire in produzione senza perderne il senso.",
+                theory="Molti esperimenti partono bene in notebook e poi collassano quando devono diventare bot. Il passaggio chiave è rendere la logica modulare: una funzione per i dati, una per il segnale, una per il risk layer, una per la simulazione. Questa separazione rende più facile usare Bot Lab e confrontare revisioni.",
+                why_it_matters="Se il tuo codice è un blocco unico, ogni miglioramento rompe tutto. Se è modulare, puoi cambiare una parte per volta e capire davvero l'impatto di ogni revisione.",
+                framework=[
+                    "Data layer: prepara il dataset.",
+                    "Signal layer: calcola il trigger.",
+                    "Risk layer: size, stop, limiti.",
+                    "Execution layer: regole di ingresso e gestione stato.",
+                ],
+                practical=[
+                    "Separa il notebook in piccole funzioni leggibili.",
+                    "Dai nomi espliciti alle variabili di segnale e rischio.",
+                    "Usa Bot Lab per rivedere una sola parte alla volta.",
+                ],
+                mistakes=[
+                    "Notebook pieni di celle che modificano lo stesso dataframe senza tracciabilità.",
+                    "Funzioni generiche che fanno dati, segnale ed exit tutte insieme.",
+                ],
+                case_study="Una strategia mean reversion diventa molto più gestibile quando `build_features`, `generate_signal` e `simulate_positions` sono separate e revisionabili singolarmente.",
+                app_exercise=[
+                    "Prendi una tua idea e prova a dividerla in quattro layer: dati, segnale, rischio, esecuzione.",
+                    "Nel Bot Lab chiedi una revisione mirata solo al risk layer invece di toccare tutto il codice.",
+                ],
+                checklist=[
+                    "Ogni funzione ha una sola responsabilità.",
+                    "I nomi spiegano il ruolo della variabile o della funzione.",
+                    "Il codice può essere rivisto senza dover rileggere tutto da capo.",
+                ],
+                before_continue=[
+                    "Se non sai quale parte del codice genera davvero il segnale, il bot non è ancora abbastanza leggibile.",
+                ],
+                app_links=[APP_CTA_WORKSPACE, APP_CTA_BUILDER, APP_CTA_DESK],
             ),
         ],
     },
