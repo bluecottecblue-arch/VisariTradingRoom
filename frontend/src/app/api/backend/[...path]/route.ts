@@ -42,7 +42,15 @@ async function forward(request: NextRequest, context: RouteContext) {
     init.body = body.byteLength ? body : undefined
   }
 
-  const response = await fetch(upstream.toString(), init)
+  let response: Response
+  try {
+    response = await fetch(upstream.toString(), init)
+  } catch {
+    return NextResponse.json(
+      { detail: 'Backend non raggiungibile. Riprova tra pochi secondi.' },
+      { status: 503 },
+    )
+  }
   const payload = await response.arrayBuffer()
   const outHeaders = new Headers()
 

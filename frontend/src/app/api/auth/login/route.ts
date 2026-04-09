@@ -34,12 +34,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ detail: 'Username e password obbligatori' }, { status: 400 })
   }
 
-  const response = await fetch(`${getBackendBaseUrl()}/api/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password }),
-    cache: 'no-store',
-  })
+  let response: Response
+  try {
+    response = await fetch(`${getBackendBaseUrl()}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+      cache: 'no-store',
+    })
+  } catch {
+    return NextResponse.json(
+      { detail: 'Servizio di autenticazione non raggiungibile. Riprova tra pochi secondi.' },
+      { status: 503 },
+    )
+  }
 
   let data: any = {}
   try {
