@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Dict, List, Optional, Tuple
 
 from modules.academy.catalog import get_academy_catalog
 from modules.academy.store import AcademyStore
@@ -20,7 +20,7 @@ STARTER_UNLOCK_COUNT = {
 }
 
 
-def _normalize_level(value: str | None) -> str:
+def _normalize_level(value: Optional[str]) -> str:
     raw = (value or "").strip().lower()
     if raw in {"principiante", "base", "inizio", "iniziante", "beginner"}:
         return "beginner"
@@ -31,7 +31,7 @@ def _normalize_level(value: str | None) -> str:
     return raw or "beginner"
 
 
-def _parse_dt(value: str | None) -> datetime:
+def _parse_dt(value: Optional[str]) -> datetime:
     if not value:
         return datetime.min.replace(tzinfo=timezone.utc)
     try:
@@ -41,14 +41,14 @@ def _parse_dt(value: str | None) -> datetime:
         return datetime.min.replace(tzinfo=timezone.utc)
 
 
-def _score_text(text: str, keywords: list[str]) -> int:
+def _score_text(text: str, keywords: List[str]) -> int:
     lowered = text.lower()
     return sum(1 for keyword in keywords if keyword in lowered)
 
 
 class AcademyService:
     @classmethod
-    def _detect_level(cls, level_input: str | None, freeform_background: str | None) -> str:
+    def _detect_level(cls, level_input: Optional[str], freeform_background: Optional[str]) -> str:
         normalized = _normalize_level(level_input)
         if normalized in {"beginner", "intermediate", "advanced"}:
             return normalized
@@ -105,7 +105,7 @@ class AcademyService:
         return "beginner"
 
     @classmethod
-    def _recommend_module(cls, level: str, freeform_background: str | None) -> tuple[str, str]:
+    def _recommend_module(cls, level: str, freeform_background: Optional[str]) -> Tuple[str, str]:
         text = (freeform_background or "").lower()
         keyword_map = [
             ("python-essentials", "Hai citato Python o costruzione segnali: parti dal blocco pratico per creare bot e test rapidi.", ["python", "pandas", "numpy", "dataframe"]),
@@ -127,8 +127,8 @@ class AcademyService:
         return default, reasons.get(default, "Percorso consigliato in base al tuo profilo.")
 
     @classmethod
-    def _build_search_index(cls, catalog: dict[str, Any]) -> list[dict[str, Any]]:
-        results: list[dict[str, Any]] = []
+    def _build_search_index(cls, catalog: Dict[str, Any]) -> List[Dict[str, Any]]:
+        results: List[Dict[str, Any]] = []
         for module in catalog["modules"]:
             results.append(
                 {
@@ -202,16 +202,16 @@ class AcademyService:
     def _enrich_catalog(
         cls,
         *,
-        catalog: dict[str, Any],
-        profile: dict[str, Any] | None,
-        progress_rows: list[dict[str, Any]],
-    ) -> dict[str, Any]:
+        catalog: Dict[str, Any],
+        profile: Optional[Dict[str, Any]],
+        progress_rows: List[Dict[str, Any]],
+    ) -> Dict[str, Any]:
         progress_by_lesson = {row["lesson_id"]: row for row in progress_rows}
         modules = catalog["modules"]
         recommended_module_id = (profile or {}).get("recommended_module_id") or modules[0]["id"]
         last_viewed_module_id = (profile or {}).get("last_viewed_module_id")
 
-        module_progress_meta: list[dict[str, Any]] = []
+        module_progress_meta: List[Dict[str, Any]] = []
         for module in modules:
             lessons = module.get("lessons", [])
             completed_lessons = sum(1 for lesson in lessons if (progress_by_lesson.get(lesson["id"]) or {}).get("completed"))
@@ -241,7 +241,7 @@ class AcademyService:
             if meta["progress_pct"] >= 60 or meta["has_progress"]:
                 unlock_until = max(unlock_until, idx + 1)
 
-        enriched_modules: list[dict[str, Any]] = []
+        enriched_modules: List[Dict[str, Any]] = []
         for idx, module in enumerate(modules):
             meta = meta_by_id[module["id"]]
             locked = not (idx <= unlock_until or meta["has_progress"])
@@ -285,15 +285,15 @@ class AcademyService:
     def _build_dashboard(
         cls,
         *,
-        modules: list[dict[str, Any]],
-        profile: dict[str, Any] | None,
-        progress_rows: list[dict[str, Any]],
-    ) -> dict[str, Any]:
+        modules: List[Dict[str, Any]],
+        profile: Optional[Dict[str, Any]],
+        progress_rows: List[Dict[str, Any]],
+    ) -> Dict[str, Any]:
         total_lessons = sum(module["total_lessons"] for module in modules)
         completed_lessons = sum(module["completed_lessons"] for module in modules)
         total_progress_pct = round((completed_lessons / total_lessons) * 100) if total_lessons else 0
 
-        lesson_lookup: dict[str, tuple[dict[str, Any], dict[str, Any]]] = {}
+        lesson_lookup: Dict[str, Tuple[Dict[str, Any], Dict[str, Any]]] = {}
         for module in modules:
             for lesson in module.get("lessons", []):
                 lesson_lookup[lesson["id"]] = (module, lesson)
@@ -372,7 +372,7 @@ class AcademyService:
         }
 
     @classmethod
-    async def bootstrap(cls, username: str) -> dict[str, Any]:
+    async def bootstrap(cls, username: str) -> Dict[str, Any]:
         catalog = get_academy_catalog()
         profile = await AcademyStore.get_profile(username)
         if not profile:
@@ -402,9 +402,9 @@ class AcademyService:
         cls,
         *,
         username: str,
-        level_input: str | None = None,
-        freeform_background: str | None = None,
-    ) -> dict[str, Any]:
+        level_input: Optional[str] = None,
+        freeform_background: Optional[str] = None,
+    ) -> Dict[str, Any]:
         existing = await AcademyStore.get_profile(username) or {}
         detected_level = cls._detect_level(level_input or existing.get("level_input"), freeform_background or existing.get("freeform_background"))
         recommended_module_id, recommendation_reason = cls._recommend_module(detected_level, freeform_background or existing.get("freeform_background"))
@@ -419,7 +419,7 @@ class AcademyService:
         return await cls.bootstrap(username)
 
     @classmethod
-    async def mark_lesson_viewed(cls, *, username: str, module_id: str, lesson_id: str) -> dict[str, Any]:
+    async def mark_lesson_viewed(cls, *, username: str, module_id: str, lesson_id: str) -> Dict[str, Any]:
         await AcademyStore.mark_lesson_viewed(username=username, module_id=module_id, lesson_id=lesson_id)
         await AcademyStore.upsert_profile(
             username=username,
@@ -436,7 +436,7 @@ class AcademyService:
         module_id: str,
         lesson_id: str,
         completed: bool,
-    ) -> dict[str, Any]:
+    ) -> Dict[str, Any]:
         await AcademyStore.set_lesson_completed(
             username=username,
             module_id=module_id,
@@ -451,7 +451,7 @@ class AcademyService:
         return await cls.bootstrap(username)
 
     @classmethod
-    async def search(cls, *, username: str, query: str) -> dict[str, Any]:
+    async def search(cls, *, username: str, query: str) -> Dict[str, Any]:
         payload = await cls.bootstrap(username)
         normalized = query.strip().lower()
         if len(normalized) < 2:

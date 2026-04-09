@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 
 def lesson(
@@ -11,17 +11,17 @@ def lesson(
     difficulty: str,
     summary: str,
     theory: str,
-    practical: list[str],
-    mistakes: list[str],
-    app_links: list[dict[str, str]],
-    case_study: str | None = None,
-    why_it_matters: str | None = None,
-    framework: list[str] | None = None,
-    app_exercise: list[str] | None = None,
-    checklist: list[str] | None = None,
-    before_continue: list[str] | None = None,
-    deep_sections: list[dict[str, Any]] | None = None,
-) -> dict[str, Any]:
+    practical: List[str],
+    mistakes: List[str],
+    app_links: List[Dict[str, str]],
+    case_study: Optional[str] = None,
+    why_it_matters: Optional[str] = None,
+    framework: Optional[List[str]] = None,
+    app_exercise: Optional[List[str]] = None,
+    checklist: Optional[List[str]] = None,
+    before_continue: Optional[List[str]] = None,
+    deep_sections: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
     return {
         "id": lesson_id,
         "title": title,
@@ -51,9 +51,9 @@ def indicator(
     works_when: str,
     fails_when: str,
     strategy_use: str,
-    common_mistakes: list[str],
+    common_mistakes: List[str],
     example: str,
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     return {
         "id": indicator_id,
         "name": name,

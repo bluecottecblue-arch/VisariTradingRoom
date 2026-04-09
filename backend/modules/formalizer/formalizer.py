@@ -7,6 +7,7 @@ Questo modulo prende:
 E produce una specifica algoritmica completa con macchina a stati.
 """
 import re
+from typing import Optional
 
 from modules.common.anthropic_client import get_anthropic_model
 from modules.common.llm_client import invoke_json
@@ -135,7 +136,7 @@ class StrategyFormalizer:
             validation={"ready_for_generation": True},
         )
 
-    def _should_force_llm_review(self, session_payload: dict, selected_resolutions: list, missing_inputs: dict | None = None) -> bool:
+    def _should_force_llm_review(self, session_payload: dict, selected_resolutions: list, missing_inputs: Optional[dict] = None) -> bool:
         intake = session_payload.get("intake", {}) or {}
         inference_policy = normalize_inference_policy(intake.get("inference_policy"))
         rich_context_fields = (
