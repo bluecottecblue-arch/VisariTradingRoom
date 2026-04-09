@@ -35,7 +35,7 @@ async function forward(request: NextRequest, context: RouteContext) {
     method: request.method,
     headers,
     cache: 'no-store',
-    signal: AbortSignal.timeout(15000),
+    signal: AbortSignal.timeout(60000),
   }
 
   if (!['GET', 'HEAD'].includes(request.method)) {

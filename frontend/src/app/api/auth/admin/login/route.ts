@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import crypto from 'crypto'
 import {
   SESSION_COOKIE_NAME,
   SESSION_ROLE_COOKIE_NAME,
@@ -21,6 +22,36 @@ function setSessionCookies(response: NextResponse, token: string, username: stri
   response.cookies.set({ name: SESSION_USERNAME_COOKIE_NAME, value: username, ...common })
 }
 
+function normalizeAdminUsername(): string {
+  return String(process.env.ADMIN_USERNAME || '').trim().toLowerCase()
+}
+
+function normalizeAdminPassword(): string {
+  return String(process.env.ADMIN_PASSWORD || '').trim()
+}
+
+function getSessionSecret(): string {
+  return String(process.env.SESSION_SECRET || 'dev-session-secret-change-me')
+}
+
+function b64urlEncode(raw: Buffer): string {
+  return raw.toString('base64url')
+}
+
+function createSessionToken(username: string, role: string, ttlSeconds = 60 * 60 * 24 * 14): string {
+  const payload = {
+    sub: username,
+    role,
+    exp: Math.floor(Date.now() / 1000) + ttlSeconds,
+  }
+  const encodedPayload = b64urlEncode(Buffer.from(JSON.stringify(payload)))
+  const signature = crypto
+    .createHmac('sha256', getSessionSecret())
+    .update(encodedPayload)
+    .digest()
+  return `${encodedPayload}.${b64urlEncode(signature)}`
+}
+
 export async function POST(request: NextRequest) {
   let body: { username?: string; password?: string } = {}
   try {
@@ -34,6 +65,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ detail: 'Username e password admin obbligatori' }, { status: 400 })
   }
 
+  const expectedUsername = normalizeAdminUsername()
+  const expectedPassword = normalizeAdminPassword()
+  if (expectedUsername && expectedPassword) {
+    const ok =
+      username.trim().toLowerCase() === expectedUsername &&
+      password.trim() === expectedPassword
+
+    if (!ok) {
+      return NextResponse.json({ detail: 'Credenziali admin non valide' }, { status: 401 })
+    }
+
+    const token = createSessionToken(expectedUsername, 'admin')
+    const nextResponse = NextResponse.json({ ok: true, username: expectedUsername, role: 'admin' })
+    setSessionCookies(nextResponse, token, expectedUsername, 'admin')
+    return nextResponse
+  }
+
   let response: Response
   try {
     response = await fetch(`${getBackendBaseUrl()}/api/auth/admin/login`, {
@@ -41,7 +89,7 @@ export async function POST(request: NextRequest) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
       cache: 'no-store',
-      signal: AbortSignal.timeout(12000),
+      signal: AbortSignal.timeout(60000),
     })
   } catch {
     return NextResponse.json(

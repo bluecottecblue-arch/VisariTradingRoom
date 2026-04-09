@@ -6,7 +6,7 @@ export async function GET() {
     const response = await fetch(`${getBackendBaseUrl()}/health`, {
       method: 'GET',
       cache: 'no-store',
-      signal: AbortSignal.timeout(25000),
+      signal: AbortSignal.timeout(60000),
     })
 
     return NextResponse.json(

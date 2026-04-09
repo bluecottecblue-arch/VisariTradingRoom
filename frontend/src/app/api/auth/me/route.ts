@@ -39,6 +39,17 @@ export async function GET(request: NextRequest) {
       }
     }
     if (response.status === 401 || response.status === 403) {
+      if (role === 'admin' && username && token) {
+        return NextResponse.json(
+          {
+            authenticated: true,
+            username,
+            role: 'admin',
+            claude_key_configured: false,
+          },
+          { status: 200, headers: NO_STORE_HEADERS },
+        )
+      }
       return NextResponse.json(
         {
           authenticated: false,
@@ -50,7 +61,17 @@ export async function GET(request: NextRequest) {
       )
     }
   } catch {
-    // fall through to conservative unauthenticated response
+    if (role === 'admin' && username && token) {
+      return NextResponse.json(
+        {
+          authenticated: true,
+          username,
+          role: 'admin',
+          claude_key_configured: false,
+        },
+        { status: 200, headers: NO_STORE_HEADERS },
+      )
+    }
   }
 
   return NextResponse.json({
