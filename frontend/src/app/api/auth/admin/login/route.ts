@@ -41,6 +41,7 @@ export async function POST(request: NextRequest) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
       cache: 'no-store',
+      signal: AbortSignal.timeout(12000),
     })
   } catch {
     return NextResponse.json(

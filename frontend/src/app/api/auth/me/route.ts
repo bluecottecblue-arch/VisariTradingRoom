@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
         accept: 'application/json',
       },
       cache: 'no-store',
+      signal: AbortSignal.timeout(12000),
     })
     if (response.ok) {
       const body = await response.json().catch(() => null)
