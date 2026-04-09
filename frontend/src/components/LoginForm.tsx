@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { FormEvent, useState } from 'react'
+import { FormEvent, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 type LoginFormProps = {
@@ -28,6 +28,30 @@ export default function LoginForm({
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [warmingUp, setWarmingUp] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    setWarmingUp(true)
+
+    fetch('/api/auth/warmup', { cache: 'no-store' })
+      .catch(() => null)
+      .finally(() => {
+        if (!cancelled) setWarmingUp(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  async function submitOnce() {
+    return fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    })
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -35,23 +59,37 @@ export default function LoginForm({
     setError('')
 
     try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      })
+      let lastError = 'Credenziali non valide'
 
-      let body: any = {}
-      try {
-        body = await response.json()
-      } catch {}
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        const response = await submitOnce()
 
-      if (!response.ok) {
-        throw new Error(body.detail || 'Credenziali non valide')
+        let body: any = {}
+        try {
+          body = await response.json()
+        } catch {}
+
+        if (response.ok) {
+          router.replace(nextPath)
+          router.refresh()
+          return
+        }
+
+        lastError = body.detail || 'Credenziali non valide'
+
+        const shouldRetry =
+          response.status === 503 &&
+          attempt < 2 &&
+          /non raggiungibile|riattivazione/i.test(String(lastError))
+
+        if (!shouldRetry) {
+          throw new Error(lastError)
+        }
+
+        setError('Riattivo il servizio, attendi qualche secondo...')
+        await new Promise((resolve) => setTimeout(resolve, 2500 * (attempt + 1)))
       }
-
-      router.replace(nextPath)
-      router.refresh()
+      throw new Error(lastError)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Errore sconosciuto')
     } finally {
@@ -103,6 +141,9 @@ export default function LoginForm({
             <p className="text-[11px] uppercase tracking-[0.28em] text-slate-500">Accesso protetto</p>
             <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-50">{title}</h2>
             <p className="mt-2 text-sm leading-relaxed text-slate-500">{description}</p>
+            {warmingUp && (
+              <p className="mt-2 text-xs text-slate-600">Connessione ai servizi in preparazione…</p>
+            )}
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
