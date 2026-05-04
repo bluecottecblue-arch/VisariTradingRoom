@@ -19,10 +19,12 @@ function isActive(pathname: string, workspaceMode: string | null, href: string) 
 
 const links = [
   { href: '/workspace?mode=strategy', label: 'Strategie' },
-  { href: '/builder', label: 'Strategy Builder' },
+  { href: '/builder', label: 'Builder strategia' },
   { href: '/workspace?mode=botlab', label: 'Bot Lab' },
   { href: '/dashboard', label: 'Desk algoritmi' },
-  { href: '/academy', label: 'Academy' },
+  { href: '/research', label: 'Data Lab' },
+  { href: '/team', label: 'Team' },
+  { href: '/academy', label: 'Accademia' },
 ]
 
 export default function AppSidebar({ open, onClose }: AppSidebarProps) {

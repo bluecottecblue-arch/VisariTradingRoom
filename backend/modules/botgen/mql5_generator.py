@@ -14,6 +14,7 @@ from typing import Optional
 from modules.common.anthropic_client import get_anthropic_model, parse_json_response
 from modules.common.llm_client import invoke_text
 from modules.common.deployment_bundle import build_deployment_readiness
+from modules.botgen.python_strategy_generator import build_python_strategy_code
 from modules.common.strategy_validation import (
     STATUS_GENERATION_FAILED,
     STATUS_INVALID,
@@ -138,6 +139,7 @@ class MQL5Generator:
                 status=STATUS_GENERATION_FAILED,
                 message="Il modello ha restituito codice non valido o incompleto.",
                 mql5_code=code,
+                python_strategy_code=build_python_strategy_code(spec, session_id),
                 documentation=(data.get("documentation") or "").strip(),
                 implementation_assumptions=data.get("implementation_assumptions") or [],
                 limitations_vs_discretionary=data.get("limitations_vs_discretionary") or [],
@@ -151,6 +153,7 @@ class MQL5Generator:
             status=STATUS_VALID,
             message="Expert Advisor pronto per il download.",
             mql5_code=code,
+            python_strategy_code=build_python_strategy_code(spec, session_id),
             documentation=(data.get("documentation") or "").strip(),
             implementation_assumptions=data.get("implementation_assumptions") or [],
             limitations_vs_discretionary=data.get("limitations_vs_discretionary") or [],

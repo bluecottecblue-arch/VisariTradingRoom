@@ -44,6 +44,12 @@ class StrategyIntakeRequest(BaseModel):
     market: str
     analysis_timeframe: str = "H4"
     execution_timeframe: str = "M15"
+    edge_hypothesis: Optional[str] = None
+    market_inefficiency: Optional[str] = None
+    favorable_regimes: Optional[str] = None
+    adverse_regimes: Optional[str] = None
+    falsification_triggers: Optional[str] = None
+    deployment_guardrails: Optional[str] = None
     long_entry: str
     short_entry: Optional[str] = None
     invalidation: str
@@ -141,6 +147,7 @@ class BotGenerationResponse(BaseModel):
     validation_status: str
     message: str
     mql5_code: str = ""
+    python_strategy_code: str = ""
     documentation: str = ""
     implementation_assumptions: list[str] = Field(default_factory=list)
     limitations_vs_discretionary: list[str] = Field(default_factory=list)
@@ -149,6 +156,7 @@ class BotGenerationResponse(BaseModel):
     deployment_readiness: dict[str, Any] = Field(default_factory=dict)
     download_ready: bool = False
     can_generate_code: bool = False
+    available_exports: list[str] = Field(default_factory=lambda: ["mql5", "python"])
     validation: dict[str, Any] = Field(default_factory=dict)
     usage: dict[str, Any] = Field(default_factory=dict)
 
@@ -313,6 +321,14 @@ async def parse_strategy(
                 "market": req.market,
                 "analysis_timeframe": req.analysis_timeframe,
                 "execution_timeframe": req.execution_timeframe,
+                "strategy_thesis": {
+                    "edge_hypothesis": req.edge_hypothesis,
+                    "market_inefficiency": req.market_inefficiency,
+                    "favorable_regimes": req.favorable_regimes,
+                    "adverse_regimes": req.adverse_regimes,
+                    "falsification_triggers": req.falsification_triggers,
+                    "deployment_guardrails": req.deployment_guardrails,
+                },
                 "claude_access": {
                     "credential_source": (intake.get("claude_access") or {}).get("credential_source", "personal"),
                     "personal_key_supplied": bool((req.claude_access or {}).get("api_key")),

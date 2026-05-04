@@ -99,16 +99,25 @@ class ProjectStore:
 
     @classmethod
     async def list_projects(cls, owner_username: str) -> list[dict[str, Any]]:
+        normalized_owner = str(owner_username or "").strip().lower()
+        team_ids: list[str] = []
+        try:
+            from modules.team.store import TeamStore
+
+            team_ids = await TeamStore.user_team_ids(normalized_owner)
+        except Exception:
+            team_ids = []
+
         if is_db_available():
             try:
                 async with AsyncSessionLocal() as db:  # type: ignore[arg-type]
                     stmt = (
                         select(Project)
-                        .where(Project.owner_username == owner_username)
+                        .where(Project.owner_username == normalized_owner)
                         .order_by(Project.updated_at.desc(), Project.created_at.desc())
                     )
                     rows = (await db.execute(stmt)).scalars().all()
-                    return [
+                    projects = [
                         {
                             "project_id": row.id,
                             "owner_username": row.owner_username,
@@ -123,24 +132,68 @@ class ProjectStore:
                         }
                         for row in rows
                     ]
+                    if team_ids:
+                        shared_stmt = (
+                            select(Project)
+                            .order_by(Project.updated_at.desc(), Project.created_at.desc())
+                        )
+                        shared_rows = (await db.execute(shared_stmt)).scalars().all()
+                        seen = {item["project_id"] for item in projects}
+                        for row in shared_rows:
+                            metadata = row.metadata_json or {}
+                            if metadata.get("team_id") not in team_ids or row.id in seen:
+                                continue
+                            projects.append(
+                                {
+                                    "project_id": row.id,
+                                    "owner_username": row.owner_username,
+                                    "title": row.title,
+                                    "mode": row.mode,
+                                    "status": row.status,
+                                    "active_session_id": row.active_session_id,
+                                    "latest_verdict": row.latest_verdict,
+                                    "metadata": metadata,
+                                    "created_at": row.created_at.isoformat() if row.created_at else None,
+                                    "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+                                }
+                            )
+                    return sorted(projects, key=lambda item: item.get("updated_at") or "", reverse=True)
             except Exception:
                 pass  # fall through to in-memory
 
         state = cls._memory_state()
         projects = [
             value for value in state["projects"].values()
-            if value.get("owner_username") == owner_username
+            if value.get("owner_username") == normalized_owner
         ]
+        if team_ids:
+            seen = {item["project_id"] for item in projects}
+            for value in state["projects"].values():
+                metadata = value.get("metadata") or {}
+                if metadata.get("team_id") in team_ids and value.get("project_id") not in seen:
+                    projects.append(value)
         return sorted(projects, key=lambda item: item.get("updated_at") or "", reverse=True)
 
     @classmethod
     async def get_project(cls, owner_username: str, project_id: str) -> Optional[dict[str, Any]]:
+        normalized_owner = str(owner_username or "").strip().lower()
+        team_ids: list[str] = []
+        try:
+            from modules.team.store import TeamStore
+
+            team_ids = await TeamStore.user_team_ids(normalized_owner)
+        except Exception:
+            team_ids = []
         if is_db_available():
             try:
                 async with AsyncSessionLocal() as db:  # type: ignore[arg-type]
-                    stmt = select(Project).where(Project.id == project_id, Project.owner_username == owner_username)
+                    stmt = select(Project).where(Project.id == project_id)
                     row = (await db.execute(stmt)).scalar_one_or_none()
                     if not row:
+                        return None
+                    metadata = row.metadata_json or {}
+                    allowed = row.owner_username == normalized_owner or metadata.get("team_id") in team_ids
+                    if not allowed:
                         return None
                     versions = await cls.list_versions(project_id)
                     artifacts = await cls.list_artifacts(project_id)
@@ -153,7 +206,7 @@ class ProjectStore:
                         "status": row.status,
                         "active_session_id": row.active_session_id,
                         "latest_verdict": row.latest_verdict,
-                        "metadata": row.metadata_json or {},
+                        "metadata": metadata,
                         "created_at": row.created_at.isoformat() if row.created_at else None,
                         "updated_at": row.updated_at.isoformat() if row.updated_at else None,
                         "versions": versions,
@@ -165,7 +218,11 @@ class ProjectStore:
 
         state = cls._memory_state()
         project = state["projects"].get(project_id)
-        if not project or project.get("owner_username") != owner_username:
+        if not project:
+            return None
+        metadata = project.get("metadata") or {}
+        allowed = project.get("owner_username") == normalized_owner or metadata.get("team_id") in team_ids
+        if not allowed:
             return None
         return {
             **project,

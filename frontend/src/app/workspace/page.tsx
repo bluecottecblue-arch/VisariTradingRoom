@@ -146,6 +146,18 @@ export default function WorkspacePage() {
                 <div className="font-medium text-slate-100">Desk algoritmi</div>
               </Link>
               <Link
+                href="/research"
+                className="block w-full border border-slate-800 px-4 py-3 text-left text-sm text-slate-500 transition-colors hover:border-slate-700 hover:text-slate-200"
+              >
+                <div className="font-medium text-slate-100">Data Lab</div>
+              </Link>
+              <Link
+                href="/team"
+                className="block w-full border border-slate-800 px-4 py-3 text-left text-sm text-slate-500 transition-colors hover:border-slate-700 hover:text-slate-200"
+              >
+                <div className="font-medium text-slate-100">Team mode</div>
+              </Link>
+              <Link
                 href="/academy"
                 className="block w-full border border-slate-800 px-4 py-3 text-left text-sm text-slate-500 transition-colors hover:border-slate-700 hover:text-slate-200"
               >

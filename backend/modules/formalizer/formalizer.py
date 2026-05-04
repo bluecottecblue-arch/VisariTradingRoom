@@ -140,6 +140,12 @@ class StrategyFormalizer:
         intake = session_payload.get("intake", {}) or {}
         inference_policy = normalize_inference_policy(intake.get("inference_policy"))
         rich_context_fields = (
+            "edge_hypothesis",
+            "market_inefficiency",
+            "favorable_regimes",
+            "adverse_regimes",
+            "falsification_triggers",
+            "deployment_guardrails",
             "valid_trade_examples",
             "invalid_trade_examples",
             "trend_filter",
@@ -167,6 +173,14 @@ class StrategyFormalizer:
                 "symbol": intake.get("market") or structured.get("market"),
                 "market": intake.get("market") or structured.get("market"),
                 "strategy_style": self._infer_strategy_style(structured, intake),
+                "strategy_thesis": {
+                    "edge_hypothesis": intake.get("edge_hypothesis"),
+                    "market_inefficiency": intake.get("market_inefficiency"),
+                    "favorable_regimes": intake.get("favorable_regimes"),
+                    "adverse_regimes": intake.get("adverse_regimes"),
+                    "falsification_triggers": intake.get("falsification_triggers"),
+                    "deployment_guardrails": intake.get("deployment_guardrails"),
+                },
                 "timeframes": structured.get("timeframes") or {
                     "trend": intake.get("analysis_timeframe"),
                     "entry": intake.get("execution_timeframe"),
@@ -515,6 +529,12 @@ class StrategyFormalizer:
                 "name": intake.get("name"),
                 "market": intake.get("market"),
                 "intake": {
+                    "edge_hypothesis": intake.get("edge_hypothesis"),
+                    "market_inefficiency": intake.get("market_inefficiency"),
+                    "favorable_regimes": intake.get("favorable_regimes"),
+                    "adverse_regimes": intake.get("adverse_regimes"),
+                    "falsification_triggers": intake.get("falsification_triggers"),
+                    "deployment_guardrails": intake.get("deployment_guardrails"),
                     "long_entry": intake.get("long_entry"),
                     "short_entry": intake.get("short_entry"),
                     "invalidation": intake.get("invalidation"),

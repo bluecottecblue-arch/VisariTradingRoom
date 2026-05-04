@@ -58,6 +58,12 @@ export interface StrategyIntake {
   market: string
   analysis_timeframe: string
   execution_timeframe: string
+  edge_hypothesis?: string
+  market_inefficiency?: string
+  favorable_regimes?: string
+  adverse_regimes?: string
+  falsification_triggers?: string
+  deployment_guardrails?: string
   long_entry: string
   short_entry?: string
   invalidation: string
@@ -440,6 +446,7 @@ export interface BotResult {
   validation_status: 'VALID' | 'INVALID'
   message: string
   mql5_code: string
+  python_strategy_code?: string
   documentation: string
   implementation_assumptions: string[]
   limitations_vs_discretionary: string[]
@@ -468,6 +475,7 @@ export interface BotResult {
   }
   download_ready: boolean
   can_generate_code: boolean
+  available_exports?: string[]
   validation: ValidationInfo
   usage: UsageInfo
 }
@@ -620,6 +628,31 @@ export interface ProjectDetail extends ProjectSummary {
   jobs: ProjectJobRecord[]
 }
 
+export interface TeamMemberRecord {
+  team_member_id: string
+  team_id: string
+  username: string
+  role: 'owner' | 'admin' | 'editor' | 'viewer'
+  created_at?: string | null
+  updated_at?: string | null
+}
+
+export interface TeamRecord {
+  team_id: string
+  owner_username: string
+  name: string
+  slug: string
+  brand_name?: string | null
+  primary_accent?: string | null
+  support_email?: string | null
+  legal_label?: string | null
+  white_label_enabled: boolean
+  settings: Record<string, unknown>
+  created_at?: string | null
+  updated_at?: string | null
+  members?: TeamMemberRecord[]
+}
+
 export type DashboardSourceMode = 'live' | 'real' | 'mock' | 'hybrid'
 export type DashboardOperatingMode = 'DEMO' | 'PAPER' | 'LIVE' | 'LIVE_READY' | 'BACKTEST_REVIEW'
 export type DashboardTone = 'neutral' | 'positive' | 'negative' | 'warning'
@@ -768,6 +801,93 @@ export interface CommandCenterDashboard {
     connected: boolean
     mode?: string | null
   } | null
+}
+
+export interface ResearchDatasetRecord {
+  dataset_id: string
+  owner_username: string
+  project_id?: string | null
+  title: string
+  source: string
+  symbol?: string | null
+  timeframe?: string | null
+  date_from?: string | null
+  date_to?: string | null
+  row_count: number
+  quality: Record<string, unknown>
+  metadata: Record<string, unknown>
+  created_at?: string | null
+  updated_at?: string | null
+}
+
+export interface ResearchModelRunRecord {
+  run_id: string
+  dataset_id: string
+  owner_username: string
+  project_id?: string | null
+  title: string
+  model_type: string
+  config: Record<string, unknown>
+  result: Record<string, unknown>
+  created_at?: string | null
+  updated_at?: string | null
+}
+
+export interface ResearchLabBootstrapPayload {
+  datasets: ResearchDatasetRecord[]
+  runs: ResearchModelRunRecord[]
+  projects: ProjectSummary[]
+}
+
+export interface ResearchTrainingResult {
+  run_id: string
+  dataset_id: string
+  summary: {
+    model_type: string
+    rows_used: number
+    feature_count: number
+    target_positive_rate: number
+    quality_score: number
+    verdict: string
+  }
+  target_definition: {
+    horizon_bars: number
+    return_threshold_bps: number
+    label_rule: string
+  }
+  split_summary: {
+    train_rows: number
+    validation_rows: number
+    test_rows: number
+    train_from?: string | null
+    train_to?: string | null
+    test_from?: string | null
+    test_to?: string | null
+  }
+  metrics: {
+    train: Record<string, number>
+    validation: Record<string, number>
+    test: Record<string, number>
+  }
+  walk_forward: {
+    folds: Array<Record<string, unknown>>
+    stability_score: number
+    average_test_accuracy: number
+    average_test_auc: number
+  }
+  feature_ranking: Array<{
+    feature: string
+    weight: number
+    direction: 'positive' | 'negative' | 'neutral'
+  }>
+  anti_overfitting: {
+    train_test_gap: number
+    shuffled_baseline_accuracy: number
+    shuffled_baseline_auc: number
+    signal_to_noise_score: number
+    warnings: string[]
+  }
+  recommendations: string[]
 }
 
 export interface AdminUserRecord {

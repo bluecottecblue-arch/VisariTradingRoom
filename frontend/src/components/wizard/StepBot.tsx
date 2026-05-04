@@ -18,7 +18,7 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<BotResult | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [tab, setTab] = useState<'doc' | 'code' | 'limits'>('doc')
+  const [tab, setTab] = useState<'doc' | 'code' | 'python' | 'limits'>('doc')
   const verdict = backtestResult?.final_decision
   const generationBlocked = formalSpec?.status !== 'VALID' || verdict?.generate_bot_allowed === false
 
@@ -34,6 +34,9 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
 
       if (data.download_ready && data.code_validation?.is_valid && data.mql5_code) {
         await exportApi.saveMql5(sessionId, data.mql5_code)
+      }
+      if (data.python_strategy_code) {
+        await exportApi.savePython(sessionId, data.python_strategy_code)
       }
 
       setResult(data)
@@ -62,6 +65,16 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
     document.body.removeChild(a)
   }
 
+  const downloadPython = () => {
+    if (!result?.python_strategy_code) return
+    const a = document.createElement('a')
+    a.href = exportApi.downloadPythonUrl(sessionId)
+    a.download = `VisariTradingRoom_${sessionId.slice(0, 8)}.py`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+  }
+
   if (!result && !loading) {
     return (
       <div className="space-y-8">
@@ -70,13 +83,14 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
             Pacchetto operativo del bot
           </h1>
           <p className="text-sm leading-relaxed text-slate-400">
-            La piattaforma produrrà un Expert Advisor MQL5 esportabile con documentazione, prontezza al deploy e guida di setup per MT5.
+            La piattaforma produrrà un algoritmo MQL5 esportabile con scaffold Python di ricerca, documentazione, prontezza al deploy e guida di setup.
           </p>
         </div>
 
         <Alert type="info" title="Consegna prevista">
           <ul className="space-y-1 mt-1">
             <li>• Codice sorgente `.mq5` validato dal backend</li>
+            <li>• Strategia Python di ricerca con pandas/numpy e metriche istituzionali</li>
             <li>• Documentazione operativa</li>
             <li>• Guida MT5 e manifest di deploy</li>
             <li>• Checklist esplicita per macro runtime, WebRequest e input runtime</li>
@@ -157,7 +171,7 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
         <NavButtons
           onBack={onBack}
           onNext={generationBlocked ? undefined : generate}
-          nextLabel={generationBlocked ? 'Generazione bloccata' : 'Genera Expert Advisor MQL5'}
+          nextLabel={generationBlocked ? 'Generazione bloccata' : 'Genera algoritmo MQL5 + scaffold Python'}
           loading={loading}
           disabled={generationBlocked}
         />
@@ -175,7 +189,7 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
         <div className="p-8 bg-stone-900 border border-stone-700 rounded">
           <Spinner label="Claude sta scrivendo il codice MQL5..." />
           <p className="text-stone-600 text-xs text-center mt-2">
-            30-90 secondi, in base alla complessità della strategia
+            30-90 secondi, in base alla complessità della strategia e del layer di ricerca
           </p>
         </div>
       </div>
@@ -336,6 +350,7 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
         tabs={[
           { id: 'doc', label: 'Documentazione' },
           { id: 'code', label: 'Codice MQL5' },
+          ...(result?.python_strategy_code ? [{ id: 'python' as const, label: 'Codice Python' }] : []),
           { id: 'limits', label: 'Assunzioni e limiti' },
         ]}
         active={tab}
@@ -362,6 +377,20 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
         ) : (
           <div className="border border-slate-800 bg-slate-950/70 p-5 text-sm text-slate-400">
             Nessun codice scaricabile disponibile perché la generazione è stata fermata o ha prodotto un output non valido.
+          </div>
+        )
+      )}
+
+      {tab === 'python' && (
+        result?.python_strategy_code ? (
+          <CodeBlock
+            code={result.python_strategy_code}
+            language="Python"
+            maxHeight="32rem"
+          />
+        ) : (
+          <div className="border border-slate-800 bg-slate-950/70 p-5 text-sm text-slate-400">
+            Nessun codice Python disponibile per questo export.
           </div>
         )
       )}
@@ -400,13 +429,20 @@ export default function StepBot({ sessionId, formalSpec, backtestResult, onCompl
         </div>
       )}
 
-      <div className="grid gap-3 md:grid-cols-4">
+      <div className="grid gap-3 md:grid-cols-5">
         <button
           onClick={downloadBot}
           disabled={!generationSucceeded}
           className="border border-slate-200 bg-slate-100 py-3 font-semibold text-slate-950 transition-all duration-200 hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_10px_28px_rgba(255,255,255,0.08)] disabled:opacity-40"
         >
           Scarica .mq5
+        </button>
+        <button
+          onClick={downloadPython}
+          disabled={!result?.python_strategy_code}
+          className="border border-slate-800 py-3 text-slate-200 transition-colors hover:border-slate-600 disabled:opacity-40"
+        >
+          Scarica .py
         </button>
         <button
           onClick={downloadSetupGuide}

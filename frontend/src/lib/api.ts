@@ -164,6 +164,45 @@ export const projectApi = {
     }),
 }
 
+export const teamApi = {
+  bootstrap: () =>
+    request('/api/team/bootstrap'),
+
+  create: (name: string) =>
+    request('/api/team/create', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    }),
+
+  updateBranding: (
+    teamId: string,
+    payload: {
+      brand_name?: string
+      primary_accent?: string
+      support_email?: string
+      legal_label?: string
+      white_label_enabled?: boolean
+      settings?: Record<string, unknown>
+    },
+  ) =>
+    request(`/api/team/${teamId}/branding`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  replaceMembers: (teamId: string, members: Array<{ username: string; role: string }>) =>
+    request(`/api/team/${teamId}/members`, {
+      method: 'POST',
+      body: JSON.stringify({ members }),
+    }),
+
+  shareProject: (projectId: string, teamId?: string | null) =>
+    request('/api/team/share-project', {
+      method: 'POST',
+      body: JSON.stringify({ project_id: projectId, team_id: teamId || null }),
+    }),
+}
+
 export const dashboardApi = {
   commandCenter: (params?: {
     projectId?: string | null
@@ -209,6 +248,47 @@ export const academyApi = {
     request(`/api/academy/search?q=${encodeURIComponent(query)}`),
 }
 
+export const researchLabApi = {
+  bootstrap: () =>
+    request('/api/research/bootstrap'),
+
+  uploadDataset: (payload: { title: string; csv_text: string; project_id?: string | null }) =>
+    request('/api/research/datasets/upload', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  fetchDataset: (payload: {
+    title: string
+    provider: string
+    symbol: string
+    timeframe: string
+    date_from: string
+    date_to: string
+    project_id?: string | null
+  }) =>
+    request('/api/research/datasets/fetch', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  train: (payload: {
+    dataset_id: string
+    title?: string
+    horizon_bars?: number
+    return_threshold_bps?: number
+    train_ratio?: number
+    validation_ratio?: number
+    learning_rate?: number
+    epochs?: number
+    l2_penalty?: number
+  }) =>
+    request('/api/research/train', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+}
+
 // ─── Export endpoints ─────────────────────────────────────────────────────────
 
 export const exportApi = {
@@ -218,11 +298,20 @@ export const exportApi = {
       body: JSON.stringify({ mql5_code: code }),
     }),
 
+  savePython: (sessionId: string, code: string) =>
+    request(`/api/export/python/${sessionId}`, {
+      method: 'POST',
+      body: JSON.stringify({ python_strategy_code: code }),
+    }),
+
   bundleInfo: (sessionId: string) =>
     request(`/api/export/bundle/${sessionId}`),
 
   downloadMql5Url: (sessionId: string) =>
     `${BASE_URL}/api/export/mql5/${sessionId}`,
+
+  downloadPythonUrl: (sessionId: string) =>
+    `${BASE_URL}/api/export/python/${sessionId}`,
 
   reportUrl: (sessionId: string) =>
     `${BASE_URL}/api/export/report/${sessionId}`,

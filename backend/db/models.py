@@ -142,6 +142,69 @@ try:
         created_at = Column(DateTime(timezone=True), server_default=func.now())
         updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
+
+    class Team(Base):
+        __tablename__ = "teams"
+
+        id = Column(String, primary_key=True)
+        owner_username = Column(String, index=True, nullable=False)
+        name = Column(String, nullable=False)
+        slug = Column(String, index=True, nullable=False)
+        brand_name = Column(String)
+        primary_accent = Column(String, default="cyan")
+        support_email = Column(String)
+        legal_label = Column(String)
+        white_label_enabled = Column(Boolean, default=False)
+        settings_json = Column(JSON, default={})
+        created_at = Column(DateTime(timezone=True), server_default=func.now())
+        updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+    class TeamMember(Base):
+        __tablename__ = "team_members"
+
+        id = Column(String, primary_key=True)
+        team_id = Column(String, index=True, nullable=False)
+        username = Column(String, index=True, nullable=False)
+        role = Column(String, default="viewer")
+        created_at = Column(DateTime(timezone=True), server_default=func.now())
+        updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+    class ResearchDataset(Base):
+        __tablename__ = "research_datasets"
+
+        id = Column(String, primary_key=True)
+        owner_username = Column(String, index=True, nullable=False)
+        project_id = Column(String, index=True)
+        title = Column(String, nullable=False)
+        source = Column(String, nullable=False)
+        symbol = Column(String)
+        timeframe = Column(String)
+        date_from = Column(String)
+        date_to = Column(String)
+        row_count = Column(Integer, default=0)
+        quality_json = Column(JSON, default={})
+        metadata_json = Column(JSON, default={})
+        storage_path = Column(String)
+        created_at = Column(DateTime(timezone=True), server_default=func.now())
+        updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+    class ResearchModelRun(Base):
+        __tablename__ = "research_model_runs"
+
+        id = Column(String, primary_key=True)
+        dataset_id = Column(String, index=True, nullable=False)
+        owner_username = Column(String, index=True, nullable=False)
+        project_id = Column(String, index=True)
+        title = Column(String, nullable=False)
+        model_type = Column(String, nullable=False)
+        config_json = Column(JSON, default={})
+        result_json = Column(JSON, default={})
+        created_at = Column(DateTime(timezone=True), server_default=func.now())
+        updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
 except ImportError:
     # SQLAlchemy not installed — models not available, using InMemorySessionStore
     class StrategySession:  # type: ignore
@@ -166,4 +229,16 @@ except ImportError:
         pass
 
     class AcademyLessonProgress:  # type: ignore
+        pass
+
+    class Team:  # type: ignore
+        pass
+
+    class TeamMember:  # type: ignore
+        pass
+
+    class ResearchDataset:  # type: ignore
+        pass
+
+    class ResearchModelRun:  # type: ignore
         pass

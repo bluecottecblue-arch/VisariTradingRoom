@@ -27,6 +27,12 @@ const DEFAULT_FORM: StrategyIntake = {
   market: '',
   analysis_timeframe: 'H4',
   execution_timeframe: 'M15',
+  edge_hypothesis: '',
+  market_inefficiency: '',
+  favorable_regimes: '',
+  adverse_regimes: '',
+  falsification_triggers: '',
+  deployment_guardrails: '',
   long_entry: '',
   short_entry: '',
   invalidation: '',
@@ -165,6 +171,11 @@ export default function StepIntake({ projectId, onComplete }: Props) {
     const requiredReady =
       !!form.name.trim() &&
       !!form.market.trim() &&
+      !!form.edge_hypothesis?.trim() &&
+      !!form.market_inefficiency?.trim() &&
+      !!form.favorable_regimes?.trim() &&
+      !!form.adverse_regimes?.trim() &&
+      !!form.falsification_triggers?.trim() &&
       !!form.long_entry.trim() &&
       !!form.invalidation.trim() &&
       !!form.stop_loss.trim() &&
@@ -232,6 +243,11 @@ export default function StepIntake({ projectId, onComplete }: Props) {
   const validate = () => {
     if (!form.name.trim()) return 'Inserisci un nome per la strategia.'
     if (!form.market.trim()) return 'Seleziona il mercato o lo strumento.'
+    if (!(form.edge_hypothesis || '').trim()) return 'Definisci la tesi di edge prima di continuare.'
+    if (!(form.market_inefficiency || '').trim()) return 'Spiega quale inefficienza o comportamento di mercato vuoi sfruttare.'
+    if (!(form.favorable_regimes || '').trim()) return 'Dichiara i regimi favorevoli della strategia.'
+    if (!(form.adverse_regimes || '').trim()) return 'Dichiara i regimi ostili della strategia.'
+    if (!(form.falsification_triggers || '').trim()) return 'Definisci cosa invaliderebbe la tesi.'
     if (form.claude_access?.credential_source === 'account' && !accountClaudeAvailable) {
       return "Usa una chiave personale oppure chiedi all'admin di assegnarne una al tuo account."
     }
@@ -242,6 +258,11 @@ export default function StepIntake({ projectId, onComplete }: Props) {
     if (!form.invalidation.trim()) return "Descrivi la logica di invalidazione."
     if (!form.stop_loss.trim()) return 'Descrivi la logica dello stop loss.'
     if (!form.take_profit.trim()) return 'Descrivi la logica del take profit.'
+    if ((form.edge_hypothesis || '').trim().length < 80) return 'Rendi la tesi di edge molto più concreta: quali condizioni, quale vantaggio atteso, quale meccanismo?'
+    if ((form.market_inefficiency || '').trim().length < 50) return "Spiega meglio l'inefficienza di mercato: non basta nominare il pattern."
+    if ((form.favorable_regimes || '').trim().length < 25) return 'Specifica meglio i regimi favorevoli.'
+    if ((form.adverse_regimes || '').trim().length < 25) return 'Specifica meglio i regimi ostili.'
+    if ((form.falsification_triggers || '').trim().length < 40) return 'Definisci criteri più misurabili per invalidare la tesi.'
     if ((form.long_entry || '').trim().length < 80) return 'Rendi il setup long piu completo. Includi contesto, trigger e condizione di esecuzione.'
     if ((form.valid_trade_examples || '').trim().length < 60) return 'Aggiungi 2-3 esempi di trade validi prima di continuare.'
     if ((form.invalid_trade_examples || '').trim().length < 40) return 'Aggiungi esempi di trade da scartare o descrivi esplicitamente cosa filtrare.'
@@ -250,7 +271,15 @@ export default function StepIntake({ projectId, onComplete }: Props) {
 
   const canAdvanceStep = (step: number) => {
     if (step === 1) {
-      if (!form.name.trim() || !form.market.trim()) return false
+      if (
+        !form.name.trim() ||
+        !form.market.trim() ||
+        !(form.edge_hypothesis || '').trim() ||
+        !(form.market_inefficiency || '').trim() ||
+        !(form.favorable_regimes || '').trim() ||
+        !(form.adverse_regimes || '').trim() ||
+        !(form.falsification_triggers || '').trim()
+      ) return false
       if (form.claude_access?.credential_source === 'account') return accountClaudeAvailable
       return Boolean((form.claude_access?.api_key || '').trim())
     }
@@ -444,6 +473,65 @@ export default function StepIntake({ projectId, onComplete }: Props) {
                         <select value={form.execution_timeframe} onChange={(e) => set('execution_timeframe', e.target.value)} className={inputCls}>
                           {TIMEFRAMES.map((tf) => <option key={tf}>{tf}</option>)}
                         </select>
+                      </Field>
+                    </div>
+                  </Accordion>
+                </div>
+                <div className="mt-6">
+                  <Accordion title="Strategy Thesis Interview" defaultOpen={true}>
+                    <div className="grid gap-4">
+                      <Field label="Tesi di edge" required tooltip="Descrivi in una frase forte quale anomalia o meccanismo vuoi sfruttare.">
+                        <textarea
+                          value={form.edge_hypothesis || ''}
+                          onChange={(e) => set('edge_hypothesis', e.target.value)}
+                          className={`${textareaCls} h-28`}
+                          placeholder="Esempio: il breakout della compressione asiatica tende a continuare solo quando la volatilita M15 si rialza sopra la media e il trend H4 e allineato."
+                        />
+                        <QualityHint value={form.edge_hypothesis || ''} />
+                      </Field>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <Field label="Inefficienza o meccanismo atteso" required>
+                          <textarea
+                            value={form.market_inefficiency || ''}
+                            onChange={(e) => set('market_inefficiency', e.target.value)}
+                            className={`${textareaCls} h-24`}
+                            placeholder="Compressione, trend continuation, mean reversion, carry, squeeze, re-pricing post-news..."
+                          />
+                        </Field>
+                        <Field label="Guardrail di deploy" tooltip="Vincoli operativi che non devono essere violati in fase live.">
+                          <textarea
+                            value={form.deployment_guardrails || ''}
+                            onChange={(e) => set('deployment_guardrails', e.target.value)}
+                            className={`${textareaCls} h-24`}
+                            placeholder="Esempio: non operare con spread > 1.5 pips, sospendere dopo 2 finestre negative, no live in news window."
+                          />
+                        </Field>
+                      </div>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <Field label="Regimi favorevoli" required>
+                          <textarea
+                            value={form.favorable_regimes || ''}
+                            onChange={(e) => set('favorable_regimes', e.target.value)}
+                            className={`${textareaCls} h-24`}
+                            placeholder="Trend H4 allineato, ATR in espansione, sessione Londra/NY attiva..."
+                          />
+                        </Field>
+                        <Field label="Regimi ostili" required>
+                          <textarea
+                            value={form.adverse_regimes || ''}
+                            onChange={(e) => set('adverse_regimes', e.target.value)}
+                            className={`${textareaCls} h-24`}
+                            placeholder="Range stretto, volatilita compressa, spread anomalo, macro high impact..."
+                          />
+                        </Field>
+                      </div>
+                      <Field label="Criteri di falsificazione" required tooltip="Quando diciamo che la tesi non regge piu?">
+                        <textarea
+                          value={form.falsification_triggers || ''}
+                          onChange={(e) => set('falsification_triggers', e.target.value)}
+                          className={`${textareaCls} h-24`}
+                          placeholder="Esempio: degradazione OOS > 35%, due walk-forward consecutive negative, expectancy <= 0 dopo costi."
+                        />
                       </Field>
                     </div>
                   </Accordion>

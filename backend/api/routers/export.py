@@ -107,6 +107,22 @@ async def download_mql5(
                         filename=f"VisariTradingRoom_{session_id[:8]}.mq5")
 
 
+@router.get("/python/{session_id}")
+async def download_python(
+    session_id: str,
+    context: AuthContext = Depends(require_authenticated),
+):
+    await ensure_session_access(session_id, context)
+    file_path = STORAGE / f"{session_id}.py"
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File Python non trovato. Genera prima il bot.")
+    return FileResponse(
+        str(file_path),
+        media_type="text/x-python",
+        filename=f"VisariTradingRoom_{session_id[:8]}.py",
+    )
+
+
 @router.post("/mql5/{session_id}")
 async def save_mql5(
     session_id: str,
@@ -186,6 +202,43 @@ async def save_mql5(
             "warning": "Codice generato da AI. Testa in demo prima di qualsiasi uso live."}
 
 
+@router.post("/python/{session_id}")
+async def save_python(
+    session_id: str,
+    payload: dict,
+    context: AuthContext = Depends(require_authenticated),
+):
+    await ensure_session_access(session_id, context)
+    code = str(payload.get("python_strategy_code") or "").strip()
+    if not code:
+        raise HTTPException(status_code=400, detail="Codice Python vuoto")
+    file_path = STORAGE / f"{session_id}.py"
+    file_path.write_text(code, encoding="utf-8")
+    await _register_artifact(
+        session_id=session_id,
+        artifact_type="python_strategy",
+        label=f"VisariTradingRoom_{session_id[:8]}.py",
+        storage_path=file_path,
+        metadata={"size_bytes": file_path.stat().st_size, "download_ready": True},
+    )
+    project_id = _project_ref_for_session(session_id).get("project_id")
+    if project_id:
+        await ProjectStore.add_version(
+            project_id=project_id,
+            session_id=session_id,
+            version_kind="python_export",
+            status="ready",
+            payload={"python_strategy_code": code},
+            summary={"artifact": "python_strategy", "size_bytes": file_path.stat().st_size},
+        )
+    return {
+        "saved": True,
+        "download_url": f"/api/export/python/{session_id}",
+        "filename": f"VisariTradingRoom_{session_id[:8]}.py",
+        "size_bytes": len(code),
+    }
+
+
 @router.post("/report/{session_id}")
 async def generate_report(
     session_id: str,
@@ -252,6 +305,7 @@ async def get_bundle_info(
     files = {}
     for key, pattern in [
         ("mql5", f"{session_id}.mq5"),
+        ("python", f"{session_id}.py"),
         ("report_html", f"{session_id}_report.html"),
         ("report_json", f"{session_id}_report.json"),
     ]:
@@ -271,6 +325,7 @@ async def get_bundle_info(
         "files": files,
         "urls": {
             "mql5": f"/api/export/mql5/{session_id}",
+            "python": f"/api/export/python/{session_id}",
             "report_html": f"/api/export/report/{session_id}",
             "report_json": f"/api/export/report/{session_id}/json",
             "bundle_manifest": f"/api/export/bundle/{session_id}/manifest.json",
