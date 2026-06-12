@@ -93,8 +93,17 @@ if "postgresql+asyncpg://" in DATABASE_URL:
 try:
     from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
     from sqlalchemy.orm import sessionmaker, DeclarativeBase
+    from sqlalchemy.pool import NullPool
 
-    engine = create_async_engine(DATABASE_URL, echo=False, **_engine_kwargs)
+    _is_postgres = "postgresql+asyncpg://" in DATABASE_URL
+    engine = create_async_engine(
+        DATABASE_URL,
+        echo=False,
+        # NullPool evita connessioni stantie in ambienti cold-start/serverless
+        poolclass=NullPool if _is_postgres else None,
+        pool_pre_ping=not _is_postgres,  # solo per sqlite
+        **_engine_kwargs,
+    )
     AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     class Base(DeclarativeBase):
