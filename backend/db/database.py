@@ -67,26 +67,14 @@ DATABASE_URL = os.environ.get(
     f"sqlite+aiosqlite:///{os.path.join(storage_dir, 'strategyforge.db')}"
 )
 
-# Handle Render/Heroku style postgres URLs
-if DATABASE_URL.startswith("postgresql://"):
-    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+# Converti URL PostgreSQL standard al dialetto psycopg3 (libpq SSL nativo).
+# psycopg3 capisce ?sslmode=require nativamente — nessun workaround SSL necessario.
+if DATABASE_URL.startswith("postgresql://") or DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
 
-# asyncpg non supporta sslmode= (parametro libpq).
-# Rimuoviamo il parametro dall'URL e passiamo ssl=True (booleano) a asyncpg.
-# Su Render Linux, asyncpg con ssl=True usa OpenSSL con i CA di sistema
-# (Let's Encrypt) che coprono *.frankfurt-postgres.render.com.
+_is_postgres = "postgresql+psycopg://" in DATABASE_URL
 _engine_kwargs: dict = {}
-if "postgresql+asyncpg://" in DATABASE_URL:
-    _needs_ssl = False
-    for _param in [
-        "sslmode=require", "sslmode=verify-ca", "sslmode=verify-full",
-        "ssl=require", "ssl=True",
-    ]:
-        if _param in DATABASE_URL:
-            DATABASE_URL = DATABASE_URL.replace(f"?{_param}", "").replace(f"&{_param}", "")
-            _needs_ssl = True
-    if _needs_ssl:
-        _engine_kwargs["connect_args"] = {"ssl": True}
 
 
 # Importa SQLAlchemy solo se disponibile
@@ -95,13 +83,11 @@ try:
     from sqlalchemy.orm import sessionmaker, DeclarativeBase
     from sqlalchemy.pool import NullPool
 
-    _is_postgres = "postgresql+asyncpg://" in DATABASE_URL
     engine = create_async_engine(
         DATABASE_URL,
         echo=False,
-        # NullPool evita connessioni stantie in ambienti cold-start/serverless
         poolclass=NullPool if _is_postgres else None,
-        pool_pre_ping=not _is_postgres,  # solo per sqlite
+        pool_pre_ping=not _is_postgres,
         **_engine_kwargs,
     )
     AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
@@ -148,48 +134,21 @@ async def init_db():
               "Installa le dipendenze per persistenza completa.")
         return
 
-    # -- Diagnostica connessione (TCP + asyncpg) --------------------------
-    if "postgresql+asyncpg://" in DATABASE_URL:
-        from urllib.parse import urlparse
-        _raw_url = DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
-        _parsed = urlparse(_raw_url)
-        _pg_host = _parsed.hostname or ""
-        _pg_port = _parsed.port or 5432
-
-        # 1) TCP reachability
-        import socket as _socket
+    # -- Test di connessione diretta psycopg3 --------------------------------
+    if _is_postgres:
+        _raw_pg_url = DATABASE_URL.replace("postgresql+psycopg://", "postgresql://")
         try:
-            _sock = _socket.create_connection((_pg_host, _pg_port), timeout=10)
-            _sock.close()
-            print(f"✅ TCP {_pg_host}:{_pg_port} raggiungibile")
-        except Exception as _tcp_err:
-            _db_last_error = f"TCP_FAIL: {type(_tcp_err).__name__}: {_tcp_err}"
-            print(f"❌ TCP {_pg_host}:{_pg_port} NON raggiungibile: {_tcp_err}")
-            return
-
-        # 2) asyncpg direct — try ssl=True then ssl=False
-        import asyncpg
-        _asyncpg_ok = False
-        _asyncpg_url = _raw_url
-        _all_errors: dict = {}
-        for _ssl_val in (True, False):
-            try:
-                _test_conn = await asyncpg.connect(_asyncpg_url, ssl=_ssl_val, timeout=20)
+            import psycopg  # psycopg3
+            async with await psycopg.AsyncConnection.connect(
+                _raw_pg_url, connect_timeout=20
+            ) as _test_conn:
                 await _test_conn.execute("SELECT 1")
-                await _test_conn.close()
-                print(f"✅ asyncpg direct OK (ssl={_ssl_val!r})")
-                _asyncpg_ok = True
-                break
-            except Exception as _direct_err:
-                _tb = traceback.format_exc()
-                _emsg = f"{type(_direct_err).__name__}: {_direct_err}"
-                _all_errors[f"ssl_{_ssl_val}"] = _emsg + " | " + _tb[-300:]
-                print(f"❌ asyncpg ssl={_ssl_val!r}: {_emsg}")
-        if not _asyncpg_ok:
-            _db_last_error = " ||| ".join(f"{k}: {v[:200]}" for k, v in _all_errors.items())
-            print(f"❌ All asyncpg attempts failed: {_db_last_error[:500]}")
+            print("✅ psycopg3 direct connect OK")
+        except Exception as _pg3_err:
+            _db_last_error = f"psycopg3: {type(_pg3_err).__name__}: {_pg3_err}"
+            print(f"❌ psycopg3 connect FAILED: {_db_last_error}")
             return
-    # ---------------------------------------------------------------------
+    # -----------------------------------------------------------------------
 
     try:
         import db.models  # noqa: F401 - registra i modelli su Base.metadata

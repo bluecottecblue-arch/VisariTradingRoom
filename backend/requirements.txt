@@ -11,6 +11,7 @@ python-multipart==0.0.9
 # Database (optional — app works without it using in-memory store)
 sqlalchemy==2.0.30
 asyncpg==0.27.0
+psycopg[binary]>=3.1,<4
 aiosqlite==0.20.0
 greenlet==3.0.3
 psycopg2-binary==2.9.9
