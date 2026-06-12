@@ -126,7 +126,6 @@ def is_sqlalchemy_available() -> bool:
 
 async def init_db():
     """Inizializza il DB se disponibile, altrimenti usa modalità stateless."""
-    import traceback
     global _db_connected, _db_last_error
 
     if not _sqlalchemy_available:
@@ -134,32 +133,17 @@ async def init_db():
               "Installa le dipendenze per persistenza completa.")
         return
 
-    # -- Test di connessione diretta psycopg3 --------------------------------
-    if _is_postgres:
-        _raw_pg_url = DATABASE_URL.replace("postgresql+psycopg://", "postgresql://")
-        try:
-            import psycopg  # psycopg3
-            async with await psycopg.AsyncConnection.connect(
-                _raw_pg_url, connect_timeout=20
-            ) as _test_conn:
-                await _test_conn.execute("SELECT 1")
-            print("✅ psycopg3 direct connect OK")
-        except Exception as _pg3_err:
-            _db_last_error = f"psycopg3: {type(_pg3_err).__name__}: {_pg3_err}"
-            print(f"❌ psycopg3 connect FAILED: {_db_last_error}")
-            return
-    # -----------------------------------------------------------------------
-
     try:
         import db.models  # noqa: F401 - registra i modelli su Base.metadata
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         _db_connected = True
+        _db_last_error = ""
         # Local import to avoid circular dependency
         from modules.auth.user_store import migrate_legacy_users
         await migrate_legacy_users()
         storage_root = resolve_storage_root()
-        db_mode = "Postgres" if "postgresql+asyncpg://" in DATABASE_URL else "SQLite"
+        db_mode = "Postgres" if _is_postgres else "SQLite"
         print(f"✅ Database connesso e migrazione completata ({db_mode})")
         print(f"📁 Storage root attiva: {storage_root}")
         if (
@@ -174,7 +158,7 @@ async def init_db():
             )
     except Exception as e:
         _db_connected = False
-        _db_last_error = f"{type(e).__name__}: {e} | TB: {traceback.format_exc()[:400]}"
+        _db_last_error = f"{type(e).__name__}: {e}"
         print(f"⚠️  Database non disponibile: {_db_last_error}. Funziona in modalità stateless.")
 
 

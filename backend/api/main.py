@@ -23,7 +23,7 @@ from api.routers import (
     team,
 )
 from modules.auth.security import require_authenticated
-from db.database import DATABASE_URL, init_db, is_db_available, get_db_last_error, is_sqlalchemy_available, resolve_storage_root
+from db.database import DATABASE_URL, init_db, is_db_available, resolve_storage_root
 
 
 def _load_cors_origins() -> list[str]:
@@ -95,9 +95,7 @@ async def health():
         "service": "VisariTradingRoom",
         "persistence": {
             "db_available": is_db_available(),
-            "sqlalchemy_available": is_sqlalchemy_available(),
-            "db_error": get_db_last_error() if not is_db_available() else None,
-            "db_mode": "postgres" if "postgresql+asyncpg://" in DATABASE_URL else "sqlite",
+            "db_mode": "postgres" if "postgresql+psycopg://" in DATABASE_URL else "sqlite",
             "storage_mode": "persistent_candidate"
             if (
                 "PERSISTENT_STORAGE_PATH" in os.environ
