@@ -71,21 +71,23 @@ DATABASE_URL = os.environ.get(
 if DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 
-# asyncpg non supporta il parametro sslmode (è libpq) — lo rimuoviamo e
-# passiamo SSL via connect_args per compatibilità con Render, Heroku, ecc.
+# asyncpg non supporta sslmode= (parametro libpq) — lo rimuoviamo e
+# passiamo ssl via connect_args nel formato stringa accettato da asyncpg.
 _engine_kwargs: dict = {}
 if "postgresql+asyncpg://" in DATABASE_URL:
-    import ssl as _ssl_module
-    _needs_ssl = False
-    for _ssl_param in ("sslmode=require", "sslmode=verify-ca", "sslmode=verify-full", "ssl=require", "ssl=True"):
-        if _ssl_param in DATABASE_URL:
-            DATABASE_URL = DATABASE_URL.replace(f"?{_ssl_param}", "").replace(f"&{_ssl_param}", "")
-            _needs_ssl = True
-    if _needs_ssl:
-        _ssl_ctx = _ssl_module.create_default_context()
-        _ssl_ctx.check_hostname = False
-        _ssl_ctx.verify_mode = _ssl_module.CERT_NONE
-        _engine_kwargs["connect_args"] = {"ssl": _ssl_ctx}
+    _ssl_value = None
+    for _param, _val in [
+        ("sslmode=require", "require"),
+        ("sslmode=verify-ca", "require"),
+        ("sslmode=verify-full", "require"),
+        ("ssl=require", "require"),
+        ("ssl=True", "require"),
+    ]:
+        if _param in DATABASE_URL:
+            DATABASE_URL = DATABASE_URL.replace(f"?{_param}", "").replace(f"&{_param}", "")
+            _ssl_value = _val
+    if _ssl_value:
+        _engine_kwargs["connect_args"] = {"ssl": _ssl_value}
 
 
 # Importa SQLAlchemy solo se disponibile
