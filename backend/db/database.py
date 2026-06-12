@@ -148,19 +148,36 @@ async def init_db():
               "Installa le dipendenze per persistenza completa.")
         return
 
-    # -- Test di connessione diretta asyncpg (bypassa SQLAlchemy) --------
+    # -- Diagnostica connessione (TCP + asyncpg) --------------------------
     if "postgresql+asyncpg://" in DATABASE_URL:
+        from urllib.parse import urlparse
+        _raw_url = DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
+        _parsed = urlparse(_raw_url)
+        _pg_host = _parsed.hostname or ""
+        _pg_port = _parsed.port or 5432
+
+        # 1) TCP reachability
+        import socket as _socket
+        try:
+            _sock = _socket.create_connection((_pg_host, _pg_port), timeout=10)
+            _sock.close()
+            print(f"✅ TCP {_pg_host}:{_pg_port} raggiungibile")
+        except Exception as _tcp_err:
+            _db_last_error = f"TCP_FAIL: {type(_tcp_err).__name__}: {_tcp_err}"
+            print(f"❌ TCP {_pg_host}:{_pg_port} NON raggiungibile: {_tcp_err}")
+            return
+
+        # 2) asyncpg direct (ssl="require")
         try:
             import asyncpg
-            _raw_url = DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
             _test_conn = await asyncpg.connect(_raw_url, ssl="require", timeout=20)
             await _test_conn.execute("SELECT 1")
             await _test_conn.close()
             print("✅ asyncpg direct connect OK")
         except Exception as _direct_err:
             _tb = traceback.format_exc()
-            _db_last_error = f"DIRECT: {type(_direct_err).__name__}: {_direct_err} | TB: {_tb[:400]}"
-            print(f"❌ asyncpg direct connect FAILED: {_db_last_error}")
+            _db_last_error = f"ASYNCPG: {type(_direct_err).__name__}: {_direct_err} | {_tb[-600:]}"
+            print(f"❌ asyncpg FAILED: {_db_last_error}")
             return
     # ---------------------------------------------------------------------
 
