@@ -167,17 +167,24 @@ async def init_db():
             print(f"❌ TCP {_pg_host}:{_pg_port} NON raggiungibile: {_tcp_err}")
             return
 
-        # 2) asyncpg direct (ssl="require")
-        try:
-            import asyncpg
-            _test_conn = await asyncpg.connect(_raw_url, ssl="require", timeout=20)
-            await _test_conn.execute("SELECT 1")
-            await _test_conn.close()
-            print("✅ asyncpg direct connect OK")
-        except Exception as _direct_err:
-            _tb = traceback.format_exc()
-            _db_last_error = f"ASYNCPG: {type(_direct_err).__name__}: {_direct_err} | {_tb[-600:]}"
-            print(f"❌ asyncpg FAILED: {_db_last_error}")
+        # 2) asyncpg direct — try ssl="require", then ssl=False
+        import asyncpg
+        _asyncpg_ok = False
+        _asyncpg_url = _raw_url
+        for _ssl_val in ("require", False):
+            try:
+                _test_conn = await asyncpg.connect(_asyncpg_url, ssl=_ssl_val, timeout=20)
+                await _test_conn.execute("SELECT 1")
+                await _test_conn.close()
+                print(f"✅ asyncpg direct OK (ssl={_ssl_val!r})")
+                _asyncpg_ok = True
+                break
+            except Exception as _direct_err:
+                _tb = traceback.format_exc()
+                print(f"❌ asyncpg ssl={_ssl_val!r}: {type(_direct_err).__name__}: {_direct_err}")
+                _db_last_error = f"ssl={_ssl_val!r}: {type(_direct_err).__name__}: {_direct_err} | {_tb[-400:]}"
+        if not _asyncpg_ok:
+            print(f"❌ All asyncpg attempts failed. Last error: {_db_last_error}")
             return
     # ---------------------------------------------------------------------
 
