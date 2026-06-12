@@ -126,9 +126,13 @@ def get_db_last_error() -> str:
     return _db_last_error
 
 
+def is_sqlalchemy_available() -> bool:
+    return _sqlalchemy_available
+
+
 async def init_db():
     """Inizializza il DB se disponibile, altrimenti usa modalità stateless."""
-    global _db_connected
+    global _db_connected, _db_last_error
 
     if not _sqlalchemy_available:
         print("⚠️  SQLAlchemy non installato — modalità stateless (in-memory). "
