@@ -11,12 +11,32 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.11
+      # --- AI Keys (imposta nel dashboard Render) ---
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: POLYGON_API_KEY
         sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
+      # --- Auth (OBBLIGATORIO — imposta nel dashboard Render) ---
+      - key: SESSION_SECRET
+        sync: false
+      - key: ADMIN_USERNAME
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      # --- Database (imposta nel dashboard Render con la stringa Postgres) ---
+      - key: DATABASE_URL
+        sync: false
+      # --- Storage persistente (imposta se usi un Render Disk) ---
+      - key: PERSISTENT_STORAGE_PATH
+        sync: false
+      # --- Storage fallback (usato solo se DATABASE_URL non è presente) ---
       - key: STORAGE_PATH
         value: ./storage
+      # --- CORS (aggiorna con il tuo dominio Vercel definitivo) ---
       - key: CORS_ALLOW_ORIGINS
         value: http://localhost:3000,http://127.0.0.1:3000
       - key: CORS_ALLOW_ORIGIN_REGEX
