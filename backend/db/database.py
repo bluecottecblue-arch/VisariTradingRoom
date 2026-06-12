@@ -140,12 +140,29 @@ def is_sqlalchemy_available() -> bool:
 
 async def init_db():
     """Inizializza il DB se disponibile, altrimenti usa modalità stateless."""
+    import traceback
     global _db_connected, _db_last_error
 
     if not _sqlalchemy_available:
         print("⚠️  SQLAlchemy non installato — modalità stateless (in-memory). "
               "Installa le dipendenze per persistenza completa.")
         return
+
+    # -- Test di connessione diretta asyncpg (bypassa SQLAlchemy) --------
+    if "postgresql+asyncpg://" in DATABASE_URL:
+        try:
+            import asyncpg
+            _raw_url = DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
+            _test_conn = await asyncpg.connect(_raw_url, ssl="require", timeout=20)
+            await _test_conn.execute("SELECT 1")
+            await _test_conn.close()
+            print("✅ asyncpg direct connect OK")
+        except Exception as _direct_err:
+            _tb = traceback.format_exc()
+            _db_last_error = f"DIRECT: {type(_direct_err).__name__}: {_direct_err} | TB: {_tb[:400]}"
+            print(f"❌ asyncpg direct connect FAILED: {_db_last_error}")
+            return
+    # ---------------------------------------------------------------------
 
     try:
         import db.models  # noqa: F401 - registra i modelli su Base.metadata
@@ -171,7 +188,7 @@ async def init_db():
             )
     except Exception as e:
         _db_connected = False
-        _db_last_error = f"{type(e).__name__}: {e}"
+        _db_last_error = f"{type(e).__name__}: {e} | TB: {traceback.format_exc()[:400]}"
         print(f"⚠️  Database non disponibile: {_db_last_error}. Funziona in modalità stateless.")
 
 
