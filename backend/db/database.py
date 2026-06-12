@@ -171,6 +171,7 @@ async def init_db():
         import asyncpg
         _asyncpg_ok = False
         _asyncpg_url = _raw_url
+        _all_errors: dict = {}
         for _ssl_val in (True, False):
             try:
                 _test_conn = await asyncpg.connect(_asyncpg_url, ssl=_ssl_val, timeout=20)
@@ -181,10 +182,12 @@ async def init_db():
                 break
             except Exception as _direct_err:
                 _tb = traceback.format_exc()
-                print(f"❌ asyncpg ssl={_ssl_val!r}: {type(_direct_err).__name__}: {_direct_err}")
-                _db_last_error = f"ssl={_ssl_val!r}: {type(_direct_err).__name__}: {_direct_err} | {_tb[-400:]}"
+                _emsg = f"{type(_direct_err).__name__}: {_direct_err}"
+                _all_errors[f"ssl_{_ssl_val}"] = _emsg + " | " + _tb[-300:]
+                print(f"❌ asyncpg ssl={_ssl_val!r}: {_emsg}")
         if not _asyncpg_ok:
-            print(f"❌ All asyncpg attempts failed. Last error: {_db_last_error}")
+            _db_last_error = " ||| ".join(f"{k}: {v[:200]}" for k, v in _all_errors.items())
+            print(f"❌ All asyncpg attempts failed: {_db_last_error[:500]}")
             return
     # ---------------------------------------------------------------------
 
