@@ -114,11 +114,16 @@ except ImportError:
 
 # Runtime connectivity flag – stays False until init_db() confirms the DB connects.
 _db_connected: bool = False
+_db_last_error: str = ""
 
 
 def is_db_available() -> bool:
     """Return True only when SQLAlchemy is installed AND a live DB connection was established."""
     return _db_connected
+
+
+def get_db_last_error() -> str:
+    return _db_last_error
 
 
 async def init_db():
@@ -154,7 +159,8 @@ async def init_db():
             )
     except Exception as e:
         _db_connected = False
-        print(f"⚠️  Database non disponibile: {e}. Funziona in modalità stateless.")
+        _db_last_error = f"{type(e).__name__}: {e}"
+        print(f"⚠️  Database non disponibile: {_db_last_error}. Funziona in modalità stateless.")
 
 
 async def get_db():
