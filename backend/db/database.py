@@ -71,23 +71,22 @@ DATABASE_URL = os.environ.get(
 if DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 
-# asyncpg non supporta sslmode= (parametro libpq) — lo rimuoviamo e
-# passiamo ssl via connect_args nel formato stringa accettato da asyncpg.
+# asyncpg non supporta sslmode= (parametro libpq).
+# Rimuoviamo il parametro dall'URL e passiamo ssl=True (booleano) a asyncpg.
+# Su Render Linux, asyncpg con ssl=True usa OpenSSL con i CA di sistema
+# (Let's Encrypt) che coprono *.frankfurt-postgres.render.com.
 _engine_kwargs: dict = {}
 if "postgresql+asyncpg://" in DATABASE_URL:
-    _ssl_value = None
-    for _param, _val in [
-        ("sslmode=require", "require"),
-        ("sslmode=verify-ca", "require"),
-        ("sslmode=verify-full", "require"),
-        ("ssl=require", "require"),
-        ("ssl=True", "require"),
+    _needs_ssl = False
+    for _param in [
+        "sslmode=require", "sslmode=verify-ca", "sslmode=verify-full",
+        "ssl=require", "ssl=True",
     ]:
         if _param in DATABASE_URL:
             DATABASE_URL = DATABASE_URL.replace(f"?{_param}", "").replace(f"&{_param}", "")
-            _ssl_value = _val
-    if _ssl_value:
-        _engine_kwargs["connect_args"] = {"ssl": _ssl_value}
+            _needs_ssl = True
+    if _needs_ssl:
+        _engine_kwargs["connect_args"] = {"ssl": True}
 
 
 # Importa SQLAlchemy solo se disponibile
