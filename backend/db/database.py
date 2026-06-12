@@ -167,11 +167,11 @@ async def init_db():
             print(f"❌ TCP {_pg_host}:{_pg_port} NON raggiungibile: {_tcp_err}")
             return
 
-        # 2) asyncpg direct — try ssl="require", then ssl=False
+        # 2) asyncpg direct — try ssl=True then ssl=False
         import asyncpg
         _asyncpg_ok = False
         _asyncpg_url = _raw_url
-        for _ssl_val in ("require", False):
+        for _ssl_val in (True, False):
             try:
                 _test_conn = await asyncpg.connect(_asyncpg_url, ssl=_ssl_val, timeout=20)
                 await _test_conn.execute("SELECT 1")
