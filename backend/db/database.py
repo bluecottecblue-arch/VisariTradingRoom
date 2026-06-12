@@ -71,13 +71,29 @@ DATABASE_URL = os.environ.get(
 if DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 
+# asyncpg non supporta il parametro sslmode (è libpq) — lo rimuoviamo e
+# passiamo SSL via connect_args per compatibilità con Render, Heroku, ecc.
+_engine_kwargs: dict = {}
+if "postgresql+asyncpg://" in DATABASE_URL:
+    import ssl as _ssl_module
+    _needs_ssl = False
+    for _ssl_param in ("sslmode=require", "sslmode=verify-ca", "sslmode=verify-full", "ssl=require", "ssl=True"):
+        if _ssl_param in DATABASE_URL:
+            DATABASE_URL = DATABASE_URL.replace(f"?{_ssl_param}", "").replace(f"&{_ssl_param}", "")
+            _needs_ssl = True
+    if _needs_ssl:
+        _ssl_ctx = _ssl_module.create_default_context()
+        _ssl_ctx.check_hostname = False
+        _ssl_ctx.verify_mode = _ssl_module.CERT_NONE
+        _engine_kwargs["connect_args"] = {"ssl": _ssl_ctx}
+
 
 # Importa SQLAlchemy solo se disponibile
 try:
     from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
     from sqlalchemy.orm import sessionmaker, DeclarativeBase
 
-    engine = create_async_engine(DATABASE_URL, echo=False)
+    engine = create_async_engine(DATABASE_URL, echo=False, **_engine_kwargs)
     AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     class Base(DeclarativeBase):
