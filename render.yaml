@@ -36,6 +36,19 @@ services:
       # --- Storage fallback (usato solo se DATABASE_URL non è presente) ---
       - key: STORAGE_PATH
         value: ./storage
+      # --- Stripe ---
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: STRIPE_PRICE_ID
+        sync: false
+      - key: STRIPE_REFERRAL_COUPON_ID
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: APP_BASE_URL
+        sync: false
       # --- CORS (aggiorna con il tuo dominio Vercel definitivo) ---
       - key: CORS_ALLOW_ORIGINS
         value: http://localhost:3000,http://127.0.0.1:3000
