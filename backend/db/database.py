@@ -136,6 +136,9 @@ _COLUMN_MIGRATIONS: list[tuple[str, str, str]] = [
     ("users", "referred_by", "VARCHAR"),
     ("users", "free_months_credit", "INTEGER DEFAULT 0"),
     ("users", "referral_count", "INTEGER DEFAULT 0"),
+    ("users", "polygon_api_key", "VARCHAR"),
+    ("users", "twelvedata_api_key", "VARCHAR"),
+    ("users", "alphavantage_api_key", "VARCHAR"),
 ]
 
 

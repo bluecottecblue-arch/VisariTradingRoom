@@ -110,6 +110,9 @@ try:
         claude_api_key = Column(String)
         openai_api_key = Column(String)
         google_api_key = Column(String)
+        polygon_api_key = Column(String)
+        twelvedata_api_key = Column(String)
+        alphavantage_api_key = Column(String)
         # --- Billing / Subscription (Stripe) ---
         stripe_customer_id = Column(String, index=True)
         stripe_subscription_id = Column(String, index=True)

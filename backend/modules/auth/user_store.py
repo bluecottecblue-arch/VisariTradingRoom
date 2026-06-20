@@ -58,6 +58,9 @@ def _read_data() -> dict:
         user.setdefault("claude_api_key", "")
         user.setdefault("openai_api_key", "")
         user.setdefault("google_api_key", "")
+        user.setdefault("polygon_api_key", "")
+        user.setdefault("twelvedata_api_key", "")
+        user.setdefault("alphavantage_api_key", "")
         user.setdefault("email", None)
         user.setdefault("stripe_customer_id", None)
         user.setdefault("stripe_subscription_id", None)
@@ -157,6 +160,9 @@ def _legacy_user_to_public_dict(user: dict) -> dict:
         "claude_key_configured": bool(str(user.get("claude_api_key") or "").strip()),
         "openai_key_configured": bool(str(user.get("openai_api_key") or "").strip()),
         "google_key_configured": bool(str(user.get("google_api_key") or "").strip()),
+        "polygon_key_configured": bool(str(user.get("polygon_api_key") or "").strip()),
+        "twelvedata_key_configured": bool(str(user.get("twelvedata_api_key") or "").strip()),
+        "alphavantage_key_configured": bool(str(user.get("alphavantage_api_key") or "").strip()),
         "subscription_status": str(user.get("subscription_status") or "none"),
         "referral_code": user.get("referral_code"),
         "referred_by": user.get("referred_by"),
@@ -195,6 +201,9 @@ def _user_to_dict(user: DBUser) -> dict:
         "claude_key_configured": bool(user.claude_api_key),
         "openai_key_configured": bool(user.openai_api_key),
         "google_key_configured": bool(user.google_api_key),
+        "polygon_key_configured": bool(getattr(user, "polygon_api_key", None)),
+        "twelvedata_key_configured": bool(getattr(user, "twelvedata_api_key", None)),
+        "alphavantage_key_configured": bool(getattr(user, "alphavantage_api_key", None)),
         "subscription_status": getattr(user, "subscription_status", None) or "none",
         "referral_code": getattr(user, "referral_code", None),
         "referred_by": getattr(user, "referred_by", None),
@@ -485,6 +494,9 @@ async def update_user(
     claude_api_key: Optional[str] = None,
     openai_api_key: Optional[str] = None,
     google_api_key: Optional[str] = None,
+    polygon_api_key: Optional[str] = None,
+    twelvedata_api_key: Optional[str] = None,
+    alphavantage_api_key: Optional[str] = None,
 ) -> dict:
     normalized = _normalize_username(username)
     if not is_db_available():
@@ -510,6 +522,12 @@ async def update_user(
                 user["openai_api_key"] = str(openai_api_key).strip()
             if google_api_key is not None:
                 user["google_api_key"] = str(google_api_key).strip()
+            if polygon_api_key is not None:
+                user["polygon_api_key"] = str(polygon_api_key).strip()
+            if twelvedata_api_key is not None:
+                user["twelvedata_api_key"] = str(twelvedata_api_key).strip()
+            if alphavantage_api_key is not None:
+                user["alphavantage_api_key"] = str(alphavantage_api_key).strip()
             if _is_expired(user.get("expires_at")):
                 user["status"] = "expired"
 
@@ -538,7 +556,13 @@ async def update_user(
             user.openai_api_key = str(openai_api_key).strip()
         if google_api_key is not None:
             user.google_api_key = str(google_api_key).strip()
-        
+        if polygon_api_key is not None:
+            user.polygon_api_key = str(polygon_api_key).strip()
+        if twelvedata_api_key is not None:
+            user.twelvedata_api_key = str(twelvedata_api_key).strip()
+        if alphavantage_api_key is not None:
+            user.alphavantage_api_key = str(alphavantage_api_key).strip()
+
         # Check expiry
         if user.expires_at and user.expires_at <= datetime.now(timezone.utc):
             user.status = "expired"

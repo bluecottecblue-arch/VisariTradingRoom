@@ -55,6 +55,9 @@ class UserUpdateRequest(BaseModel):
     claude_api_key: Optional[str] = None
     openai_api_key: Optional[str] = None
     google_api_key: Optional[str] = None
+    polygon_api_key: Optional[str] = None
+    twelvedata_api_key: Optional[str] = None
+    alphavantage_api_key: Optional[str] = None
 
 
 def _normalize_admin_username() -> str:
@@ -244,6 +247,9 @@ async def admin_update_user(
             claude_api_key=payload.claude_api_key,
             openai_api_key=payload.openai_api_key,
             google_api_key=payload.google_api_key,
+            polygon_api_key=payload.polygon_api_key,
+            twelvedata_api_key=payload.twelvedata_api_key,
+            alphavantage_api_key=payload.alphavantage_api_key,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
