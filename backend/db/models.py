@@ -99,6 +99,7 @@ try:
         __tablename__ = "users"
 
         username = Column(String, primary_key=True)
+        email = Column(String, index=True)
         password_hash = Column(String, nullable=False)
         password_salt = Column(String, nullable=False)
         status = Column(String, default="active")
@@ -109,6 +110,15 @@ try:
         claude_api_key = Column(String)
         openai_api_key = Column(String)
         google_api_key = Column(String)
+        # --- Billing / Subscription (Stripe) ---
+        stripe_customer_id = Column(String, index=True)
+        stripe_subscription_id = Column(String, index=True)
+        subscription_status = Column(String, default="none")  # none|trialing|active|past_due|canceled
+        # --- Referral program ---
+        referral_code = Column(String, index=True)            # codice di questo utente da condividere
+        referred_by = Column(String, index=True)              # codice usato in registrazione
+        free_months_credit = Column(Integer, default=0)       # mesi gratis accumulati come referrer
+        referral_count = Column(Integer, default=0)           # quanti amici paganti ha portato
         created_at = Column(DateTime(timezone=True), server_default=func.now())
         updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
         last_login_at = Column(DateTime(timezone=True))

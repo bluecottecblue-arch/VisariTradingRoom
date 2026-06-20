@@ -12,6 +12,7 @@ type LoginFormProps = {
   nextPath: string
   secondaryHref?: string
   secondaryLabel?: string
+  registerHref?: string
 }
 
 export default function LoginForm({
@@ -22,6 +23,7 @@ export default function LoginForm({
   nextPath,
   secondaryHref,
   secondaryLabel,
+  registerHref,
 }: LoginFormProps) {
   const router = useRouter()
   const [username, setUsername] = useState('')
@@ -189,6 +191,15 @@ export default function LoginForm({
             <span>Workspace cliente protetto</span>
             <span>Accesso basato su sessione</span>
           </div>
+
+          {registerHref && (
+            <div className="mt-6 border-t border-slate-800/80 pt-5 text-sm text-slate-400">
+              Non hai un account?{' '}
+              <Link href={registerHref} className="font-semibold text-amber-300 hover:text-amber-200">
+                Registrati e abbonati
+              </Link>
+            </div>
+          )}
 
           {secondaryHref && secondaryLabel && (
             <div className="mt-6 text-sm text-slate-500">

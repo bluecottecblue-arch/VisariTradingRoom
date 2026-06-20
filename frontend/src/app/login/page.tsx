@@ -15,6 +15,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
       description="Accedi alla tua area strategie, al Bot Lab, ai backtest validati e ai deliverable MT5."
       submitLabel="Entra in piattaforma"
       nextPath={nextPath}
+      registerHref="/register"
       secondaryHref="/admin/login"
       secondaryLabel="Accesso admin"
     />

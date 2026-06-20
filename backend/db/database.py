@@ -124,6 +124,43 @@ def is_sqlalchemy_available() -> bool:
     return _sqlalchemy_available
 
 
+# Colonne aggiunte dopo il primo deploy: vanno create a mano perché
+# Base.metadata.create_all NON aggiunge colonne a tabelle già esistenti.
+# Ogni ALTER è eseguito in autocommit isolato così un fallimento non blocca gli altri.
+_COLUMN_MIGRATIONS: list[tuple[str, str, str]] = [
+    ("users", "email", "VARCHAR"),
+    ("users", "stripe_customer_id", "VARCHAR"),
+    ("users", "stripe_subscription_id", "VARCHAR"),
+    ("users", "subscription_status", "VARCHAR DEFAULT 'none'"),
+    ("users", "referral_code", "VARCHAR"),
+    ("users", "referred_by", "VARCHAR"),
+    ("users", "free_months_credit", "INTEGER DEFAULT 0"),
+    ("users", "referral_count", "INTEGER DEFAULT 0"),
+]
+
+
+async def _run_lightweight_migrations(conn) -> None:
+    """Aggiunge colonne mancanti in modo idempotente (Postgres + SQLite)."""
+    from sqlalchemy import text
+
+    for table, column, coltype in _COLUMN_MIGRATIONS:
+        if _is_postgres:
+            stmt = f'ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {column} {coltype}'
+            try:
+                await conn.execute(text(stmt))
+            except Exception as exc:  # pragma: no cover
+                print(f"⚠️  Migrazione colonna {table}.{column} saltata: {exc}")
+        else:
+            # SQLite non supporta IF NOT EXISTS su ADD COLUMN: controlla prima
+            try:
+                res = await conn.execute(text(f"PRAGMA table_info({table})"))
+                existing = {row[1] for row in res.fetchall()}
+                if column not in existing:
+                    await conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {coltype}"))
+            except Exception as exc:  # pragma: no cover
+                print(f"⚠️  Migrazione colonna {table}.{column} saltata: {exc}")
+
+
 async def init_db():
     """Inizializza il DB se disponibile, altrimenti usa modalità stateless."""
     global _db_connected, _db_last_error
@@ -137,6 +174,7 @@ async def init_db():
         import db.models  # noqa: F401 - registra i modelli su Base.metadata
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+            await _run_lightweight_migrations(conn)
         _db_connected = True
         _db_last_error = ""
         # Local import to avoid circular dependency

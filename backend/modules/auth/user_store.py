@@ -58,6 +58,14 @@ def _read_data() -> dict:
         user.setdefault("claude_api_key", "")
         user.setdefault("openai_api_key", "")
         user.setdefault("google_api_key", "")
+        user.setdefault("email", None)
+        user.setdefault("stripe_customer_id", None)
+        user.setdefault("stripe_subscription_id", None)
+        user.setdefault("subscription_status", "none")
+        user.setdefault("referral_code", None)
+        user.setdefault("referred_by", None)
+        user.setdefault("free_months_credit", 0)
+        user.setdefault("referral_count", 0)
     return payload
 
 
@@ -140,6 +148,7 @@ def _is_expired(expires_at: Optional[str]) -> bool:
 def _legacy_user_to_public_dict(user: dict) -> dict:
     return {
         "username": user.get("username"),
+        "email": user.get("email"),
         "status": _normalize_status(user.get("status")),
         "plan": _normalize_plan(user.get("plan")),
         "expires_at": user.get("expires_at"),
@@ -148,6 +157,11 @@ def _legacy_user_to_public_dict(user: dict) -> dict:
         "claude_key_configured": bool(str(user.get("claude_api_key") or "").strip()),
         "openai_key_configured": bool(str(user.get("openai_api_key") or "").strip()),
         "google_key_configured": bool(str(user.get("google_api_key") or "").strip()),
+        "subscription_status": str(user.get("subscription_status") or "none"),
+        "referral_code": user.get("referral_code"),
+        "referred_by": user.get("referred_by"),
+        "free_months_credit": int(user.get("free_months_credit") or 0),
+        "referral_count": int(user.get("referral_count") or 0),
         "created_at": user.get("created_at"),
         "updated_at": user.get("updated_at"),
         "last_login_at": user.get("last_login_at"),
@@ -172,6 +186,7 @@ from db.models import User as DBUser
 def _user_to_dict(user: DBUser) -> dict:
     return {
         "username": user.username,
+        "email": getattr(user, "email", None),
         "status": user.status,
         "plan": user.plan,
         "expires_at": user.expires_at.isoformat() if user.expires_at else None,
@@ -180,6 +195,11 @@ def _user_to_dict(user: DBUser) -> dict:
         "claude_key_configured": bool(user.claude_api_key),
         "openai_key_configured": bool(user.openai_api_key),
         "google_key_configured": bool(user.google_api_key),
+        "subscription_status": getattr(user, "subscription_status", None) or "none",
+        "referral_code": getattr(user, "referral_code", None),
+        "referred_by": getattr(user, "referred_by", None),
+        "free_months_credit": int(getattr(user, "free_months_credit", 0) or 0),
+        "referral_count": int(getattr(user, "referral_count", 0) or 0),
         "created_at": user.created_at.isoformat() if user.created_at else None,
         "updated_at": user.updated_at.isoformat() if user.updated_at else None,
         "last_login_at": user.last_login_at.isoformat() if user.last_login_at else None,
@@ -202,6 +222,14 @@ def _db_user_to_legacy_dict(user: DBUser) -> dict:
         "claude_api_key": user.claude_api_key or "",
         "openai_api_key": user.openai_api_key or "",
         "google_api_key": user.google_api_key or "",
+        "email": getattr(user, "email", None),
+        "stripe_customer_id": getattr(user, "stripe_customer_id", None),
+        "stripe_subscription_id": getattr(user, "stripe_subscription_id", None),
+        "subscription_status": getattr(user, "subscription_status", None) or "none",
+        "referral_code": getattr(user, "referral_code", None),
+        "referred_by": getattr(user, "referred_by", None),
+        "free_months_credit": int(getattr(user, "free_months_credit", 0) or 0),
+        "referral_count": int(getattr(user, "referral_count", 0) or 0),
         "created_at": user.created_at.isoformat() if user.created_at else None,
         "updated_at": user.updated_at.isoformat() if user.updated_at else None,
         "last_login_at": user.last_login_at.isoformat() if user.last_login_at else None,
@@ -662,3 +690,281 @@ async def get_user_claude_api_key(username: str) -> str:
         user = await session.get(DBUser, normalized)
         return user.claude_api_key or "" if user else ""
     return ""
+
+
+# ─── Billing / Referral ─────────────────────────────────────────────────────
+
+_BILLING_FIELDS = {
+    "email",
+    "stripe_customer_id",
+    "stripe_subscription_id",
+    "subscription_status",
+    "referral_code",
+    "referred_by",
+    "free_months_credit",
+    "referral_count",
+    "status",
+    "plan",
+}
+
+
+def _generate_referral_code(username: str) -> str:
+    """Codice referral leggibile: prefisso username + token random."""
+    prefix = "".join(c for c in _normalize_username(username) if c.isalnum())[:6].upper()
+    if len(prefix) < 3:
+        prefix = "VTR"
+    return f"{prefix}-{secrets.token_hex(3).upper()}"
+
+
+async def _apply_billing_updates(username: str, updates: dict) -> Optional[dict]:
+    """Applica un set di aggiornamenti billing/referral (DB + legacy)."""
+    normalized = _normalize_username(username)
+    safe = {k: v for k, v in updates.items() if k in _BILLING_FIELDS}
+    if not safe:
+        return await get_user_profile(normalized)
+
+    if not is_db_available():
+        with _LOCK:
+            payload = _read_data()
+            user = _find_user(payload, normalized)
+            if not user:
+                return None
+            user.update(safe)
+            user["updated_at"] = _utc_now()
+            _write_data(payload)
+            return _legacy_user_to_public_dict(user)
+
+    async with AsyncSessionLocal() as session:
+        user = await session.get(DBUser, normalized)
+        if not user:
+            return None
+        for key, value in safe.items():
+            setattr(user, key, value)
+        user.updated_at = datetime.now(timezone.utc)
+        await session.commit()
+        await _sync_db_users_backup(session)
+        await session.refresh(user)
+        return _user_to_dict(user)
+    return None
+
+
+async def ensure_referral_code(username: str) -> str:
+    """Restituisce il codice referral dell'utente, creandolo se assente."""
+    normalized = _normalize_username(username)
+    profile = await get_user_profile(normalized)
+    if not profile:
+        raise ValueError("Utente non trovato")
+    existing = profile.get("referral_code")
+    if existing:
+        return existing
+    # Genera un codice unico (riprova in caso di collisione)
+    for _ in range(8):
+        code = _generate_referral_code(normalized)
+        if not await get_user_by_referral_code(code):
+            await _apply_billing_updates(normalized, {"referral_code": code})
+            return code
+    raise RuntimeError("Impossibile generare un codice referral unico")
+
+
+async def get_user_by_referral_code(code: str) -> Optional[dict]:
+    target = str(code or "").strip().upper()
+    if not target:
+        return None
+    if not is_db_available():
+        with _LOCK:
+            payload = _read_data()
+            for user in payload.get("users", []):
+                if str(user.get("referral_code") or "").strip().upper() == target:
+                    return _legacy_user_to_public_dict(user)
+            return None
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(DBUser).where(func.upper(DBUser.referral_code) == target)
+        )
+        user = result.scalars().first()
+        return _user_to_dict(user) if user else None
+    return None
+
+
+async def get_user_by_stripe_customer(customer_id: str) -> Optional[dict]:
+    target = str(customer_id or "").strip()
+    if not target:
+        return None
+    if not is_db_available():
+        with _LOCK:
+            payload = _read_data()
+            for user in payload.get("users", []):
+                if str(user.get("stripe_customer_id") or "").strip() == target:
+                    return _legacy_user_to_public_dict(user)
+            return None
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(DBUser).where(DBUser.stripe_customer_id == target)
+        )
+        user = result.scalars().first()
+        return _user_to_dict(user) if user else None
+    return None
+
+
+async def create_pending_user(
+    username: str,
+    password: str,
+    *,
+    email: Optional[str] = None,
+    referred_by: Optional[str] = None,
+) -> dict:
+    """
+    Crea un utente in stato 'pending' (non può accedere finché il pagamento
+    non è confermato dal webhook Stripe). Genera subito il suo codice referral.
+    """
+    normalized = _normalize_username(username)
+    if len(normalized) < 3:
+        raise ValueError("Username/email troppo corto")
+    if len(password or "") < 6:
+        raise ValueError("Password troppo corta: minimo 6 caratteri")
+
+    referral_code = _generate_referral_code(normalized)
+    referred_clean = str(referred_by or "").strip().upper() or None
+
+    if not is_db_available():
+        with _LOCK:
+            payload = _read_data()
+            if _find_user(payload, normalized):
+                raise ValueError("Account già esistente con questa email")
+            record = {
+                "username": normalized,
+                "email": email or normalized,
+                "password": _build_password_record(password),
+                "status": "pending",
+                "plan": "standard",
+                "expires_at": None,
+                "notes": "",
+                "ai_provider": "anthropic",
+                "claude_api_key": "",
+                "openai_api_key": "",
+                "google_api_key": "",
+                "stripe_customer_id": None,
+                "stripe_subscription_id": None,
+                "subscription_status": "none",
+                "referral_code": referral_code,
+                "referred_by": referred_clean,
+                "free_months_credit": 0,
+                "referral_count": 0,
+                "created_at": _utc_now(),
+                "updated_at": _utc_now(),
+                "last_login_at": None,
+            }
+            payload.setdefault("users", []).append(record)
+            payload["users"].sort(key=lambda i: str(i.get("username") or ""))
+            _write_data(payload)
+            return _legacy_user_to_public_dict(record)
+
+    pwd_rec = _build_password_record(password)
+    async with AsyncSessionLocal() as session:
+        if await session.get(DBUser, normalized):
+            raise ValueError("Account già esistente con questa email")
+        user = DBUser(
+            username=normalized,
+            email=email or normalized,
+            password_hash=pwd_rec["hash"],
+            password_salt=pwd_rec["salt"],
+            status="pending",
+            plan="standard",
+            ai_provider="anthropic",
+            subscription_status="none",
+            referral_code=referral_code,
+            referred_by=referred_clean,
+            free_months_credit=0,
+            referral_count=0,
+        )
+        session.add(user)
+        await session.commit()
+        await _sync_db_users_backup(session)
+        await session.refresh(user)
+        return _user_to_dict(user)
+    raise RuntimeError("Errore creazione account")
+
+
+async def set_subscription(
+    username: str,
+    *,
+    stripe_customer_id: Optional[str] = None,
+    stripe_subscription_id: Optional[str] = None,
+    subscription_status: Optional[str] = None,
+    activate: bool = False,
+    deactivate: bool = False,
+) -> Optional[dict]:
+    """Aggiorna lo stato abbonamento di un utente dopo eventi Stripe."""
+    updates: dict = {}
+    if stripe_customer_id is not None:
+        updates["stripe_customer_id"] = stripe_customer_id
+    if stripe_subscription_id is not None:
+        updates["stripe_subscription_id"] = stripe_subscription_id
+    if subscription_status is not None:
+        updates["subscription_status"] = subscription_status
+    if activate:
+        updates["status"] = "active"
+    if deactivate:
+        updates["status"] = "suspended"
+    return await _apply_billing_updates(username, updates)
+
+
+async def credit_referrer(referral_code: str) -> Optional[dict]:
+    """
+    Accredita +1 mese gratis e +1 al conteggio referral al proprietario del codice.
+    Chiamato quando un amico invitato completa il primo pagamento.
+    """
+    referrer = await get_user_by_referral_code(referral_code)
+    if not referrer:
+        return None
+    new_credit = int(referrer.get("free_months_credit") or 0) + 1
+    new_count = int(referrer.get("referral_count") or 0) + 1
+    return await _apply_billing_updates(
+        referrer["username"],
+        {"free_months_credit": new_credit, "referral_count": new_count},
+    )
+
+
+async def consume_free_month(username: str) -> Optional[dict]:
+    """Decrementa di 1 il credito mesi gratis (dopo averlo applicato su Stripe)."""
+    profile = await get_user_profile(username)
+    if not profile:
+        return None
+    current = int(profile.get("free_months_credit") or 0)
+    if current <= 0:
+        return profile
+    return await _apply_billing_updates(username, {"free_months_credit": current - 1})
+
+
+async def get_billing_record(username: str) -> Optional[dict]:
+    """Record interno con gli ID Stripe (NON esporre in API pubbliche)."""
+    normalized = _normalize_username(username)
+    if not is_db_available():
+        with _LOCK:
+            payload = _read_data()
+            user = _find_user(payload, normalized)
+            if not user:
+                return None
+            return {
+                "username": user.get("username"),
+                "email": user.get("email"),
+                "stripe_customer_id": user.get("stripe_customer_id"),
+                "stripe_subscription_id": user.get("stripe_subscription_id"),
+                "subscription_status": user.get("subscription_status") or "none",
+                "referred_by": user.get("referred_by"),
+                "free_months_credit": int(user.get("free_months_credit") or 0),
+            }
+    async with AsyncSessionLocal() as session:
+        user = await session.get(DBUser, normalized)
+        if not user:
+            return None
+        return {
+            "username": user.username,
+            "email": getattr(user, "email", None),
+            "stripe_customer_id": getattr(user, "stripe_customer_id", None),
+            "stripe_subscription_id": getattr(user, "stripe_subscription_id", None),
+            "subscription_status": getattr(user, "subscription_status", None) or "none",
+            "referred_by": getattr(user, "referred_by", None),
+            "free_months_credit": int(getattr(user, "free_months_credit", 0) or 0),
+        }
+    return None

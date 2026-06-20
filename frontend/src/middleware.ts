@@ -5,8 +5,10 @@ function isPublicPath(pathname: string): boolean {
   return (
     pathname === '/' ||
     pathname === '/login' ||
+    pathname === '/register' ||
     pathname === '/admin/login' ||
     pathname.startsWith('/api/auth/') ||
+    pathname.startsWith('/api/billing/') ||
     pathname.startsWith('/api/backend/') ||
     pathname.startsWith('/_next') ||
     pathname === '/favicon.ico' ||

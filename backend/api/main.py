@@ -13,6 +13,7 @@ from api.routers import (
     academy,
     auth,
     backtest,
+    billing,
     botlab,
     dashboard,
     export,
@@ -68,6 +69,7 @@ async def add_security_headers(request: Request, call_next):
     return response
 
 app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
+app.include_router(billing.router, prefix="/api/billing", tags=["Billing"])
 app.include_router(projects.router, prefix="/api/projects", tags=["Projects"], dependencies=[Depends(require_authenticated)])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Dashboard"])
 app.include_router(academy.router, prefix="/api/academy", tags=["Academy"], dependencies=[Depends(require_authenticated)])
