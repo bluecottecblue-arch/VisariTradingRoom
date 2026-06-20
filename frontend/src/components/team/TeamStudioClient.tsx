@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import AuthToolbar from '@/components/AuthToolbar'
 import AppSidebar from '@/components/layout/AppSidebar'
+import ReferralPanel from '@/components/referral/ReferralPanel'
 import { Alert, EmptyState, MetricCard, ProgressBar, inputCls } from '@/components/ui'
 import { formatError, teamApi } from '@/lib/api'
 import type { ProjectSummary, TeamRecord } from '@/types'
@@ -244,6 +245,19 @@ export default function TeamStudioClient() {
               <MetricCard label="Progetti condivisi" value={sharedProjects.length} />
             </div>
           </div>
+        </section>
+
+        {/* === PROGRAMMA REFERRAL === */}
+        <section className="border border-amber-800/30 bg-slate-950/70 p-6">
+          <div className="mb-5">
+            <div className="text-[11px] uppercase tracking-[0.18em] text-amber-400">Programma Referral</div>
+            <h2 className="mt-2 text-2xl font-semibold text-slate-50">Invita la community, guadagna mesi gratis</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-400">
+              Porta nuovi membri nella community: chi si iscrive col tuo codice ha il 60% di sconto sul primo mese,
+              tu ricevi 1 mese gratis per ogni amico che si abbona.
+            </p>
+          </div>
+          <ReferralPanel />
         </section>
 
         {error && <Alert type="error">{error}</Alert>}
