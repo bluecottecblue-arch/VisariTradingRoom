@@ -44,11 +44,25 @@ class StooqProvider(DataProviderBase):
         resp = requests.get(url, headers=headers, timeout=30)
 
         if "No data" in resp.text or len(resp.text.strip()) < 50:
-            raise ValueError(f"Nessun dato trovato per {symbol} su Stooq.")
+            raise ValueError(
+                f"Simbolo '{symbol}' non trovato su Stooq. "
+                f"Esempi validi: ^SPX (S&P 500), ^NDX (Nasdaq), EURUSD (EUR/USD), "
+                f"AAPL.US (Apple), MSFT.US (Microsoft), GC.F (Gold futures)."
+            )
 
         df = pd.read_csv(io.StringIO(resp.text))
+        if df.empty or len(df.columns) < 3:
+            raise ValueError(
+                f"Dati non validi per '{symbol}' su Stooq. Verifica il simbolo. "
+                f"Esempi: ^SPX, ^NDX, EURUSD, AAPL.US, GC.F"
+            )
         df.columns = [c.lower().strip() for c in df.columns]
         df = df.rename(columns={"date": "timestamp", "vol": "volume"})
+        if "timestamp" not in df.columns:
+            raise ValueError(
+                f"Formato dati inatteso per '{symbol}'. Colonne ricevute: {list(df.columns)}. "
+                f"Prova con un simbolo diverso (es. ^SPX, EURUSD)."
+            )
         df["timestamp"] = pd.to_datetime(df["timestamp"])
         df = df.sort_values("timestamp").reset_index(drop=True)
 

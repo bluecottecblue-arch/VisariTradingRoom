@@ -498,6 +498,76 @@ export default function MeanReversionLab() {
 
       <main className="mx-auto max-w-5xl space-y-8 px-6 py-8">
 
+        {/* === GUIDA RAPIDA === */}
+        <details className="border border-amber-800/40 bg-amber-950/20">
+          <summary className="cursor-pointer px-4 py-3 text-[11px] uppercase tracking-[0.18em] text-amber-400 select-none hover:bg-amber-950/30">
+            Come si usa — Guida rapida (clicca per espandere)
+          </summary>
+          <div className="px-4 pb-4 pt-2 space-y-4 text-[12px] text-slate-400 leading-relaxed">
+
+            <div>
+              <div className="text-amber-300 font-semibold mb-1">Cosa fa questo tool</div>
+              <p>Risponde alla domanda: <em>"questa serie di prezzi tende a tornare verso la media, o segue un random walk?"</em> Esegue 4 test statistici e sintetizza un verdetto. Non è una strategia — è una diagnosi.</p>
+            </div>
+
+            <div>
+              <div className="text-amber-300 font-semibold mb-2">Simboli validi (Stooq — gratuito, no API key)</div>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+                <div><span className="text-slate-300 font-mono">^SPX</span> — S&amp;P 500</div>
+                <div><span className="text-slate-300 font-mono">^NDX</span> — Nasdaq 100</div>
+                <div><span className="text-slate-300 font-mono">^DAX</span> — DAX tedesco</div>
+                <div><span className="text-slate-300 font-mono">^FTSE</span> — FTSE 100</div>
+                <div><span className="text-slate-300 font-mono">EURUSD</span> — EUR/USD</div>
+                <div><span className="text-slate-300 font-mono">GBPUSD</span> — GBP/USD</div>
+                <div><span className="text-slate-300 font-mono">USDJPY</span> — USD/JPY</div>
+                <div><span className="text-slate-300 font-mono">GC.F</span> — Gold futures</div>
+                <div><span className="text-slate-300 font-mono">AAPL.US</span> — Apple</div>
+                <div><span className="text-slate-300 font-mono">MSFT.US</span> — Microsoft</div>
+              </div>
+            </div>
+
+            <div>
+              <div className="text-amber-300 font-semibold mb-1">Range temporale consigliato</div>
+              <ul className="space-y-1 list-disc list-inside">
+                <li><strong className="text-slate-300">Dati giornalieri:</strong> almeno 3-5 anni (2020–2024 è un buon default)</li>
+                <li><strong className="text-slate-300">Più dati = test più affidabili.</strong> Con meno di 100 osservazioni i risultati sono incerti.</li>
+                <li>Evita periodi anomali isolati (es. solo COVID marzo 2020 — distorce tutto).</li>
+              </ul>
+            </div>
+
+            <div>
+              <div className="text-amber-300 font-semibold mb-1">Split In-sample / Out-of-sample</div>
+              <ul className="space-y-1 list-disc list-inside">
+                <li><strong className="text-slate-300">70/30 (default):</strong> usa il 70% iniziale per "trovare" il segnale, il 30% finale per verificarlo. Se il segnale scompare OOS, è fragile.</li>
+                <li>Lo split è sempre cronologico — mai randomico (altrimenti si introduce look-ahead bias).</li>
+                <li>Se non vuoi split, seleziona "Nessuno split" e l'analisi gira sull'intero periodo.</li>
+              </ul>
+            </div>
+
+            <div>
+              <div className="text-amber-300 font-semibold mb-1">Trasformazione: quale scegliere</div>
+              <ul className="space-y-1 list-disc list-inside">
+                <li><strong className="text-slate-300">Log-prezzo (default):</strong> corretto per ADF e Hurst. Usa questo.</li>
+                <li><strong className="text-slate-300">Returns/Log-returns:</strong> per serie che già "tornano" per costruzione. ADF su rendimenti non ha senso — il tool ti avvisa.</li>
+              </ul>
+            </div>
+
+            <div>
+              <div className="text-amber-300 font-semibold mb-1">I 4 test — cosa dicono</div>
+              <ul className="space-y-1 list-disc list-inside">
+                <li><strong className="text-slate-300">ADF:</strong> test formale di stazionarietà. P-value basso = rifiuto del random walk.</li>
+                <li><strong className="text-slate-300">Hurst:</strong> H &lt; 0.5 = mean-reverting, H ≈ 0.5 = random walk, H &gt; 0.5 = trending.</li>
+                <li><strong className="text-slate-300">Variance Ratio:</strong> VR &lt; 1 = mean-reverting. Testato su più holding period.</li>
+                <li><strong className="text-slate-300">Monte Carlo:</strong> confronta le tue statistiche contro 500 random walk simulati. Se sei nel 5% estremo, il segnale è reale.</li>
+              </ul>
+            </div>
+
+            <div className="border-t border-slate-800 pt-3 text-slate-600">
+              Inizia con: Provider = Stooq, Simbolo = <span className="font-mono">EURUSD</span>, Date = 2018-01-01 → 2024-12-31, tutto il resto default. Poi clicca Esegui analisi.
+            </div>
+          </div>
+        </details>
+
         {/* === SEZIONE 1: DATI === */}
         <div className={card}>
           <div className={sectionTitle}>1. Sorgente dati</div>
@@ -542,8 +612,9 @@ export default function MeanReversionLab() {
               </div>
               <div>
                 <div className={label}>Simbolo</div>
-                <input className={input} placeholder="es. ^SPX, AAPL, EURUSD" value={apiParams.symbol}
+                <input className={input} placeholder="es. EURUSD, ^SPX, ^DAX, AAPL.US" value={apiParams.symbol}
                   onChange={e => setA('symbol', e.target.value)} />
+                <p className="text-[10px] text-slate-600 mt-1">Stooq: usa ^ per indici (^SPX), .US per equity USA</p>
               </div>
               <div>
                 <div className={label}>Timeframe</div>
