@@ -391,7 +391,7 @@ function VerdictCard({ verdict, metadata, splitInfo }: { verdict: any, metadata:
 // ---- Componente principale ----
 
 export default function MeanReversionLab() {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
   const [mode, setMode] = useState<'file' | 'api'>('file')
   const [config, setConfig] = useState<AnalysisConfig>(DEFAULT_CONFIG)
   const [fileData, setFileData] = useState<{ base64: string, name: string } | null>(null)
