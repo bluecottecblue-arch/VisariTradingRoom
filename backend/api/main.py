@@ -17,6 +17,7 @@ from api.routers import (
     dashboard,
     export,
     guide,
+    mean_reversion,
     projects,
     research_lab,
     strategy,
@@ -77,6 +78,7 @@ app.include_router(backtest.router, prefix="/api/backtest", tags=["Backtest"], d
 app.include_router(botlab.router, prefix="/api/bot-lab", tags=["Bot Lab"], dependencies=[Depends(require_authenticated)])
 app.include_router(export.router, prefix="/api/export", tags=["Export"], dependencies=[Depends(require_authenticated)])
 app.include_router(guide.router, prefix="/api/guide", tags=["Guide"], dependencies=[Depends(require_authenticated)])
+app.include_router(mean_reversion.router, prefix="/api/mean-reversion", tags=["Mean Reversion Lab"], dependencies=[Depends(require_authenticated)])
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):

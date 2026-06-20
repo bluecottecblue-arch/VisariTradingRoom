@@ -23,6 +23,7 @@ const links = [
   { href: '/workspace?mode=botlab', label: 'Bot Lab' },
   { href: '/dashboard', label: 'Desk algoritmi' },
   { href: '/research', label: 'Data Lab' },
+  { href: '/mean-reversion', label: 'Mean Reversion Lab' },
   { href: '/team', label: 'Team' },
   { href: '/academy', label: 'Accademia' },
 ]
