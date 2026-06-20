@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useRef, useCallback } from 'react'
+import AuthToolbar from '@/components/AuthToolbar'
+import AppSidebar from '@/components/layout/AppSidebar'
 
 // ---- Tipi ----
 interface AnalysisConfig {
@@ -389,6 +391,7 @@ function VerdictCard({ verdict, metadata, splitInfo }: { verdict: any, metadata:
 // ---- Componente principale ----
 
 export default function MeanReversionLab() {
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [mode, setMode] = useState<'file' | 'api'>('file')
   const [config, setConfig] = useState<AnalysisConfig>(DEFAULT_CONFIG)
   const [fileData, setFileData] = useState<{ base64: string, name: string } | null>(null)
@@ -433,14 +436,14 @@ export default function MeanReversionLab() {
       let resp: Response
       if (mode === 'file') {
         if (!fileData) { setError('Carica prima un file.'); setLoading(false); return }
-        resp = await fetch('/api/backend/mean-reversion/analyze-file', {
+        resp = await fetch('/api/backend/api/mean-reversion/analyze-file', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ filename: fileData.name, file_base64: fileData.base64, config: buildConfig() }),
         })
       } else {
         if (!apiParams.symbol) { setError('Inserisci il simbolo.'); setLoading(false); return }
-        resp = await fetch('/api/backend/mean-reversion/analyze-api', {
+        resp = await fetch('/api/backend/api/mean-reversion/analyze-api', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -468,19 +471,32 @@ export default function MeanReversionLab() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200">
-      {/* Header */}
-      <div className="border-b border-slate-800 px-6 py-5">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-[10px] uppercase tracking-[0.28em] text-amber-300 mb-1">Visari Trading Room</div>
-          <h1 className="text-2xl font-semibold text-slate-50">Mean Reversion Lab</h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Diagnostica statistica di stazionarietà — ADF · Hurst · Variance Ratio · Monte Carlo
-          </p>
-        </div>
-      </div>
+    <div className={`min-h-screen bg-slate-950 text-slate-200 transition-[padding] duration-200 ${sidebarOpen ? 'xl:pl-80' : 'xl:pl-0'}`}>
+      <AppSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+      <header className="sticky top-0 z-50 flex items-center justify-between border-b border-slate-800 bg-slate-950/90 px-6 py-4 backdrop-blur-md">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            aria-label={sidebarOpen ? 'Chiudi navigazione' : 'Apri navigazione'}
+            onClick={() => setSidebarOpen(v => !v)}
+            className="flex h-11 w-11 items-center justify-center border border-slate-800 text-slate-300 transition-colors hover:border-slate-700 hover:text-slate-100"
+          >
+            <span className="flex flex-col gap-1.5">
+              <span className="block h-0.5 w-4 bg-current" />
+              <span className="block h-0.5 w-4 bg-current" />
+              <span className="block h-0.5 w-4 bg-current" />
+            </span>
+          </button>
+          <div>
+            <div className="text-[10px] uppercase tracking-[0.18em] text-amber-400">Mean Reversion Lab</div>
+            <div className="text-xl font-semibold text-slate-50">Diagnostica statistica di stazionarietà</div>
+          </div>
+        </div>
+        <AuthToolbar />
+      </header>
+
+      <main className="mx-auto max-w-5xl space-y-8 px-6 py-8">
 
         {/* === SEZIONE 1: DATI === */}
         <div className={card}>
@@ -758,7 +774,7 @@ export default function MeanReversionLab() {
           </div>
         )}
 
-      </div>
+      </main>
     </div>
   )
 }
