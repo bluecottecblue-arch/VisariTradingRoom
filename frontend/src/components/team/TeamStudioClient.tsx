@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import AuthToolbar from '@/components/AuthToolbar'
 import AppSidebar from '@/components/layout/AppSidebar'
 import ReferralPanel from '@/components/referral/ReferralPanel'
+import LeaderboardPanel from '@/components/leaderboard/LeaderboardPanel'
 import { Alert, EmptyState, MetricCard, ProgressBar, inputCls } from '@/components/ui'
 import { formatError, teamApi } from '@/lib/api'
 import type { ProjectSummary, TeamRecord } from '@/types'
@@ -503,6 +504,19 @@ export default function TeamStudioClient() {
               />
             )}
           </section>
+
+          {/* Leaderboard */}
+          <section className="border border-slate-800 bg-slate-950/70 p-6">
+            <div className="mb-5">
+              <div className="text-[11px] uppercase tracking-[0.18em] text-amber-400">Classifica Performance</div>
+              <div className="mt-1 text-lg font-semibold text-slate-50">Classifica trader algoritmici</div>
+              <p className="mt-1 text-sm text-slate-500">
+                Condividi i risultati del tuo bot e confrontati con la community. Partecipazione volontaria.
+              </p>
+            </div>
+            <LeaderboardPanel />
+          </section>
+
         </div>
       </main>
     </div>

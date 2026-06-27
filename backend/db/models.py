@@ -204,6 +204,21 @@ try:
         updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
+    class LeaderboardEntry(Base):
+        __tablename__ = "leaderboard_entries"
+
+        username = Column(String, primary_key=True)
+        display_name = Column(String)
+        country = Column(String, default="IT")
+        bot_name = Column(String)
+        performance_pct = Column(Float, nullable=False)
+        period = Column(String, default="ytd")   # ytd | monthly | alltime
+        is_public = Column(Boolean, default=True)
+        verified = Column(Boolean, default=False)
+        created_at = Column(DateTime(timezone=True), server_default=func.now())
+        updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
     class ResearchModelRun(Base):
         __tablename__ = "research_model_runs"
 
